@@ -27,6 +27,23 @@ begin
       v_instructor_email;
   end if;
 
+  -- Bootstrap the very first admin.
+  --
+  -- `app_private.prevent_role_escalation` rejects any role change unless
+  -- `app_private.is_admin()` is true, and that reads the caller's JWT. The SQL
+  -- editor has no JWT, so `is_admin()` is false and the promotion is refused —
+  -- which would make the first admin impossible to create.
+  --
+  -- So present an admin claim for the length of this transaction. The third
+  -- argument to set_config is `is_local`, meaning it is discarded on commit; it
+  -- grants nothing beyond this file and leaves the guard fully intact for the
+  -- application, where it is what actually stops a student self-promoting.
+  perform set_config(
+    'request.jwt.claims',
+    json_build_object('sub', v_owner, 'user_role', 'admin')::text,
+    true
+  );
+
   update public.profiles set role = 'admin' where id = v_owner;
 
   ---------------------------------------------------------------------- course
