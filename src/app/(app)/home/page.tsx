@@ -23,12 +23,17 @@ export default async function HomePage({
 }: {
   searchParams: Promise<{ join_error?: string }>
 }) {
-  const profile = await requireProfile()
+  // Students are the common case here, and they always need both. Fetching in
+  // parallel costs a manager one wasted query on the way to /admin, which is
+  // cheaper than making every student wait for two sequential round trips.
+  const [profile, courses] = await Promise.all([
+    requireProfile(),
+    getEnrolledCourses(),
+  ])
 
   if (isManager(profile)) redirect('/admin')
 
   const { join_error } = await searchParams
-  const courses = await getEnrolledCourses()
 
   // The common case: one cohort, one course. Skip the pointless list.
   if (courses.length === 1 && !join_error) {

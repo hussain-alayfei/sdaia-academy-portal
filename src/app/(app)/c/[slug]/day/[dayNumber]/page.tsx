@@ -44,13 +44,13 @@ export default async function DayPage({
 }: {
   params: Promise<{ slug: string; dayNumber: string }>
 }) {
-  await requireProfile()
   const { slug, dayNumber } = await params
 
   const parsed = Number(dayNumber)
   if (!Number.isInteger(parsed) || parsed < 1) notFound()
 
-  const course = await getCourseBySlug(slug)
+  // Independent of each other, so run them together rather than in sequence.
+  const [, course] = await Promise.all([requireProfile(), getCourseBySlug(slug)])
   if (!course) notFound()
 
   const day = await getDayByNumber(course.id, parsed)

@@ -37,10 +37,12 @@ export default async function CoursePage({
 }: {
   params: Promise<{ slug: string }>
 }) {
-  await requireProfile()
   const { slug } = await params
 
-  const course = await getCourseBySlug(slug)
+  // The gate and the course load are independent, so pay for one round trip
+  // instead of two. RLS still scopes the course read to this user.
+  const [, course] = await Promise.all([requireProfile(), getCourseBySlug(slug)])
+
   // RLS hides courses the viewer is not enrolled in or does not own, so a
   // null here means "not yours" just as much as "does not exist".
   if (!course) notFound()

@@ -19,15 +19,15 @@ import { createClient } from '@/lib/supabase/server'
 export const metadata: Metadata = { title: 'Instructor' }
 
 export default async function AdminPage() {
-  const profile = await requireManager()
-  const courses = await getManagedCourses()
-
-  // One round trip for all enrolment counts. RLS already limits these rows to
-  // courses this instructor manages.
   const supabase = await createClient()
-  const { data: enrollments } = await supabase
-    .from('enrollments')
-    .select('course_id')
+
+  // All three are independent. One round trip for all enrolment counts too —
+  // RLS already limits those rows to courses this instructor manages.
+  const [profile, courses, { data: enrollments }] = await Promise.all([
+    requireManager(),
+    getManagedCourses(),
+    supabase.from('enrollments').select('course_id'),
+  ])
 
   const counts: Record<string, number> = {}
   for (const row of enrollments ?? []) {

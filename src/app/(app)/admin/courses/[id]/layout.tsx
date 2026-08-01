@@ -13,10 +13,11 @@ export default async function CourseAdminLayout({
   children: React.ReactNode
   params: Promise<{ id: string }>
 }) {
-  await requireManager()
   const { id } = await params
 
-  const course = await getCourseById(id)
+  const [, course] = await Promise.all([requireManager(), getCourseById(id)])
+
+  // canManageCourse reuses the profile already loaded above, so it is free.
   if (!course || !(await canManageCourse(course))) notFound()
 
   return (

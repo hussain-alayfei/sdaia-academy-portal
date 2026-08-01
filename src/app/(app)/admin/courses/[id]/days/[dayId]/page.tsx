@@ -40,16 +40,20 @@ export default async function ManageDayPage({
   if (!course || !(await canManageCourse(course))) notFound()
 
   const supabase = await createClient()
-  const { data: day } = await supabase
-    .from('course_days')
-    .select('*')
-    .eq('id', dayId)
-    .eq('course_id', course.id)
-    .maybeSingle()
+
+  // The resources are keyed by the day id from the URL, so they do not need to
+  // wait for the day row to come back. Both reads stay RLS-scoped.
+  const [{ data: day }, resources] = await Promise.all([
+    supabase
+      .from('course_days')
+      .select('*')
+      .eq('id', dayId)
+      .eq('course_id', course.id)
+      .maybeSingle(),
+    getResourcesForDay(dayId),
+  ])
 
   if (!day) notFound()
-
-  const resources = await getResourcesForDay(day.id)
 
   return (
     <div className="space-y-6">

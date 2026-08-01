@@ -25,6 +25,28 @@ teaching portfolio.
 > PDFs and `_backups/` with real student names, emails and exam scores — none of
 > that should ever reach GitHub.
 
+## Region — do not change this casually
+
+`vercel.json` pins Serverless Functions to **`bom1` (Mumbai)** because the
+Supabase project lives in **`ap-south-1` (Mumbai)**.
+
+This is the single most important performance setting in the project. A page
+render makes several database round trips but only one trip back to the browser,
+so compute must sit next to the database, not next to the user. Vercel's default
+is `iad1` (Washington DC), which put every query ~12,000 km from the data and
+cost roughly 250 ms each:
+
+| Route | `iad1` (default) | `bom1` (co-located) |
+| --- | --- | --- |
+| `/c/[slug]` | 1617 ms | 196 ms |
+| `/c/[slug]/day/1` | 1328 ms | 180 ms |
+| `/home` | 1103 ms | 182 ms |
+
+Mumbai also happens to be closer to Riyadh than any US region, so users win
+twice. If you ever move the Supabase project to another region, change `bom1` to
+match it — leaving them mismatched silently makes every page roughly eight times
+slower.
+
 ## 2. Vercel — already done
 
 Project `hussain-alyafeis-projects/sdaia-academy-portal`, deployed to

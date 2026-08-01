@@ -2,11 +2,11 @@ import Image from 'next/image'
 import { redirect } from 'next/navigation'
 
 import { ButtonLink } from '@/components/ui'
-import { getUser } from '@/lib/dal'
+import { getSessionUser } from '@/lib/dal'
 
 export default async function LandingPage() {
   // Signed-in visitors have no reason to see the marketing shell.
-  if (await getUser()) redirect('/home')
+  if (await getSessionUser()) redirect('/home')
 
   return (
     <div className="flex min-h-dvh flex-col">

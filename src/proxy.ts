@@ -43,22 +43,26 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // Do not insert logic between client creation and getUser(): it refreshes
-  // the session, and skipping it causes hard-to-debug random logouts.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Do not insert logic between client creation and this call: it refreshes the
+  // session, and skipping it causes hard-to-debug random logouts.
+  //
+  // getClaims() rather than getUser(): the project signs tokens with ES256, so
+  // the signature is verified in-process against a cached JWKS instead of
+  // costing a round trip to the auth server on every single request. It still
+  // reads the session first, so expired tokens are refreshed as before.
+  const { data } = await supabase.auth.getClaims()
+  const signedIn = Boolean(data?.claims?.sub)
 
   const { pathname } = request.nextUrl
 
-  if (!user && !isPublic(pathname)) {
+  if (!signedIn && !isPublic(pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('next', pathname)
     return NextResponse.redirect(url)
   }
 
-  if (user && (pathname === '/login' || pathname === '/signup')) {
+  if (signedIn && (pathname === '/login' || pathname === '/signup')) {
     const url = request.nextUrl.clone()
     url.pathname = '/home'
     url.search = ''

@@ -17,16 +17,32 @@ import type { Course, Profile } from '@/lib/types'
  * `getProfile()` in a layout and again in a page costs one query.
  */
 
-export const getUser = cache(async () => {
+export type SessionUser = { id: string; email: string | null }
+
+/**
+ * Identity of the signed-in user, from the access token rather than the auth
+ * server.
+ *
+ * `getUser()` would cost a network round trip on every render. Tokens here are
+ * signed with ES256, so `getClaims()` verifies the signature locally against a
+ * process-cached JWKS instead — no round trip. It is only an identity check;
+ * every read still runs as this user, so RLS remains the enforcement boundary.
+ */
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user
+  const { data } = await supabase.auth.getClaims()
+
+  const claims = data?.claims
+  if (!claims?.sub) return null
+
+  return {
+    id: claims.sub,
+    email: typeof claims.email === 'string' ? claims.email : null,
+  }
 })
 
 export const getProfile = cache(async (): Promise<Profile | null> => {
-  const user = await getUser()
+  const user = await getSessionUser()
   if (!user) return null
 
   const supabase = await createClient()
@@ -77,7 +93,7 @@ export const getManagedCourses = cache(async (): Promise<Course[]> => {
 
 /** Courses this student is enrolled in. */
 export const getEnrolledCourses = cache(async (): Promise<Course[]> => {
-  const user = await getUser()
+  const user = await getSessionUser()
   if (!user) return []
 
   const supabase = await createClient()

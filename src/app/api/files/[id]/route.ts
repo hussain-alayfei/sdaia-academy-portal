@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { getSessionUser } from '@/lib/dal'
 import { createClient } from '@/lib/supabase/server'
 
 /** Types a browser renders well inline; everything else is downloaded. */
@@ -23,12 +24,11 @@ export async function GET(
     return new NextResponse('Not found', { status: 404 })
   }
 
-  const supabase = await createClient()
+  if (!(await getSessionUser())) {
+    return new NextResponse('Unauthorized', { status: 401 })
+  }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return new NextResponse('Unauthorized', { status: 401 })
+  const supabase = await createClient()
 
   const { data: resource } = await supabase
     .from('resources')
