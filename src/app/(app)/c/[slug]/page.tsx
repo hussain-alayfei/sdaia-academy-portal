@@ -13,8 +13,13 @@ import {
   PanelHeader,
   RowArrow,
 } from '@/components/ui'
-import { getCourseBySlug, requireProfile } from '@/lib/dal'
+import { getCourseBySlug, isManager, requireProfile } from '@/lib/dal'
 import { formatDate, formatDateRange, formatWeekday } from '@/lib/format'
+import {
+  getPublishedAssessments,
+  getPublishedCourseDays,
+  getPublishedResourceCounts,
+} from '@/lib/published'
 import {
   getAssessments,
   getCourseDays,
@@ -41,16 +46,25 @@ export default async function CoursePage({
 
   // The gate and the course load are independent, so pay for one round trip
   // instead of two. RLS still scopes the course read to this user.
-  const [, course] = await Promise.all([requireProfile(), getCourseBySlug(slug)])
+  const [profile, course] = await Promise.all([
+    requireProfile(),
+    getCourseBySlug(slug),
+  ])
 
   // RLS hides courses the viewer is not enrolled in or does not own, so a
   // null here means "not yours" just as much as "does not exist".
   if (!course) notFound()
 
+  // Students share one cached, published-only copy of the schedule — a whole
+  // cohort opening this page costs the database one read rather than thirty.
+  // Instructors read live, because they need to see their own drafts.
+  const live = isManager(profile)
+
   const [days, counts, assessments, scores] = await Promise.all([
-    getCourseDays(course.id),
-    getResourceCounts(course.id),
-    getAssessments(course.id),
+    live ? getCourseDays(course.id) : getPublishedCourseDays(course.id),
+    live ? getResourceCounts(course.id) : getPublishedResourceCounts(course.id),
+    live ? getAssessments(course.id) : getPublishedAssessments(course.id),
+    // Never cached: this is the one thing on the page that differs per student.
     getMyScores(course.id),
   ])
 

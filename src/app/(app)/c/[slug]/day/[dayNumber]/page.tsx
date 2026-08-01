@@ -11,8 +11,12 @@ import {
   Panel,
   PanelHeader,
 } from '@/components/ui'
-import { getCourseBySlug, requireProfile } from '@/lib/dal'
+import { getCourseBySlug, isManager, requireProfile } from '@/lib/dal'
 import { RESOURCE_LABELS, formatDate, formatWeekday } from '@/lib/format'
+import {
+  getPublishedDayByNumber,
+  getPublishedResourcesForDay,
+} from '@/lib/published'
 import { getDayByNumber, getResourcesForDay } from '@/lib/queries'
 import type { Resource, ResourceKind } from '@/lib/types'
 
@@ -50,13 +54,24 @@ export default async function DayPage({
   if (!Number.isInteger(parsed) || parsed < 1) notFound()
 
   // Independent of each other, so run them together rather than in sequence.
-  const [, course] = await Promise.all([requireProfile(), getCourseBySlug(slug)])
+  const [profile, course] = await Promise.all([
+    requireProfile(),
+    getCourseBySlug(slug),
+  ])
   if (!course) notFound()
 
-  const day = await getDayByNumber(course.id, parsed)
+  // Students read the shared cached copy; instructors read live so drafts and
+  // unpublished materials still show up while they are preparing the day.
+  const live = isManager(profile)
+
+  const day = live
+    ? await getDayByNumber(course.id, parsed)
+    : await getPublishedDayByNumber(course.id, parsed)
   if (!day) notFound()
 
-  const resources = await getResourcesForDay(day.id)
+  const resources = live
+    ? await getResourcesForDay(day.id)
+    : await getPublishedResourcesForDay(course.id, day.id)
 
   // Bucket by kind, preserving GROUP_ORDER, so slides always lead and loose
   // files trail.

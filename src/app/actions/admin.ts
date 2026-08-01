@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
+import { revalidateCourseContent } from '@/lib/published'
 import { createClient } from '@/lib/supabase/server'
 import { requireManager } from '@/lib/dal'
 
@@ -260,6 +261,7 @@ export async function createDay(
   }
 
   revalidatePath(`/admin/courses/${courseId}`)
+  revalidateCourseContent(courseId)
   return { ok: true }
 }
 
@@ -277,6 +279,7 @@ export async function toggleDayPublished(formData: FormData) {
 
   revalidatePath(`/admin/courses/${courseId}`)
   revalidatePath(`/admin/courses/${courseId}/days/${dayId}`)
+  revalidateCourseContent(courseId)
 }
 
 export async function deleteDay(formData: FormData) {
@@ -306,6 +309,7 @@ export async function deleteDay(formData: FormData) {
     .eq('course_id', courseId)
 
   revalidatePath(`/admin/courses/${courseId}`)
+  revalidateCourseContent(courseId)
   redirect(`/admin/courses/${courseId}`)
 }
 
@@ -361,6 +365,7 @@ export async function addLinkResource(
   if (error) return fail(error.message)
 
   revalidatePath(`/admin/courses/${courseId}/days/${dayId}`)
+  revalidateCourseContent(courseId)
   return { ok: true }
 }
 
@@ -417,6 +422,7 @@ export async function registerUploadedResource(input: {
   }
 
   revalidatePath(`/admin/courses/${input.courseId}/days/${input.dayId}`)
+  revalidateCourseContent(input.courseId)
   return { ok: true }
 }
 
@@ -434,6 +440,7 @@ export async function toggleResourcePublished(formData: FormData) {
     .eq('course_id', courseId)
 
   revalidatePath(`/admin/courses/${courseId}/days/${dayId}`)
+  revalidateCourseContent(courseId)
 }
 
 export async function deleteResource(formData: FormData) {
@@ -460,6 +467,7 @@ export async function deleteResource(formData: FormData) {
     .eq('course_id', courseId)
 
   revalidatePath(`/admin/courses/${courseId}/days/${dayId}`)
+  revalidateCourseContent(courseId)
 }
 
 /* ========================================================== assessments == */
@@ -524,6 +532,7 @@ export async function saveAssessment(
   if (error) return fail(error.message)
 
   revalidatePath(`/admin/courses/${courseId}/assessments`)
+  revalidateCourseContent(courseId)
   return { ok: true }
 }
 
@@ -539,6 +548,7 @@ export async function deleteAssessment(formData: FormData) {
     .eq('course_id', courseId)
 
   revalidatePath(`/admin/courses/${courseId}/assessments`)
+  revalidateCourseContent(courseId)
 }
 
 /* =============================================================== scores == */

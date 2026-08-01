@@ -47,6 +47,34 @@ twice. If you ever move the Supabase project to another region, change `bom1` to
 match it — leaving them mismatched silently makes every page roughly eight times
 slower.
 
+## Caching of course content
+
+Students share one cached copy of each course's published days, resources and
+assessments, so a whole cohort opening Day 1 at once costs the database one read
+instead of one per student. Three things make this safe:
+
+- **Only published rows, only per course.** The readers in `src/lib/published.ts`
+  filter `is_published` and scope to a single course id, so the answer is
+  identical for every student and there is no per-viewer data in it. Scores stay
+  out of the cache entirely.
+- **Instructors are never served it.** They read live, or drafts would disappear
+  from their own editing screens.
+- **Authorisation happens first.** The page still loads the course through the
+  user-scoped client, so RLS decides whether this person may see the course at
+  all before any cached content is read.
+
+Cached reads use `SUPABASE_SECRET_KEY` (already set on Vercel for all three
+environments). It bypasses RLS, which is exactly why it is confined to
+`src/lib/supabase/cache-reader.ts` and must only ever be imported by
+`published.ts`. It is deliberately not prefixed `NEXT_PUBLIC_`.
+
+Every content mutation calls `revalidateCourseContent`, so an instructor's edit
+reaches students on their next load rather than after a timeout. One caveat worth
+knowing: **editing rows directly in the SQL editor will not invalidate the
+cache**, because invalidation is wired into the app's own mutations. Content
+changed that way can take up to an hour to appear for students. Change content
+through the instructor UI.
+
 ## 2. Vercel — already done
 
 Project `hussain-alyafeis-projects/sdaia-academy-portal`, deployed to
