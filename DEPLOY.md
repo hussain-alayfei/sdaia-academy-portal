@@ -2,7 +2,8 @@
 
 **Vercel is done and live:** <https://sdaia-academy-portal.vercel.app>
 
-What is left is GitHub (step 1) and one Supabase setting (step 3).
+Supabase auth is configured (step 3). The only thing still needing you is the
+GitHub push (step 1), because `gh` requires an interactive browser login.
 
 ## 1. GitHub — needs your login
 
@@ -42,20 +43,35 @@ production is public while previews stay private to your team. Change it under
 Access to course content is enforced by Supabase auth and Postgres row-level
 security, not by hiding the URL.
 
-## 3. One Supabase setting — needs your login
+## 3. Supabase auth config — already done
 
-Auth configuration has no API, so this is dashboard-only.
+Applied through the Management API, not the dashboard:
 
-**Authentication → URL Configuration**
+| Setting | Value | Why |
+| --- | --- | --- |
+| `mailer_autoconfirm` | `true` | No confirmation email is sent, so the mailer rate limit can never be hit. Signup returns a session immediately. |
+| `site_url` | `https://sdaia-academy-portal.vercel.app` | Was `http://localhost:3000`. |
+| `uri_allow_list` | production `/**` and `localhost:3000/**` | Was empty, which blocks every redirect target. |
 
-- **Site URL** → `https://sdaia-academy-portal.vercel.app`
-- **Redirect URLs** → add `https://sdaia-academy-portal.vercel.app/**`
+The project's `rate_limit_email_sent` is **2 per hour** — that was the cause of
+the "too many sign-up emails" error. It is now moot because no signup email is
+sent at all.
 
-Without this, confirmation and password-reset links point at `localhost:3000`.
+Verified with a real signup against the live project: session returned,
+`email_confirmed_at` set, `confirmation_sent_at` null (proving no email was
+attempted), profile row created with role `student`. Test user then deleted.
 
-Also still outstanding, and also dashboard-only — **Authentication → Providers
-→ Email → switch off "Confirm email"**. Until then the built-in mailer caps
-signups at roughly 2–3 per hour, which is what causes the rate-limit error.
+If you ever re-enable **Confirm email**, that 2/hour limit comes straight back.
+Raise it by configuring custom SMTP rather than relying on the built-in mailer.
+
+To change any of this without the dashboard:
+
+```bash
+curl -X PATCH "https://api.supabase.com/v1/projects/gfoajqlifmmofswvibzs/config/auth" \
+  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"mailer_autoconfirm": true}'
+```
 
 ## Afterwards
 
