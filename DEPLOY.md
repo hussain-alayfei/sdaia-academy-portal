@@ -1,10 +1,13 @@
 # Publish to GitHub + Vercel
 
-The repo is already initialised and committed locally. Both CLIs are installed;
-each needs you to log in once through the browser — that part cannot be
-automated.
+**Vercel is done and live:** <https://sdaia-academy-portal.vercel.app>
 
-## 1. GitHub
+What is left is GitHub (step 1) and one Supabase setting (step 3).
+
+## 1. GitHub — needs your login
+
+`gh` is installed but not on the PATH of every shell. Use the full path if
+`gh` is not recognised.
 
 ```bash
 cd "C:\Users\hussa\Desktop\SDAIA Academy Website\portal"
@@ -21,50 +24,52 @@ teaching portfolio.
 > PDFs and `_backups/` with real student names, emails and exam scores — none of
 > that should ever reach GitHub.
 
-## 2. Vercel
+## 2. Vercel — already done
 
-```bash
-vercel login
-vercel link            # accept creating a new project
-```
+Project `hussain-alyafeis-projects/sdaia-academy-portal`, deployed to
+production and aliased to <https://sdaia-academy-portal.vercel.app>.
 
-Add the three environment variables (Production, Preview and Development):
+All three environment variables are set for Production, Preview and
+Development. Verified after deploy: `/` and `/login` return 200, `/admin` and
+`/home` redirect to `/login` for signed-out visitors, and there are no runtime
+errors.
 
-```bash
-vercel env add NEXT_PUBLIC_SUPABASE_URL
-# paste: https://gfoajqlifmmofswvibzs.supabase.co
+Vercel Authentication was on by default, which would have shown students a
+Vercel login wall. It is now scoped to **preview deployments only**, so
+production is public while previews stay private to your team. Change it under
+**Project → Settings → Deployment Protection**.
 
-vercel env add NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-# paste: sb_publishable_SP4lFNBaDC5SbJGfff5vmg_OBH3ur72
+Access to course content is enforced by Supabase auth and Postgres row-level
+security, not by hiding the URL.
 
-vercel env add NEXT_PUBLIC_SITE_URL
-# paste your real domain once you know it, e.g. https://sdaia-academy-portal.vercel.app
-```
+## 3. One Supabase setting — needs your login
 
-Then ship it:
+Auth configuration has no API, so this is dashboard-only.
 
-```bash
-vercel --prod
-```
+**Authentication → URL Configuration**
 
-## 3. One setting after the first deploy
+- **Site URL** → `https://sdaia-academy-portal.vercel.app`
+- **Redirect URLs** → add `https://sdaia-academy-portal.vercel.app/**`
 
-Copy the URL Vercel prints, then in Supabase:
+Without this, confirmation and password-reset links point at `localhost:3000`.
 
-**Authentication → URL Configuration → Site URL** — set it to that URL, and add
-`https://<your-domain>/**` under **Redirect URLs**.
-
-Update `NEXT_PUBLIC_SITE_URL` to match and redeploy:
-
-```bash
-vercel env rm NEXT_PUBLIC_SITE_URL production
-vercel env add NEXT_PUBLIC_SITE_URL production
-vercel --prod
-```
+Also still outstanding, and also dashboard-only — **Authentication → Providers
+→ Email → switch off "Confirm email"**. Until then the built-in mailer caps
+signups at roughly 2–3 per hour, which is what causes the rate-limit error.
 
 ## Afterwards
 
-Pushing to `main` triggers a deploy automatically.
+The first deploy went out through the CLI, which does **not** create a Git
+connection. Until you link the repo, `git push` will not deploy anything — ship
+with:
+
+```bash
+vercel --prod
+```
+
+To get automatic deploys on push, do step 1, then in Vercel open
+**Project → Settings → Git** and connect the `sdaia-academy-portal` repo. After
+that:
 
 ```bash
 git add -A
