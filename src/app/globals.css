@@ -1,0 +1,157 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   SDAIA Academy Portal — design tokens
+
+   Palette is lifted from the official SDAIA deck: deep navy canvas, teal as
+   the single interactive accent, amber reserved for "locked / needs
+   attention". Deliberately no gradients and no purple.
+
+   Shape language is document-like: 1px borders instead of drop shadows,
+   4-6px radii instead of pill shapes. This is a working tool, not a landing
+   page.
+   ========================================================================== */
+
+@theme {
+  /* Navy — headers, sidebar, primary text */
+  --color-navy-50: #f1f4f9;
+  --color-navy-100: #dde4ef;
+  --color-navy-200: #b9c7dd;
+  --color-navy-300: #8ba1c3;
+  --color-navy-400: #5b76a1;
+  --color-navy-500: #3a5480;
+  --color-navy-600: #274067;
+  --color-navy-700: #1b3054;
+  --color-navy-800: #122444;
+  --color-navy-900: #0b1c37;
+  --color-navy-950: #071228;
+
+  /* Teal — the one interactive accent */
+  --color-teal-50: #eafaf7;
+  --color-teal-100: #c9f2ea;
+  --color-teal-200: #96e5d8;
+  --color-teal-300: #5bd2c1;
+  --color-teal-400: #2bb9a7;
+  --color-teal-500: #12b5a5;
+  --color-teal-600: #0c8478;
+  --color-teal-700: #0b6a61;
+  --color-teal-800: #0c544e;
+  --color-teal-900: #0b4641;
+
+  /* Amber — locked states, warnings, unpublished badges */
+  --color-amber-50: #fdf6e9;
+  --color-amber-100: #f9e7c2;
+  --color-amber-200: #f2ce85;
+  --color-amber-300: #e8ae43;
+  --color-amber-400: #dc9418;
+  --color-amber-500: #bf7a0c;
+  --color-amber-600: #975c0a;
+  --color-amber-700: #77470c;
+
+  /* Neutrals */
+  --color-canvas: #f4f6fa;
+  --color-surface: #ffffff;
+  --color-line: #dce2ec;
+  --color-line-strong: #c3ccdb;
+  --color-ink: #12203a;
+  --color-ink-soft: #4a5872;
+  --color-ink-faint: #6c7a94;
+
+  --color-danger-50: #fdf0ef;
+  --color-danger-500: #c0392b;
+  --color-danger-600: #9c2c20;
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: var(--font-plex-arabic), var(--font-plex-sans), sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv05' 1;
+    line-height: 1.55;
+  }
+
+  /* Arabic titles sit inline in an otherwise English UI. Tagging them keeps
+     the correct face and direction without flipping the whole layout. */
+  :lang(ar),
+  [dir='rtl'] {
+    font-family: var(--font-arabic);
+    line-height: 1.9;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 600;
+    letter-spacing: -0.011em;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  /* One visible, consistent focus ring everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--color-teal-600);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--color-teal-100);
+    color: var(--color-navy-900);
+  }
+
+  /* Respect reduced-motion rather than animating regardless. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Wide content (tables, code) scrolls inside its own box so the page body
+     never scrolls sideways on mobile. */
+  .scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-navy-50) 25%,
+      var(--color-navy-100) 37%,
+      var(--color-navy-50) 63%
+    );
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0 50%;
+    }
+  }
+}
