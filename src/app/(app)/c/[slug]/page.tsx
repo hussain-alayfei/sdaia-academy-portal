@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import type { CSSProperties } from 'react'
 
 import {
   CalendarIcon,
@@ -26,6 +27,18 @@ import {
   getCourseDays,
   getResourceCounts,
 } from '@/lib/queries'
+
+// The five hues of the SDAIA mosaic mark, cycled by position so the schedule
+// grid reads as varied instead of every tile turning the same shade of teal
+// on hover. Fixed per day rather than truly random: a tile should hover to
+// the same colour every time, not reroll on each render.
+const DAY_HOVER_COLORS = [
+  { border: '#12b5a5', soft: 'rgba(18,181,165,.08)', text: '#0b6a61' }, // teal
+  { border: '#3d9e56', soft: 'rgba(61,158,86,.08)', text: '#2c7541' }, // green
+  { border: '#2f7dc4', soft: 'rgba(47,125,196,.08)', text: '#255f96' }, // blue
+  { border: '#7c56a8', soft: 'rgba(124,86,168,.08)', text: '#5f4080' }, // violet
+  { border: '#e08a1e', soft: 'rgba(224,138,30,.08)', text: '#9c6011' }, // orange
+] as const
 
 export async function generateMetadata({
   params,
@@ -121,8 +134,14 @@ export default async function CoursePage({
           />
         </Panel>
       ) : (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {days.map((day) => {
+        <ul
+          className="grid justify-start gap-3"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 168px))',
+          }}
+        >
+          {days.map((day, index) => {
+            const brand = DAY_HOVER_COLORS[index % DAY_HOVER_COLORS.length]
             const count = counts[day.id] ?? 0
             const quizzes = assessmentsPerDay.get(day.id) ?? 0
             const weekday = formatWeekday(day.scheduled_date)
@@ -138,14 +157,21 @@ export default async function CoursePage({
               <li key={day.id} className="min-w-0">
                 <Link
                   href={`/c/${course.slug}/day/${day.day_number}`}
-                  className="group relative flex aspect-square flex-col overflow-hidden rounded-md border border-line-strong bg-surface p-4 transition-colors duration-150 hover:border-teal-500 hover:bg-teal-50/40 sm:p-5"
+                  style={
+                    {
+                      '--brand': brand.border,
+                      '--brand-soft': brand.soft,
+                      '--brand-text': brand.text,
+                    } as CSSProperties
+                  }
+                  className="group relative flex aspect-square flex-col overflow-hidden rounded-md border border-line-strong bg-surface p-3 transition-colors duration-200 hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="grid size-12 place-items-center rounded-md border border-line bg-navy-50 text-center transition-colors group-hover:border-teal-300 group-hover:bg-teal-50 sm:size-[52px]">
-                      <span className="text-[9px] leading-none font-semibold tracking-widest text-ink-faint uppercase">
+                  <div className="flex items-start justify-between gap-1.5">
+                    <span className="grid size-10 place-items-center rounded-md border border-line bg-navy-50 text-center transition-colors duration-200 group-hover:border-[var(--brand)] group-hover:bg-[var(--brand-soft)]">
+                      <span className="text-[8px] leading-none font-semibold tracking-widest text-ink-faint uppercase">
                         Day
                       </span>
-                      <span className="text-[22px] leading-none font-semibold text-navy-800 group-hover:text-teal-800 sm:text-[24px]">
+                      <span className="text-[18px] leading-none font-semibold text-navy-800 transition-colors duration-200 group-hover:text-[var(--brand-text)]">
                         {day.day_number}
                       </span>
                     </span>
@@ -154,48 +180,41 @@ export default async function CoursePage({
                     ) : null}
                   </div>
 
-                  <p className="mt-3 line-clamp-2 text-[15px] leading-snug font-semibold text-navy-900 group-hover:text-teal-800 sm:mt-4 sm:text-[16px]">
+                  <p className="mt-2.5 line-clamp-2 text-[13px] leading-snug font-semibold text-navy-900 transition-colors duration-200 group-hover:text-[var(--brand-text)]">
                     {day.title}
                   </p>
 
                   {day.title_ar ? (
-                    <p className="mt-1 line-clamp-1 text-[12px] text-ink-soft sm:text-[13px]">
+                    <p className="mt-1 line-clamp-1 text-[11px] text-ink-soft">
                       <Arabic>{day.title_ar}</Arabic>
                     </p>
                   ) : null}
 
-                  <div className="mt-auto space-y-2.5 pt-3">
+                  <div className="mt-auto space-y-1.5 pt-2">
                     {meta ? (
-                      <p className="truncate text-[11px] text-ink-faint sm:text-[12px]">
+                      <p className="truncate text-[10px] text-ink-faint">
                         {meta}
                       </p>
                     ) : null}
 
-                    {/* One footer row so the assessment chip and Open never stack on top of each other. */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {quizzes > 0 ? (
-                        <span className="inline-flex min-w-0 items-center gap-1 truncate rounded-xs border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-medium text-teal-800 sm:text-[11px]">
+                        <span className="inline-flex min-w-0 items-center gap-1 truncate rounded-xs border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-medium text-teal-800">
                           <ClipboardIcon
-                            width={11}
-                            height={11}
+                            width={10}
+                            height={10}
                             className="shrink-0"
                           />
                           <span className="truncate">
-                            {quizzes === 1
-                              ? '1 assessment'
-                              : `${quizzes} assessments`}
+                            {quizzes === 1 ? '1 quiz' : `${quizzes} quizzes`}
                           </span>
                         </span>
                       ) : (
                         <span />
                       )}
-                      <span className="ms-auto inline-flex shrink-0 items-center gap-0.5 text-[12px] font-medium text-teal-700">
+                      <span className="ms-auto inline-flex shrink-0 items-center gap-0.5 text-[11px] font-medium text-teal-700 transition-colors duration-200 group-hover:text-[var(--brand-text)]">
                         Open
-                        <ChevronRightIcon
-                          width={14}
-                          height={14}
-                          className="transition-transform duration-200 group-hover:translate-x-0.5"
-                        />
+                        <ChevronRightIcon width={12} height={12} />
                       </span>
                     </div>
                   </div>
