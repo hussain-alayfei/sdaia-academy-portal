@@ -161,6 +161,16 @@
      and a few pixels is the difference between "smooth" and "slow". The
      reduced-motion block above neutralises all of it. */
 
+  /* Whole-page arrival. A plain opacity fade, deliberately: sliding the page
+     up on every navigation reads as restless once you are clicking through
+     days one after another, and any transform risks a half-pixel text shift
+     mid-animation. Eased out so it settles rather than stopping dead. */
+  .animate-page {
+    animation: fade 260ms cubic-bezier(0.33, 1, 0.68, 1) both;
+  }
+
+  /* Small in-place panels (a question opening, a review card) can still afford
+     a few pixels of travel, because nothing around them is moving. */
   .animate-rise {
     animation: rise 200ms ease-out both;
   }

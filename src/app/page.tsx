@@ -24,7 +24,7 @@ export default async function LandingPage() {
       </header>
 
       <main className="mx-auto flex w-full max-w-5xl flex-1 items-center px-5 py-16 sm:px-6 sm:py-20">
-        <div className="animate-rise max-w-3xl">
+        <div className="animate-page max-w-3xl">
           <p className="mb-4 text-[12px] font-medium tracking-[0.12em] text-teal-700 uppercase">
             SDAIA Academy
           </p>

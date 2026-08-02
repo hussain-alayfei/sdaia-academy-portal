@@ -121,25 +121,31 @@ export default async function CoursePage({
           />
         </Panel>
       ) : (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:gap-3">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {days.map((day) => {
             const count = counts[day.id] ?? 0
             const quizzes = assessmentsPerDay.get(day.id) ?? 0
             const weekday = formatWeekday(day.scheduled_date)
             const date = formatDate(day.scheduled_date)
+            const meta = [
+              date ? (weekday ? `${weekday}, ${date}` : date) : null,
+              count === 1 ? '1 item' : `${count} items`,
+            ]
+              .filter(Boolean)
+              .join(' · ')
 
             return (
               <li key={day.id} className="min-w-0">
                 <Link
                   href={`/c/${course.slug}/day/${day.day_number}`}
-                  className="group flex h-full min-h-[220px] flex-col rounded-md border border-line-strong bg-surface p-4 transition-colors hover:border-teal-400 hover:bg-navy-50/60 sm:min-h-[260px] sm:p-5"
+                  className="group relative flex aspect-square flex-col overflow-hidden rounded-md border border-line-strong bg-surface p-4 transition-colors duration-150 hover:border-teal-500 hover:bg-teal-50/40 sm:p-5"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <span className="grid size-14 place-items-center rounded-md border border-line bg-navy-50 text-center transition-colors group-hover:border-teal-300 group-hover:bg-teal-50">
+                    <span className="grid size-12 place-items-center rounded-md border border-line bg-navy-50 text-center transition-colors group-hover:border-teal-300 group-hover:bg-teal-50 sm:size-[52px]">
                       <span className="text-[9px] leading-none font-semibold tracking-widest text-ink-faint uppercase">
                         Day
                       </span>
-                      <span className="text-[24px] leading-none font-semibold text-navy-800 group-hover:text-teal-800">
+                      <span className="text-[22px] leading-none font-semibold text-navy-800 group-hover:text-teal-800 sm:text-[24px]">
                         {day.day_number}
                       </span>
                     </span>
@@ -148,41 +154,50 @@ export default async function CoursePage({
                     ) : null}
                   </div>
 
-                  <p className="mt-4 line-clamp-3 text-[15px] leading-snug font-semibold text-navy-900 group-hover:text-teal-800 sm:text-[16px]">
+                  <p className="mt-3 line-clamp-2 text-[15px] leading-snug font-semibold text-navy-900 group-hover:text-teal-800 sm:mt-4 sm:text-[16px]">
                     {day.title}
                   </p>
 
                   {day.title_ar ? (
-                    <p className="mt-1.5 line-clamp-2 text-[13px] text-ink-soft">
+                    <p className="mt-1 line-clamp-1 text-[12px] text-ink-soft sm:text-[13px]">
                       <Arabic>{day.title_ar}</Arabic>
                     </p>
                   ) : null}
 
-                  <div className="mt-auto space-y-2.5 pt-5">
-                    {date ? (
-                      <p className="text-[12px] text-ink-faint">
-                        {weekday ? `${weekday}, ${date}` : date}
+                  <div className="mt-auto space-y-2.5 pt-3">
+                    {meta ? (
+                      <p className="truncate text-[11px] text-ink-faint sm:text-[12px]">
+                        {meta}
                       </p>
                     ) : null}
-                    <p className="text-[12px] text-ink-faint">
-                      {count === 1 ? '1 item' : `${count} items`}
-                    </p>
-                    {quizzes > 0 ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-xs border border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-800">
-                        <ClipboardIcon width={12} height={12} />
-                        {quizzes === 1
-                          ? '1 assessment'
-                          : `${quizzes} assessments`}
+
+                    {/* One footer row so the assessment chip and Open never stack on top of each other. */}
+                    <div className="flex items-center gap-2">
+                      {quizzes > 0 ? (
+                        <span className="inline-flex min-w-0 items-center gap-1 truncate rounded-xs border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-medium text-teal-800 sm:text-[11px]">
+                          <ClipboardIcon
+                            width={11}
+                            height={11}
+                            className="shrink-0"
+                          />
+                          <span className="truncate">
+                            {quizzes === 1
+                              ? '1 assessment'
+                              : `${quizzes} assessments`}
+                          </span>
+                        </span>
+                      ) : (
+                        <span />
+                      )}
+                      <span className="ms-auto inline-flex shrink-0 items-center gap-0.5 text-[12px] font-medium text-teal-700">
+                        Open
+                        <ChevronRightIcon
+                          width={14}
+                          height={14}
+                          className="transition-transform duration-200 group-hover:translate-x-0.5"
+                        />
                       </span>
-                    ) : null}
-                    <span className="inline-flex items-center gap-1 text-[12px] font-medium text-teal-700">
-                      Open
-                      <ChevronRightIcon
-                        width={14}
-                        height={14}
-                        className="transition-transform group-hover:translate-x-0.5"
-                      />
-                    </span>
+                    </div>
                   </div>
                 </Link>
               </li>

@@ -25,7 +25,7 @@ export default function AuthLayout({
         <div className="hidden lg:block">
           <h2 className="max-w-sm text-2xl font-semibold text-white">
             Advance your practice with{' '}
-            <span className="text-teal-300">purpose</span>.
+            <span className="animate-brand">purpose</span>.
           </h2>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-navy-200">
             Lectures, laboratories and assessments, structured for each day of

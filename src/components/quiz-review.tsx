@@ -32,7 +32,7 @@ export function QuizReview({
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-      <div className="animate-rise">
+      <div className="animate-page">
         <p className="text-[12px] font-semibold tracking-wide text-ink-faint uppercase">
           {title}
         </p>

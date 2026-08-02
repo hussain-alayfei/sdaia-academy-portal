@@ -127,7 +127,7 @@ export default async function QuizPage({
 
   return (
     <Shell>
-      <div className="animate-rise">
+      <div className="animate-page">
         <p className="text-[12px] font-semibold tracking-wide text-teal-700 uppercase">
           {ASSESSMENT_LABELS[assessment.kind]}
           {dayNumber ? ` · Day ${dayNumber}` : ''}

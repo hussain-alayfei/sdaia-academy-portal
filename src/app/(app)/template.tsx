@@ -9,5 +9,5 @@ export default function AppTemplate({
 }: {
   children: React.ReactNode
 }) {
-  return <div className="animate-rise">{children}</div>
+  return <div className="animate-page">{children}</div>
 }
