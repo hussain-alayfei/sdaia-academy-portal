@@ -29,10 +29,11 @@ export default async function LandingPage() {
             SDAIA Academy
           </p>
           <h1 className="text-[32px] leading-tight font-semibold text-navy-900 sm:text-[40px]">
-            Your training materials, day by day.
+            Advance your practice with purpose.
           </h1>
-          <p className="mt-4 text-[15px] text-ink-soft">
-            Slides, labs and assessments for your course.
+          <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
+            Lectures, laboratories and assessments — structured for each day of
+            the programme.
           </p>
 
           <div className="mt-8">

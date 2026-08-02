@@ -24,11 +24,11 @@ export default function AuthLayout({
 
         <div className="hidden lg:block">
           <h2 className="max-w-sm text-2xl font-semibold text-white">
-            Everything for your training week, in one place.
+            Advance your practice with purpose.
           </h2>
-          <p className="mt-3 max-w-sm text-sm text-navy-200">
-            Slides, lab notebooks, datasets and assessments — organised day by
-            day, published by your instructor.
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-navy-200">
+            Lectures, laboratories and assessments — structured for each day of
+            the programme.
           </p>
         </div>
 

@@ -3,14 +3,22 @@
 import { useActionState, useEffect, useRef } from 'react'
 
 import { createDay, type FormState } from '@/app/actions/admin'
-import { Alert, Button, Field, Input, Textarea } from '@/components/ui'
+import {
+  Alert,
+  Button,
+  Field,
+  Input,
+  Select,
+  Textarea,
+} from '@/components/ui'
+import { MAX_COURSE_DAYS } from '@/lib/course'
 
 export function AddDayForm({
   courseId,
-  nextDayNumber,
+  takenDays,
 }: {
   courseId: string
-  nextDayNumber: number
+  takenDays: number[]
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(
     createDay,
@@ -26,6 +34,22 @@ export function AddDayForm({
     if (state?.ok) formRef.current?.reset()
   }, [state])
 
+  // A free 1-60 number box invited day 7 of a five-day course, and typing a day
+  // that already existed only failed after a round trip. Offer what is left.
+  const available = Array.from(
+    { length: MAX_COURSE_DAYS },
+    (_, i) => i + 1
+  ).filter((n) => !takenDays.includes(n))
+
+  if (available.length === 0) {
+    return (
+      <Alert tone="teal">
+        All {MAX_COURSE_DAYS} days exist. Open a day above to edit it, or delete
+        one to free up its number.
+      </Alert>
+    )
+  }
+
   return (
     <form ref={formRef} action={action} className="space-y-4" noValidate>
       <input type="hidden" name="course_id" value={courseId} />
@@ -38,15 +62,18 @@ export function AddDayForm({
           htmlFor="day_number"
           error={state?.errors?.day_number}
         >
-          <Input
+          <Select
             id="day_number"
             name="day_number"
-            type="number"
-            min={1}
-            max={60}
             required
-            defaultValue={val('day_number', String(nextDayNumber))}
-          />
+            defaultValue={val('day_number', String(available[0]))}
+          >
+            {available.map((n) => (
+              <option key={n} value={n}>
+                Day {n}
+              </option>
+            ))}
+          </Select>
         </Field>
 
         <Field label="Title" htmlFor="title" error={state?.errors?.title}>

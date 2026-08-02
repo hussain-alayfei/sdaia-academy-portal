@@ -72,7 +72,7 @@ export default async function HomePage({
             <li key={course.id}>
               <Link
                 href={`/c/${course.slug}`}
-                className="group flex items-center gap-4 px-4 py-4 hover:bg-navy-50 sm:px-5"
+                className="group flex items-center gap-4 px-4 py-4 transition-colors hover:bg-navy-50 sm:px-5"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-navy-900">

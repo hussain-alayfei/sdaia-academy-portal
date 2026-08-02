@@ -210,10 +210,12 @@ export function Select({ className, ...props }: ComponentProps<'select'>) {
 export function Alert({
   tone = 'danger',
   title,
+  className,
   children,
 }: {
   tone?: 'danger' | 'amber' | 'teal'
   title?: string
+  className?: string
   children: ReactNode
 }) {
   const styles = {
@@ -225,7 +227,11 @@ export function Alert({
   return (
     <div
       role={tone === 'danger' ? 'alert' : 'status'}
-      className={cx('flex gap-2.5 rounded-sm border px-3 py-2.5 text-[13px]', styles)}
+      className={cx(
+        'flex gap-2.5 rounded-sm border px-3 py-2.5 text-[13px]',
+        styles,
+        className
+      )}
     >
       <AlertIcon className="mt-px shrink-0" width={16} height={16} />
       <div className="min-w-0">
@@ -330,7 +336,7 @@ export function BackLink({
       className={cx(
         'inline-flex items-center gap-2 rounded-sm border border-line-strong',
         'bg-surface px-3 py-1.5 text-[13px] font-medium text-navy-800',
-        'hover:border-teal-600 hover:text-teal-800'
+        'transition-colors hover:border-teal-600 hover:text-teal-800'
       )}
     >
       <ArrowLeftIcon width={16} height={16} />

@@ -154,4 +154,86 @@
       background-position: 0 50%;
     }
   }
+
+  /* ------------------------------------------------------------- motion --
+     Short, small and one direction only. The point is to make a page arriving
+     or a question changing feel continuous rather than to draw attention: 180ms
+     and a few pixels is the difference between "smooth" and "slow". The
+     reduced-motion block above neutralises all of it. */
+
+  .animate-rise {
+    animation: rise 200ms ease-out both;
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .animate-fade {
+    animation: fade 160ms ease-out both;
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Advancing through a quiz. Direction is set per render so moving back reads
+     as moving back. */
+  .animate-slide-next {
+    animation: slide-next 180ms ease-out both;
+  }
+
+  @keyframes slide-next {
+    from {
+      opacity: 0;
+      transform: translateX(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .animate-slide-prev {
+    animation: slide-prev 180ms ease-out both;
+  }
+
+  @keyframes slide-prev {
+    from {
+      opacity: 0;
+      transform: translateX(-14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Warning dialogs: a quick scale-in so the interruption registers. */
+  .animate-pop {
+    animation: pop 180ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 }

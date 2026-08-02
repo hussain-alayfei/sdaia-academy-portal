@@ -1,0 +1,31 @@
+---
+description: Core SDAIA Academy Portal context — stack, invariants, docs map. Always apply in this repo.
+alwaysApply: true
+---
+
+# SDAIA Academy Portal
+
+Training portal: Next.js 16 + Supabase + Vercel (`bom1`). Repo root is `portal/`
+only — never touch or commit parent `_backups/` (PII).
+
+## Before coding
+
+Read `docs/CONTEXT.md`. For assessments also `docs/ASSESSMENTS.md` and
+`docs/DATA-MODEL.md`. Architecture: `docs/ARCHITECTURE.md`. Deploy: `DEPLOY.md`.
+
+## Do not break
+
+- RLS + `course_id` on content tables; helpers in `app_private.*`
+- Answer keys in `assessment_answer_keys` only — never on options
+- Quiz trust in RPCs: `start_attempt`, `save_response`, `submit_attempt`, `record_integrity_event`
+- Call `revalidateCourseContent(courseId)` after content mutations
+- Keep `SUPABASE_SECRET_KEY` server-only (cache reader)
+- Keep `vercel.json` regions `["bom1"]` unless Supabase moves
+- Courses are 5 days; scores are quiz-only (no manual entry)
+
+## Conventions
+
+- Server Actions thin; atomic logic in Postgres
+- Students: `published.ts` cache. Instructors: live `queries.ts` / `quiz.ts`
+- Design: navy + teal accent, IBM Plex, no emoji / pill chrome / heavy shadows
+- `'use server'` files export async functions only (no plain `export const`)

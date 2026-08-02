@@ -74,7 +74,10 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Everything except static assets and image files.
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    // Everything except static assets and image files. `.md` is here for the
+    // authoring prompt in `public/`: it is a blank template with no course
+    // content in it, and running the auth proxy over a static file only meant
+    // the download broke whenever the session cookie was mid-refresh.
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|md)$).*)',
   ],
 }

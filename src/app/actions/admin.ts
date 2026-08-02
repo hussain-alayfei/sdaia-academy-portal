@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
+import { MAX_COURSE_DAYS } from '@/lib/course'
 import { revalidateCourseContent } from '@/lib/published'
 import { createClient } from '@/lib/supabase/server'
 import { requireManager } from '@/lib/dal'
@@ -207,7 +208,11 @@ export async function toggleCoursePublished(formData: FormData) {
 /* ================================================================= days == */
 
 const DaySchema = z.object({
-  day_number: z.coerce.number().int().min(1).max(60),
+  day_number: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_COURSE_DAYS, `Courses run for ${MAX_COURSE_DAYS} days.`),
   title: z.string().trim().min(2, 'Give the day a title.'),
   title_ar: z.string().trim().optional(),
   summary: z.string().trim().optional(),
@@ -476,14 +481,22 @@ const AssessmentSchema = z.object({
   kind: z.enum(['pre', 'post', 'quiz']),
   title: z.string().trim().min(2, 'Give the assessment a title.'),
   description: z.string().trim().optional(),
-  external_url: z
-    .string()
-    .trim()
-    .url('Enter a full URL, including https://')
-    .optional()
-    .or(z.literal('')),
-  max_score: z.coerce.number().min(1).max(1000),
+  day_id: z.string().trim().min(1, 'Choose which day this belongs to.'),
+  duration_minutes: z.coerce
+    .number()
+    .int()
+    .min(1, 'Give students at least a minute.')
+    .max(300, 'Three hours is the ceiling.'),
 })
+
+/**
+ * `position` orders assessments within a day rather than across the course, so
+ * day 1 shows the pre-assessment above the quiz and day 5 shows the quiz above
+ * the post-assessment. It is derived from the kind and never typed in.
+ */
+function positionForKind(kind: 'pre' | 'post' | 'quiz') {
+  return kind === 'pre' ? 0 : kind === 'quiz' ? 1 : 2
+}
 
 export async function saveAssessment(
   _prev: FormState,
@@ -497,8 +510,8 @@ export async function saveAssessment(
     kind: formData.get('kind'),
     title: formData.get('title'),
     description: formData.get('description'),
-    external_url: formData.get('external_url'),
-    max_score: formData.get('max_score'),
+    day_id: formData.get('day_id'),
+    duration_minutes: formData.get('duration_minutes'),
   })
 
   if (!parsed.success) {
@@ -506,19 +519,29 @@ export async function saveAssessment(
   }
 
   const v = parsed.data
-  const url = v.external_url || null
-  // No link yet means there is nothing to open, so keep it locked.
-  const isLocked = formData.get('is_locked') === 'on' || !url
+
+  // The day has to belong to this course. Without this check a manager of one
+  // course could park an assessment on another course's day.
+  const { data: day } = await supabase
+    .from('course_days')
+    .select('id')
+    .eq('id', v.day_id)
+    .eq('course_id', courseId)
+    .maybeSingle()
+
+  if (!day) return { errors: { day_id: ['That day is not part of this course.'] } }
 
   const payload = {
     course_id: courseId,
+    day_id: v.day_id,
     kind: v.kind,
     title: v.title,
     description: v.description || null,
-    external_url: url,
-    max_score: v.max_score,
-    is_locked: isLocked,
-    position: v.kind === 'pre' ? 0 : v.kind === 'post' ? 1 : 2,
+    duration_minutes: v.duration_minutes,
+    shuffle: formData.get('shuffle') === 'on',
+    is_published: formData.get('is_published') === 'on',
+    is_locked: formData.get('is_locked') === 'on',
+    position: positionForKind(v.kind),
   }
 
   const { error } = assessmentId
@@ -536,6 +559,59 @@ export async function saveAssessment(
   return { ok: true }
 }
 
+/**
+ * Publish makes the card appear on the day page. Unlock lets students begin.
+ *
+ * Publishing an assessment with no questions would show students a card they
+ * cannot open, so that is refused here rather than discovered by the class.
+ */
+export async function toggleAssessmentPublished(formData: FormData) {
+  const courseId = String(formData.get('course_id') ?? '')
+  const assessmentId = String(formData.get('assessment_id') ?? '')
+  const next = formData.get('next') === 'true'
+  const { supabase } = await assertCanManage(courseId)
+
+  if (next) {
+    const { count } = await supabase
+      .from('assessment_questions')
+      .select('id', { count: 'exact', head: true })
+      .eq('assessment_id', assessmentId)
+
+    if (!count) {
+      redirect(
+        `/admin/courses/${courseId}/assessments/${assessmentId}?error=empty`
+      )
+    }
+  }
+
+  await supabase
+    .from('assessments')
+    .update({ is_published: next })
+    .eq('id', assessmentId)
+    .eq('course_id', courseId)
+
+  revalidatePath(`/admin/courses/${courseId}/assessments`)
+  revalidatePath(`/admin/courses/${courseId}/assessments/${assessmentId}`)
+  revalidateCourseContent(courseId)
+}
+
+export async function toggleAssessmentLocked(formData: FormData) {
+  const courseId = String(formData.get('course_id') ?? '')
+  const assessmentId = String(formData.get('assessment_id') ?? '')
+  const next = formData.get('next') === 'true'
+  const { supabase } = await assertCanManage(courseId)
+
+  await supabase
+    .from('assessments')
+    .update({ is_locked: next })
+    .eq('id', assessmentId)
+    .eq('course_id', courseId)
+
+  revalidatePath(`/admin/courses/${courseId}/assessments`)
+  revalidatePath(`/admin/courses/${courseId}/assessments/${assessmentId}`)
+  revalidateCourseContent(courseId)
+}
+
 export async function deleteAssessment(formData: FormData) {
   const courseId = String(formData.get('course_id') ?? '')
   const assessmentId = String(formData.get('assessment_id') ?? '')
@@ -549,68 +625,14 @@ export async function deleteAssessment(formData: FormData) {
 
   revalidatePath(`/admin/courses/${courseId}/assessments`)
   revalidateCourseContent(courseId)
+  // Called from the assessment's own page, which no longer exists.
+  redirect(`/admin/courses/${courseId}/assessments`)
 }
 
-/* =============================================================== scores == */
+/* =============================================================== roster == */
 
-export async function saveScore(
-  _prev: FormState,
-  formData: FormData
-): Promise<FormState> {
-  const courseId = String(formData.get('course_id') ?? '')
-  const assessmentId = String(formData.get('assessment_id') ?? '')
-  const studentId = String(formData.get('student_id') ?? '')
-  const { profile, supabase } = await assertCanManage(courseId)
-
-  const raw = String(formData.get('score') ?? '').trim()
-
-  // Empty clears any previously recorded score.
-  if (raw === '') {
-    await supabase
-      .from('assessment_scores')
-      .delete()
-      .eq('assessment_id', assessmentId)
-      .eq('student_id', studentId)
-
-    revalidatePath(`/admin/courses/${courseId}/students`)
-    return { ok: true }
-  }
-
-  const score = Number(raw)
-  if (!Number.isFinite(score) || score < 0) {
-    return fail('Score must be a number of 0 or more.')
-  }
-
-  const { data: assessment } = await supabase
-    .from('assessments')
-    .select('max_score')
-    .eq('id', assessmentId)
-    .eq('course_id', courseId)
-    .maybeSingle()
-
-  const maxScore = assessment?.max_score ?? 100
-  if (score > maxScore) {
-    return fail(`Score cannot exceed the maximum of ${maxScore}.`)
-  }
-
-  const { error } = await supabase.from('assessment_scores').upsert(
-    {
-      assessment_id: assessmentId,
-      student_id: studentId,
-      course_id: courseId,
-      score,
-      max_score: maxScore,
-      recorded_by: profile.id,
-      recorded_at: new Date().toISOString(),
-    },
-    { onConflict: 'assessment_id,student_id' }
-  )
-
-  if (error) return fail(error.message)
-
-  revalidatePath(`/admin/courses/${courseId}/students`)
-  return { ok: true }
-}
+// Scores are no longer entered by hand. `submit_attempt` writes them when a
+// student finishes a quiz, which is the only way a score can now appear.
 
 export async function removeStudent(formData: FormData) {
   const courseId = String(formData.get('course_id') ?? '')

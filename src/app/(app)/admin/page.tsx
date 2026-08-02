@@ -107,7 +107,7 @@ function CourseTable({
             <li key={course.id}>
               <Link
                 href={`/admin/courses/${course.id}`}
-                className="group flex items-center gap-4 px-4 py-4 hover:bg-navy-50 sm:px-5"
+                className="group flex items-center gap-4 px-4 py-4 transition-colors hover:bg-navy-50 sm:px-5"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">

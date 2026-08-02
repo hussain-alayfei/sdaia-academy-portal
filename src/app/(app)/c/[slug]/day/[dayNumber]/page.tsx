@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
+import { AssessmentCards } from '@/components/assessment-cards'
 import { CalendarIcon } from '@/components/icons'
 import { ResourceList } from '@/components/resource-list'
 import {
@@ -14,10 +15,17 @@ import {
 import { getCourseBySlug, isManager, requireProfile } from '@/lib/dal'
 import { RESOURCE_LABELS, formatDate, formatWeekday } from '@/lib/format'
 import {
+  getPublishedAssessments,
   getPublishedDayByNumber,
+  getPublishedQuestionCounts,
   getPublishedResourcesForDay,
 } from '@/lib/published'
-import { getDayByNumber, getResourcesForDay } from '@/lib/queries'
+import {
+  getAssessments,
+  getDayByNumber,
+  getResourcesForDay,
+} from '@/lib/queries'
+import { getMyAttempts, getQuestionCounts } from '@/lib/quiz'
 import type { Resource, ResourceKind } from '@/lib/types'
 
 /* Group order controls how sections stack on the page. */
@@ -69,9 +77,19 @@ export default async function DayPage({
     : await getPublishedDayByNumber(course.id, parsed)
   if (!day) notFound()
 
-  const resources = live
-    ? await getResourcesForDay(day.id)
-    : await getPublishedResourcesForDay(course.id, day.id)
+  const [resources, assessments, questionCounts, attempts] = await Promise.all([
+    live
+      ? getResourcesForDay(day.id)
+      : getPublishedResourcesForDay(course.id, day.id),
+    live ? getAssessments(course.id) : getPublishedAssessments(course.id),
+    live ? getQuestionCounts(course.id) : getPublishedQuestionCounts(course.id),
+    // Never cached: this is the one thing on the page that differs per student.
+    getMyAttempts(course.id),
+  ])
+
+  const dayAssessments = assessments
+    .filter((assessment) => assessment.day_id === day.id)
+    .sort((a, b) => a.position - b.position)
 
   // Bucket by kind, preserving GROUP_ORDER, so slides always lead and loose
   // files trail.
@@ -84,7 +102,7 @@ export default async function DayPage({
   const date = formatDate(day.scheduled_date)
 
   return (
-    <>
+    <div>
       <div className="mb-5">
         <BackLink href={`/c/${course.slug}`}>{course.title}</BackLink>
       </div>
@@ -110,6 +128,17 @@ export default async function DayPage({
         </div>
       )}
 
+      {/* Assessments lead the day. They are the thing with a deadline on it. */}
+      {dayAssessments.length > 0 ? (
+        <div className="mb-6">
+          <AssessmentCards
+            assessments={dayAssessments}
+            attempts={attempts}
+            questionCounts={questionCounts}
+          />
+        </div>
+      ) : null}
+
       {groups.length === 0 ? (
         <Panel>
           <PanelHeader title="Materials" />
@@ -132,6 +161,6 @@ export default async function DayPage({
           ))}
         </div>
       )}
-    </>
+    </div>
   )
 }

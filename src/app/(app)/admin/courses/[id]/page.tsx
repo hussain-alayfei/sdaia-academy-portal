@@ -31,8 +31,7 @@ export default async function CourseSchedulePage({
     getResourceCounts(course.id),
   ])
 
-  const nextDayNumber =
-    days.length === 0 ? 1 : Math.max(...days.map((d) => d.day_number)) + 1
+  const takenDays = days.map((d) => d.day_number)
 
   return (
     <div className="space-y-6">
@@ -123,7 +122,7 @@ export default async function CourseSchedulePage({
           <PlusIcon width={16} height={16} className="text-teal-700" />
           <h2 className="text-[15px] font-semibold text-navy-900">Add a day</h2>
         </div>
-        <AddDayForm courseId={course.id} nextDayNumber={nextDayNumber} />
+        <AddDayForm courseId={course.id} takenDays={takenDays} />
       </Panel>
     </div>
   )

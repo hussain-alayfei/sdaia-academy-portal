@@ -35,11 +35,11 @@ export const metadata: Metadata = {
     template: '%s · SDAIA Academy Portal',
   },
   description:
-    'Course portal for SDAIA Academy training programmes. Slides, labs, notebooks and assessments, organised day by day.',
+    'SDAIA Academy training portal. Advance your practice with purpose — lectures, laboratories and assessments, structured day by day.',
   openGraph: {
     title: 'SDAIA Academy Portal',
     description:
-      'Course portal for SDAIA Academy training programmes. Slides, labs, notebooks and assessments, organised day by day.',
+      'SDAIA Academy training portal. Advance your practice with purpose — lectures, laboratories and assessments, structured day by day.',
     siteName: 'SDAIA Academy Portal',
     type: 'website',
   },

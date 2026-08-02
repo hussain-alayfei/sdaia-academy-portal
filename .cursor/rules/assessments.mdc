@@ -1,0 +1,29 @@
+---
+description: Assessment engine patterns — quizzes, import, RLS, RPCs, integrity.
+globs: "**/assessment*/**,**/quiz*/**,**/questions.ts,**/quiz.ts,**/assessment-schema.ts,**/integrity-guard.tsx,supabase/migrations/**"
+alwaysApply: false
+---
+
+# Assessment engine
+
+One attempt per student. Auto-grade only. Third integrity strike →
+`integrity_stopped`. Full review after submit. Cards live on the day page.
+
+## Authoring
+
+- Prompt: `public/assessment-authoring-prompt.md`
+- Validate: `src/lib/assessment-schema.ts` (`sdaia-assessment/v1`) — most
+  authoring rules are hard errors; word-cue style checks stay warnings
+- Import also confirms file day + duration against the selected assessment
+- Import/edit RPCs refuse if attempts exist → Reset attempts first
+
+## Runtime
+
+- Student route: `/quiz/[assessmentId]` under `(quiz)` layout
+- Actions: `src/app/actions/quiz.ts` → RPCs
+- Never return answer keys mid-attempt; options have no correctness column
+
+## After schema/RPC changes
+
+Re-run the security checklist in `docs/ASSESSMENTS.md`, regenerate
+`src/lib/types.ts`, and call `revalidateCourseContent` from question mutations.

@@ -108,26 +108,39 @@ begin
    where course_id = v_course and day_number = 5;
 
   ----------------------------------------------------------------- assessments
-  -- Deliberately locked with no link. Add the quiz URL on the Assessments tab
-  -- and untick "Keep locked" when the class is ready to sit it.
+  -- Seven in total: the pre-assessment on day 1, a quiz on each of the five
+  -- days, and the post-assessment on day 5. Each one is attached to a day, which
+  -- is what puts it on that day's page rather than on the course overview.
+  --
+  -- They arrive empty, unpublished and locked. The order of operations is:
+  -- import the questions on the Assessments tab, publish so the card appears,
+  -- then unlock when the class should begin. `position` orders them within a
+  -- day, so on day 1 the pre-assessment sits above the quiz.
   if not exists (select 1 from public.assessments where course_id = v_course) then
     insert into public.assessments
-      (course_id, day_id, kind, title, description, max_score, is_locked, position)
+      (course_id, day_id, kind, title, description,
+       duration_minutes, position, is_published, is_locked)
+    select
+      v_course, d.id, 'quiz',
+      'Day ' || d.day_number || ' quiz',
+      'Ten questions on the ground covered today.',
+      10, 1, false, true
+    from public.course_days d
+    where d.course_id = v_course;
+
+    insert into public.assessments
+      (course_id, day_id, kind, title, description,
+       duration_minutes, position, is_published, is_locked)
     values
       (v_course, v_day1, 'pre',
        'Pre-assessment',
-       'Ten minutes, no pass mark. It simply shows where the class is starting from.',
-       100, true, 0),
+       'Twenty questions, no pass mark. It shows where the class is starting from.',
+       20, 0, false, true),
 
       (v_course, v_day5, 'post',
        'Post-assessment',
-       'The same ground as the pre-assessment, so improvement across the week is measurable.',
-       100, true, 1),
-
-      (v_course, v_day5, 'quiz',
-       'Final quiz',
-       'Covers all five days. Timed, with one question shown at a time.',
-       100, true, 2);
+       'Thirty questions over the same ground as the pre-assessment, so the week''s improvement is measurable.',
+       30, 2, false, true);
   end if;
 
   raise notice 'Seed complete. Course code SDAIA-GENAI-01, owner %.', v_instructor_email;

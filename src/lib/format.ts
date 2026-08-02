@@ -1,4 +1,8 @@
-import type { AssessmentKind, ResourceKind } from '@/lib/types'
+import type {
+  AssessmentKind,
+  QuestionDifficulty,
+  ResourceKind,
+} from '@/lib/types'
 
 /* Fixed locale + UTC so the server and client render identical strings and
    React never reports a hydration mismatch. */
@@ -68,7 +72,40 @@ export const RESOURCE_LABELS: Record<ResourceKind, string> = {
 export const ASSESSMENT_LABELS: Record<AssessmentKind, string> = {
   pre: 'Pre-assessment',
   post: 'Post-assessment',
-  quiz: 'Final quiz',
+  quiz: 'Quiz',
+}
+
+export const DIFFICULTY_LABELS: Record<QuestionDifficulty, string> = {
+  easy: 'Easy',
+  medium: 'Medium',
+  hard: 'Hard',
+}
+
+/** Amber for hard, teal for easy: scanning a set should show the mix at once. */
+export const DIFFICULTY_TONES: Record<
+  QuestionDifficulty,
+  'teal' | 'neutral' | 'amber'
+> = {
+  easy: 'teal',
+  medium: 'neutral',
+  hard: 'amber',
+}
+
+/** "8:05" from a number of seconds, for the quiz countdown. */
+export function formatClock(totalSeconds: number) {
+  const safe = Math.max(0, Math.floor(totalSeconds))
+  const minutes = Math.floor(safe / 60)
+  const seconds = safe % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+/** "12 minutes" / "1 hour 5 minutes", for describing a time limit. */
+export function formatDuration(minutes: number) {
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'}`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  const hourPart = `${hours} hour${hours === 1 ? '' : 's'}`
+  return rest === 0 ? hourPart : `${hourPart} ${rest} min`
 }
 
 /** Colab, Kaggle and friends open in a new tab; uploads download in place. */

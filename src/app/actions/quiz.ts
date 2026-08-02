@@ -1,0 +1,146 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+
+import { requireProfile } from '@/lib/dal'
+import { createClient } from '@/lib/supabase/server'
+import type {
+  IntegrityEventKind,
+  IntegrityResult,
+  SubmitResult,
+} from '@/lib/types'
+
+/**
+ * Everything a student's browser is allowed to ask for during an attempt.
+ *
+ * Each of these is a thin wrapper around a Postgres function. The reason they
+ * are thin is the point: the timer, the one-attempt rule, the grading and the
+ * warning count are all decided in the database, where a modified client cannot
+ * reach them. These actions carry the request and translate errors.
+ */
+
+const INTEGRITY_KINDS: readonly IntegrityEventKind[] = [
+  'tab_hidden',
+  'window_blur',
+  'copy',
+  'paste',
+  'context_menu',
+]
+
+/** Start, or resume. `start_attempt` hands back the existing attempt if any. */
+export async function beginAttempt(formData: FormData) {
+  const assessmentId = String(formData.get('assessment_id') ?? '')
+  await requireProfile()
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('start_attempt', {
+    p_assessment: assessmentId,
+  })
+
+  if (error) {
+    redirect(`/quiz/${assessmentId}?error=${encodeURIComponent(error.message)}`)
+  }
+
+  revalidatePath(`/quiz/${assessmentId}`)
+  redirect(`/quiz/${assessmentId}`)
+}
+
+/**
+ * Autosave one answer or flag.
+ *
+ * Fired on every selection, so it deliberately does not revalidate: the client
+ * already knows what it just chose, and re-rendering the paper under the
+ * student's cursor on each click would be both slow and jarring. The write is
+ * what matters — it is why running out of time still grades the work done.
+ */
+export async function saveAnswer(input: {
+  attemptId: string
+  questionId: string
+  optionId: string | null
+  flagged: boolean
+}): Promise<{ ok: boolean; message?: string }> {
+  await requireProfile()
+  const supabase = await createClient()
+
+  const { error } = await supabase.rpc('save_response', {
+    p_attempt: input.attemptId,
+    p_question: input.questionId,
+    p_option: input.optionId,
+    p_flagged: input.flagged,
+  })
+
+  if (error) return { ok: false, message: error.message }
+  return { ok: true }
+}
+
+/**
+ * Record one integrity event and report where the student now stands.
+ *
+ * The count lives on the attempt row, so a reload does not hand back a fresh set
+ * of chances. On the third event the database submits the attempt itself, which
+ * is why `stopped` can come back true without the client asking for it.
+ */
+export async function reportIntegrityEvent(input: {
+  attemptId: string
+  kind: string
+}): Promise<IntegrityResult & { message?: string }> {
+  await requireProfile()
+
+  if (!INTEGRITY_KINDS.includes(input.kind as IntegrityEventKind)) {
+    return { warning_count: 0, stopped: false, message: 'Unknown event' }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('record_integrity_event', {
+    p_attempt: input.attemptId,
+    p_kind: input.kind,
+  })
+
+  if (error) return { warning_count: 0, stopped: false, message: error.message }
+
+  const result = (data ?? {}) as Partial<IntegrityResult>
+  return {
+    warning_count: result.warning_count ?? 0,
+    stopped: result.stopped ?? false,
+  }
+}
+
+/**
+ * Submit and grade. Idempotent in the database, so a double click, a timeout
+ * landing next to a manual submit, or a retry after a dropped connection all
+ * settle on one result.
+ */
+export async function finishAttempt(input: {
+  attemptId: string
+  reason?: 'submitted' | 'timed_out' | 'integrity_stopped'
+}): Promise<{ ok: true; result: SubmitResult } | { ok: false; message: string }> {
+  await requireProfile()
+  const supabase = await createClient()
+
+  const { data, error } = await supabase.rpc('submit_attempt', {
+    p_attempt: input.attemptId,
+    p_reason: input.reason ?? 'submitted',
+  })
+
+  if (error) return { ok: false, message: error.message }
+
+  // The score now shows on the day page and the course overview, so clear those.
+  // One extra query on submit is a fair price for not showing a stale "Start".
+  const { data: attempt } = await supabase
+    .from('assessment_attempts')
+    .select(
+      'assessment_id, assessment:assessments(day_id), course:courses(slug)'
+    )
+    .eq('id', input.attemptId)
+    .maybeSingle()
+
+  const slug = attempt?.course?.slug
+  if (slug) {
+    revalidatePath(`/c/${slug}`)
+    revalidatePath(`/c/${slug}/day/[dayNumber]`, 'page')
+  }
+  revalidatePath(`/quiz/${attempt?.assessment_id ?? ''}`)
+
+  return { ok: true, result: (data ?? {}) as SubmitResult }
+}

@@ -168,6 +168,34 @@ export const TrashIcon = (p: IconProps) => (
   </Base>
 )
 
+export const ClockIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </Base>
+)
+
+export const FlagIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M5.5 21V4M5.5 4.5h9.2c1 0 1.4.6.9 1.4l-1.3 2.2c-.3.5-.3 1 0 1.5l1.3 2.2c.5.8.1 1.4-.9 1.4H5.5" />
+  </Base>
+)
+
+export const CrossIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
+  </Base>
+)
+
+export const EyeOffIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M3 3l18 18" />
+    <path d="M10.6 5.3A8.9 8.9 0 0 1 12 5.2c5 0 8.5 4.3 9 6.8-.2 1-.9 2.4-2.1 3.7" />
+    <path d="M6.4 7.3C4.4 8.7 3.2 10.7 3 12c.5 2.5 4 6.8 9 6.8 1.4 0 2.7-.3 3.8-.9" />
+    <path d="M9.9 10a3 3 0 0 0 4.2 4.2" />
+  </Base>
+)
+
 /** Map a resource kind to its icon. */
 export function ResourceIcon({
   kind,

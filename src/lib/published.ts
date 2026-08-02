@@ -148,10 +148,10 @@ export const getPublishedResourceCounts = (courseId: string) =>
   )(courseId)
 
 /**
- * Assessments for a course.
+ * Assessments a student is allowed to know about.
  *
- * The row itself is the same for everyone; a student's own score is not, and is
- * fetched separately through the user-scoped client.
+ * The row itself is the same for everyone; a student's own attempt and score are
+ * not, and are fetched separately through the user-scoped client.
  */
 export const getPublishedAssessments = (courseId: string) =>
   unstable_cache(
@@ -161,10 +161,38 @@ export const getPublishedAssessments = (courseId: string) =>
         .from('assessments')
         .select('*')
         .eq('course_id', id)
+        .eq('is_published', true)
         .order('position')
 
       return data ?? []
     },
     ['published-assessments'],
+    { tags: [courseContentTag(courseId)], revalidate: ONE_HOUR }
+  )(courseId)
+
+/**
+ * How many questions each assessment holds, keyed by assessment id.
+ *
+ * A student cannot read `assessment_questions` until they hold an attempt — that
+ * is what stops the bank being pulled from the API before the quiz opens — so the
+ * count for the rules screen has to come from here. Only the number crosses,
+ * never a stem.
+ */
+export const getPublishedQuestionCounts = (courseId: string) =>
+  unstable_cache(
+    async (id: string): Promise<Record<string, number>> => {
+      const supabase = createCacheReader()
+      const { data } = await supabase
+        .from('assessment_questions')
+        .select('assessment_id')
+        .eq('course_id', id)
+
+      const counts: Record<string, number> = {}
+      for (const row of data ?? []) {
+        counts[row.assessment_id] = (counts[row.assessment_id] ?? 0) + 1
+      }
+      return counts
+    },
+    ['published-question-counts'],
     { tags: [courseContentTag(courseId)], revalidate: ONE_HOUR }
   )(courseId)

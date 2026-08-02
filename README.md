@@ -1,11 +1,16 @@
 # SDAIA Academy Portal
 
 Course portal for SDAIA Academy training programmes. Instructors publish slides,
-lab notebooks and assessments day by day; students see only their own
+lab notebooks and **in-app assessments** day by day; students see only their own
 instructor's course.
 
 Built for the **تطوير حلول الذكاء الاصطناعي** (Developing Generative AI
 Solutions) programme, but multi-course from the ground up.
+
+**Live:** https://sdaia-academy-portal.vercel.app
+
+Full agent/human context: **[`docs/`](docs/README.md)** — start with
+[`docs/CONTEXT.md`](docs/CONTEXT.md).
 
 ---
 
@@ -17,6 +22,7 @@ Solutions) programme, but multi-course from the ground up.
 | Language  | TypeScript                                          |
 | Styling   | Tailwind CSS v4, design tokens in `globals.css`      |
 | Backend   | Supabase — Postgres, Auth, Storage                   |
+| Hosting   | Vercel (`bom1` / Mumbai, next to Supabase)           |
 | Types     | `Database` types generated from the live schema      |
 
 > **Next.js 16 note:** `middleware.ts` is now `proxy.ts`, and `cookies()`,
@@ -69,8 +75,8 @@ Open the Supabase SQL editor for project `gfoajqlifmmofswvibzs` and run
 [`supabase/seed.sql`](supabase/seed.sql). It will:
 
 - promote your account to `admin`,
-- create the five-day course with real Day 1–5 titles and dates, and
-- add the pre-assessment, post-assessment and final quiz — all **locked**.
+- create the five-day course with Day 1–5 titles and dates, and
+- add seven assessments (pre, five daily quizzes, post) — all **unpublished and locked**.
 
 If you registered with a different email, change the one on line 11 first.
 
@@ -141,10 +147,12 @@ expose — callable from policies, but with no HTTP endpoint.
   A leaked storage path is useless on its own.
 - Storage policies parse the course ID out of the object path
   (`{course_id}/{day_id}/{file}`), so upload rights follow course ownership.
+- Quiz answer keys sit in a separate table; students cannot read them until they
+  have submitted. Grading and the timer run in Postgres RPCs, not the browser.
 
-Verify it yourself with
+Verify isolation with
 [`supabase/isolation-test.sql`](supabase/isolation-test.sql) once two courses
-and a student exist.
+and a student exist. Quiz security checklist: [`docs/ASSESSMENTS.md`](docs/ASSESSMENTS.md).
 
 ---
 
@@ -154,15 +162,15 @@ and a student exist.
 each item inside it. Students see an item only when the course, the day *and*
 the item are all published — so you can stage Day 3 while teaching Day 2.
 
-- **Instructor → course → Schedule** — add days, publish or unpublish them.
+- **Instructor → course → Schedule** — add days (1–5), publish or unpublish them.
 - **A day → Upload a file / Add a link** — slides and PDFs upload; Colab
-  notebooks are links. Files go browser-to-Supabase directly, so a 100 MB deck
-  never runs through the Next.js server.
-- **Assessments** — paste the external quiz URL and untick "Keep locked" when
-  the class is ready. With no URL it stays locked, and students see it greyed
-  out with "Opens when your instructor releases it."
-- **Students** — the roster, plus a score box per assessment per student.
-  Scores save when you leave the box; clearing one deletes it.
+  notebooks are links. Files go browser-to-Supabase directly.
+- **Assessments** — import LLM JSON (or edit questions), then **Publish** and
+  **Unlock**. Students start from the day page. Authoring brief:
+  `/assessment-authoring-prompt.md`.
+- **Students / Results** — read-only auto scores, integrity flags, per-question stats.
+
+Details: [`docs/ASSESSMENTS.md`](docs/ASSESSMENTS.md).
 
 ---
 
@@ -179,40 +187,24 @@ buttons, and emoji. Surfaces are separated by 1px borders and radii stay at
 
 ---
 
-## Not built yet
-
-The **built-in quiz engine** is intentionally out of scope for now. Assessments
-currently hold an external link plus a manually entered score.
-
-The schema is already shaped for it: `assessments` owns `max_score`,
-`is_locked`, `opens_at` and `closes_at`, and `assessment_scores` is where an
-engine would write results — the student-facing score display needs no changes.
-Adding `assessment_questions` and `assessment_attempts` tables is the remaining
-work.
-
-Worth reusing when you build it: the previous exam app already solved
-per-attempt question shuffling, choice permutation, and integrity logging
-(`window_blur` / `tab_hidden` with timestamps). That data is preserved in the
-paused `applied-genai-exam` project and summarised in
-`../_backups/applied-genai-exam-results-2026-07.md`.
-
----
-
 ## Deploying
 
-Works on Vercel with no changes. Set these environment variables:
+See [`DEPLOY.md`](DEPLOY.md) for GitHub, env vars, Mumbai region and caching.
+
+Required environment variables:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-NEXT_PUBLIC_SITE_URL      # your real domain
+NEXT_PUBLIC_SITE_URL
+SUPABASE_SECRET_KEY          # server-only; published content cache reader
 ```
 
-Then add that domain under **Supabase → Authentication → URL Configuration →
+Then add the site domain under **Supabase → Authentication → URL Configuration →
 Redirect URLs**.
 
-`.env.local` is git-ignored and holds no secret key — the publishable key is
-safe in the browser precisely because RLS does the enforcing.
+`.env.local` is git-ignored. The publishable key is safe in the browser because
+RLS enforces access; the secret key must never be `NEXT_PUBLIC_*`.
 
 ---
 
@@ -224,3 +216,16 @@ npm run build   # production build
 npm run lint    # eslint
 npx tsc --noEmit
 ```
+
+---
+
+## Documentation map
+
+| Doc | Audience |
+| --- | --- |
+| [`docs/CONTEXT.md`](docs/CONTEXT.md) | New chats / onboarding |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Routes, caching, auth |
+| [`docs/ASSESSMENTS.md`](docs/ASSESSMENTS.md) | Quiz engine |
+| [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Schema + RPCs |
+| [`DEPLOY.md`](DEPLOY.md) | Vercel / GitHub / region |
+| `.cursor/rules/` + `.cursor/skills/` | Cursor agent guidance |
