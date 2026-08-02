@@ -16,7 +16,13 @@ import {
   Panel,
 } from '@/components/ui'
 import { getCourseBySlug, isManager, requireProfile } from '@/lib/dal'
-import { formatDate, formatDateRange, formatWeekday } from '@/lib/format'
+import {
+  ASSESSMENT_LABELS,
+  formatDate,
+  formatDateRange,
+  formatWeekday,
+} from '@/lib/format'
+import type { AssessmentKind } from '@/lib/types'
 import {
   getPublishedAssessments,
   getPublishedCourseDays,
@@ -39,6 +45,17 @@ const DAY_HOVER_COLORS = [
   { border: '#7c56a8', soft: 'rgba(124,86,168,.08)', text: '#5f4080' }, // violet
   { border: '#e08a1e', soft: 'rgba(224,138,30,.08)', text: '#9c6011' }, // orange
 ] as const
+
+/**
+ * What to print on a day tile's assessment chip. A day usually holds one
+ * thing, so name it exactly ("Pre-assessment", "Quiz"); only fall back to a
+ * count when a day holds several, where naming them all would not fit.
+ */
+function assessmentChipLabel(kinds: AssessmentKind[]): string | null {
+  if (kinds.length === 0) return null
+  if (kinds.length === 1) return ASSESSMENT_LABELS[kinds[0]]
+  return `${kinds.length} assessments`
+}
 
 export async function generateMetadata({
   params,
@@ -79,16 +96,16 @@ export default async function CoursePage({
     live ? getAssessments(course.id) : getPublishedAssessments(course.id),
   ])
 
-  // Assessments live on their day, so all this page needs is a count per day to
-  // hint that there is something to sit there. The cards themselves, and the
-  // student's own score, belong to the day page.
-  const assessmentsPerDay = new Map<string, number>()
+  // Assessments live on their day, so all this page needs is a hint that there
+  // is something to sit there. Track the kinds rather than a bare count: a day
+  // holding the pre-assessment must not be labelled "1 quiz". The cards
+  // themselves, and the student's own score, belong to the day page.
+  const assessmentsPerDay = new Map<string, AssessmentKind[]>()
   for (const assessment of assessments) {
     if (!assessment.day_id) continue
-    assessmentsPerDay.set(
-      assessment.day_id,
-      (assessmentsPerDay.get(assessment.day_id) ?? 0) + 1
-    )
+    const list = assessmentsPerDay.get(assessment.day_id) ?? []
+    list.push(assessment.kind)
+    assessmentsPerDay.set(assessment.day_id, list)
   }
 
   const range = formatDateRange(course.start_date, course.end_date)
@@ -137,13 +154,13 @@ export default async function CoursePage({
         <ul
           className="grid justify-start gap-3"
           style={{
-            gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 168px))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 220px))',
           }}
         >
           {days.map((day, index) => {
             const brand = DAY_HOVER_COLORS[index % DAY_HOVER_COLORS.length]
             const count = counts[day.id] ?? 0
-            const quizzes = assessmentsPerDay.get(day.id) ?? 0
+            const chip = assessmentChipLabel(assessmentsPerDay.get(day.id) ?? [])
             const weekday = formatWeekday(day.scheduled_date)
             const date = formatDate(day.scheduled_date)
             const meta = [
@@ -155,6 +172,12 @@ export default async function CoursePage({
 
             return (
               <li key={day.id} className="min-w-0">
+                {/*
+                  Height comes from the content, with a floor to keep the row
+                  even. It used to be aspect-square, which fixed the height at
+                  the tile's width and then clipped the title and the Arabic
+                  subtitle into each other once either ran long.
+                */}
                 <Link
                   href={`/c/${course.slug}/day/${day.day_number}`}
                   style={
@@ -164,7 +187,7 @@ export default async function CoursePage({
                       '--brand-text': brand.text,
                     } as CSSProperties
                   }
-                  className="group relative flex aspect-square flex-col overflow-hidden rounded-md border border-line-strong bg-surface p-3 transition-colors duration-200 hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]"
+                  className="group relative flex h-full min-h-[184px] flex-col rounded-md border border-line-strong bg-surface p-3.5 transition-colors duration-200 hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]"
                 >
                   <div className="flex items-start justify-between gap-1.5">
                     <span className="grid size-10 place-items-center rounded-md border border-line bg-navy-50 text-center transition-colors duration-200 group-hover:border-[var(--brand)] group-hover:bg-[var(--brand-soft)]">
@@ -180,17 +203,17 @@ export default async function CoursePage({
                     ) : null}
                   </div>
 
-                  <p className="mt-2.5 line-clamp-2 text-[13px] leading-snug font-semibold text-navy-900 transition-colors duration-200 group-hover:text-[var(--brand-text)]">
+                  <p className="mt-3 line-clamp-2 text-[13px] leading-snug font-semibold text-navy-900 transition-colors duration-200 group-hover:text-[var(--brand-text)]">
                     {day.title}
                   </p>
 
                   {day.title_ar ? (
-                    <p className="mt-1 line-clamp-1 text-[11px] text-ink-soft">
+                    <p className="mt-1.5 line-clamp-1 text-[11px] leading-relaxed text-ink-soft">
                       <Arabic>{day.title_ar}</Arabic>
                     </p>
                   ) : null}
 
-                  <div className="mt-auto space-y-1.5 pt-2">
+                  <div className="mt-auto space-y-2 pt-3">
                     {meta ? (
                       <p className="truncate text-[10px] text-ink-faint">
                         {meta}
@@ -198,16 +221,14 @@ export default async function CoursePage({
                     ) : null}
 
                     <div className="flex items-center gap-1.5">
-                      {quizzes > 0 ? (
-                        <span className="inline-flex min-w-0 items-center gap-1 truncate rounded-xs border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-medium text-teal-800">
+                      {chip ? (
+                        <span className="inline-flex min-w-0 items-center gap-1 rounded-xs border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-medium text-teal-800">
                           <ClipboardIcon
                             width={10}
                             height={10}
                             className="shrink-0"
                           />
-                          <span className="truncate">
-                            {quizzes === 1 ? '1 quiz' : `${quizzes} quizzes`}
-                          </span>
+                          <span className="truncate">{chip}</span>
                         </span>
                       ) : (
                         <span />

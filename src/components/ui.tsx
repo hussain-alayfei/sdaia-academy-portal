@@ -299,6 +299,56 @@ export function PageHeader({
   )
 }
 
+/* --------------------------------------------------------------- loading -- */
+
+/**
+ * Three dots in the colours of the SDAIA mosaic, pulsing in sequence.
+ *
+ * Preferred over a spinner: a spinner reads as "the system is busy", whereas a
+ * short bounded row of dots reads as "this arrives in a moment", which is what
+ * a page navigation actually is here.
+ */
+export function LoadingDots({
+  className,
+  label = 'Loading',
+}: {
+  className?: string
+  label?: string
+}) {
+  const dots = [
+    { color: '#12b5a5', delay: '0ms' },
+    { color: '#2f7dc4', delay: '140ms' },
+    { color: '#e08a1e', delay: '280ms' },
+  ]
+
+  return (
+    <span
+      role="status"
+      aria-label={label}
+      className={cx('inline-flex items-center gap-1.5', className)}
+    >
+      {dots.map((dot) => (
+        <span
+          key={dot.color}
+          aria-hidden
+          className="animate-dot size-2 rounded-full"
+          style={{ backgroundColor: dot.color, animationDelay: dot.delay }}
+        />
+      ))}
+    </span>
+  )
+}
+
+/** Full-panel loading state for route-level `loading.tsx` files. */
+export function LoadingPanel({ label = 'Loading' }: { label?: string }) {
+  return (
+    <div className="flex min-h-[45vh] flex-col items-center justify-center gap-3">
+      <LoadingDots label={label} />
+      <p className="text-[13px] text-ink-faint">{label}</p>
+    </div>
+  )
+}
+
 /* ------------------------------------------------------------ navigation -- */
 
 /**

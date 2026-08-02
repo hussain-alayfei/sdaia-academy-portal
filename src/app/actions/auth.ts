@@ -52,6 +52,36 @@ const JoinSchema = z.object({
     .regex(JOIN_CODE, 'Course codes look like SDAIA-GENAI-01.'),
 })
 
+/**
+ * Where to send someone after a successful sign in.
+ *
+ * `?next=` is attacker-controllable: anyone can send a student a link to
+ * /login?next=<somewhere>. Checking only `startsWith('/')` is not enough,
+ * because `//evil.com` and `/\evil.com` both pass that test and browsers read
+ * them as protocol-relative URLs, so the victim lands on another site still
+ * believing they are signing in to the portal. Require a single leading
+ * slash, and reject anything that tries to specify a host.
+ */
+function safeNext(raw: FormDataEntryValue | null): string {
+  if (typeof raw !== 'string') return '/home'
+  if (!raw.startsWith('/')) return '/home'
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return '/home'
+  // Percent-encoded slashes are rejected outright. Whether `/%2f%2fevil.com`
+  // is treated as one path segment or as `//evil.com` depends on who decodes
+  // it first (browser, proxy, framework), and no real route here contains an
+  // encoded slash, so there is nothing to lose by refusing them.
+  if (/%2f|%5c/i.test(raw)) return '/home'
+  // Belt and braces: resolving against a dummy origin catches anything
+  // exotic (embedded credentials, odd schemes) that slips the above.
+  try {
+    const url = new URL(raw, 'https://portal.invalid')
+    if (url.origin !== 'https://portal.invalid') return '/home'
+    return url.pathname + url.search
+  } catch {
+    return '/home'
+  }
+}
+
 const REDEEM_MESSAGES: Record<string, string> = {
   invalid_code: 'That course code was not recognised. Check it and try again.',
   course_not_open: 'That course is not open for enrolment yet.',
@@ -179,8 +209,7 @@ export async function login(
     }
   }
 
-  const next = formData.get('next')
-  redirect(typeof next === 'string' && next.startsWith('/') ? next : '/home')
+  redirect(safeNext(formData.get('next')))
 }
 
 /** Enrol the signed-in student into a course using its join code. */

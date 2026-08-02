@@ -261,6 +261,26 @@
     }
   }
 
+  /* Loading dots. Three dots carrying the SDAIA mosaic hues, each delayed a
+     beat behind the last so the row reads left to right. Opacity and scale
+     only, so it costs nothing to composite. */
+  .animate-dot {
+    animation: dot 1.05s ease-in-out infinite both;
+  }
+
+  @keyframes dot {
+    0%,
+    72%,
+    100% {
+      opacity: 0.25;
+      transform: scale(0.72);
+    }
+    32% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
   /* Warning dialogs: a quick scale-in so the interruption registers. */
   .animate-pop {
     animation: pop 180ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
