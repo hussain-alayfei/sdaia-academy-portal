@@ -2,15 +2,17 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-import { CalendarIcon, ClipboardIcon } from '@/components/icons'
+import {
+  CalendarIcon,
+  ChevronRightIcon,
+  ClipboardIcon,
+} from '@/components/icons'
 import {
   Arabic,
   Badge,
   EmptyState,
   PageHeader,
   Panel,
-  PanelHeader,
-  RowArrow,
 } from '@/components/ui'
 import { getCourseBySlug, isManager, requireProfile } from '@/lib/dal'
 import { formatDate, formatDateRange, formatWeekday } from '@/lib/format'
@@ -102,82 +104,92 @@ export default async function CoursePage({
         </div>
       )}
 
-      <Panel>
-        <PanelHeader
-          title="Daily schedule"
-          description="Open a day for its slides, labs and assessment."
-        />
+      <div className="mb-4">
+        <h2 className="text-[17px] font-semibold text-navy-900">
+          Daily schedule
+        </h2>
+        <p className="mt-1 text-[13px] text-ink-soft">
+          Open a day for its slides, labs and assessment.
+        </p>
+      </div>
 
-        {days.length === 0 ? (
+      {days.length === 0 ? (
+        <Panel>
           <EmptyState
             title="No days published yet"
             description="Your instructor is still preparing the schedule. It will appear here."
           />
-        ) : (
-          <ul className="divide-y divide-line">
-            {days.map((day) => {
-              const count = counts[day.id] ?? 0
-              const quizzes = assessmentsPerDay.get(day.id) ?? 0
-              const weekday = formatWeekday(day.scheduled_date)
-              const date = formatDate(day.scheduled_date)
+        </Panel>
+      ) : (
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:gap-3">
+          {days.map((day) => {
+            const count = counts[day.id] ?? 0
+            const quizzes = assessmentsPerDay.get(day.id) ?? 0
+            const weekday = formatWeekday(day.scheduled_date)
+            const date = formatDate(day.scheduled_date)
 
-              return (
-                <li key={day.id}>
-                  <Link
-                    href={`/c/${course.slug}/day/${day.day_number}`}
-                    className="group flex items-center gap-5 px-4 py-5 transition-colors hover:bg-navy-50 sm:gap-6 sm:px-6 sm:py-6"
-                  >
-                    {/* The day number is the thing people navigate by, so it is
-                        the largest element on the row rather than a small chip. */}
-                    <span className="grid size-16 shrink-0 place-items-center rounded-md border border-line bg-navy-50 text-center transition-colors group-hover:border-teal-300 group-hover:bg-teal-50 sm:size-[70px]">
-                      <span className="text-[10px] leading-none font-semibold tracking-widest text-ink-faint uppercase">
+            return (
+              <li key={day.id} className="min-w-0">
+                <Link
+                  href={`/c/${course.slug}/day/${day.day_number}`}
+                  className="group flex h-full min-h-[220px] flex-col rounded-md border border-line-strong bg-surface p-4 transition-colors hover:border-teal-400 hover:bg-navy-50/60 sm:min-h-[260px] sm:p-5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="grid size-14 place-items-center rounded-md border border-line bg-navy-50 text-center transition-colors group-hover:border-teal-300 group-hover:bg-teal-50">
+                      <span className="text-[9px] leading-none font-semibold tracking-widest text-ink-faint uppercase">
                         Day
                       </span>
-                      <span className="text-[26px] leading-tight font-semibold text-navy-800 group-hover:text-teal-800 sm:text-[28px]">
+                      <span className="text-[24px] leading-none font-semibold text-navy-800 group-hover:text-teal-800">
                         {day.day_number}
                       </span>
                     </span>
+                    {!day.is_published ? (
+                      <Badge tone="amber">Draft</Badge>
+                    ) : null}
+                  </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                        <p className="text-[17px] font-semibold text-navy-900 group-hover:text-teal-800 sm:text-[19px]">
-                          {day.title}
-                        </p>
-                        {!day.is_published ? (
-                          <Badge tone="amber">Draft</Badge>
-                        ) : null}
-                      </div>
+                  <p className="mt-4 line-clamp-3 text-[15px] leading-snug font-semibold text-navy-900 group-hover:text-teal-800 sm:text-[16px]">
+                    {day.title}
+                  </p>
 
-                      {day.title_ar ? (
-                        <p className="mt-0.5 truncate text-[14px] text-ink-soft">
-                          <Arabic>{day.title_ar}</Arabic>
-                        </p>
-                      ) : null}
+                  {day.title_ar ? (
+                    <p className="mt-1.5 line-clamp-2 text-[13px] text-ink-soft">
+                      <Arabic>{day.title_ar}</Arabic>
+                    </p>
+                  ) : null}
 
-                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-ink-faint">
-                        {date ? (
-                          <span>{weekday ? `${weekday}, ${date}` : date}</span>
-                        ) : null}
-                        <span>{count === 1 ? '1 item' : `${count} items`}</span>
-                        {quizzes > 0 ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-xs border border-teal-200 bg-teal-50 px-2 py-0.5 font-medium text-teal-800">
-                            <ClipboardIcon width={12} height={12} />
-                            {quizzes === 1
-                              ? '1 assessment'
-                              : `${quizzes} assessments`}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <RowArrow className="size-10" />
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </Panel>
+                  <div className="mt-auto space-y-2.5 pt-5">
+                    {date ? (
+                      <p className="text-[12px] text-ink-faint">
+                        {weekday ? `${weekday}, ${date}` : date}
+                      </p>
+                    ) : null}
+                    <p className="text-[12px] text-ink-faint">
+                      {count === 1 ? '1 item' : `${count} items`}
+                    </p>
+                    {quizzes > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-xs border border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-800">
+                        <ClipboardIcon width={12} height={12} />
+                        {quizzes === 1
+                          ? '1 assessment'
+                          : `${quizzes} assessments`}
+                      </span>
+                    ) : null}
+                    <span className="inline-flex items-center gap-1 text-[12px] font-medium text-teal-700">
+                      Open
+                      <ChevronRightIcon
+                        width={14}
+                        height={14}
+                        className="transition-transform group-hover:translate-x-0.5"
+                      />
+                    </span>
+                  </div>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }

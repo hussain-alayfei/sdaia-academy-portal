@@ -69,7 +69,7 @@ export function SignupForm() {
       <Field
         label="Course code"
         htmlFor="join_code"
-        hint="Given to you by your instructor. Leave empty if you do not have one yet — you can enter it after signing in."
+        hint="Given to you by your instructor. Leave empty if you do not have one yet; you can enter it after signing in."
         error={state?.errors?.join_code}
       >
         <Input

@@ -67,7 +67,7 @@ export default async function QuizPage({
             {assessment.title}
           </h1>
           <p className="mt-2 text-[14px] text-ink-soft">
-            You manage this course, so you cannot sit this yourself — an attempt
+            You manage this course, so you cannot sit this yourself. An attempt
             is one per person and would record a score against your name. Use the
             editor to read the questions and the answer key.
           </p>

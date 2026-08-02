@@ -21,7 +21,7 @@ export async function SiteHeader() {
         <Link
           href="/home"
           className="flex shrink-0 items-center rounded-sm bg-white px-2.5 py-1.5"
-          aria-label="SDAIA Academy Portal — home"
+          aria-label="SDAIA Academy Portal, home"
         >
           <Image
             src="/sdaia-academy.png"

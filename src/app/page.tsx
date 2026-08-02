@@ -14,7 +14,7 @@ export default async function LandingPage() {
         <div className="mx-auto flex h-20 max-w-5xl items-center px-5 sm:px-6">
           <Image
             src="/sdaia-academy.png"
-            alt="SDAIA Academy — Saudi Data & AI Authority"
+            alt="SDAIA Academy, Saudi Data &amp; AI Authority"
             width={1046}
             height={166}
             priority
@@ -23,20 +23,25 @@ export default async function LandingPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center px-5 py-16 sm:px-6">
-        <div className="max-w-xl">
-          <p className="mb-3 text-[12px] font-medium tracking-wide text-teal-700 uppercase">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center px-5 py-16 sm:px-6 sm:py-20">
+        <div className="animate-rise max-w-3xl">
+          <p className="mb-4 text-[12px] font-medium tracking-[0.12em] text-teal-700 uppercase">
             SDAIA Academy
           </p>
-          <h1 className="text-[32px] leading-tight font-semibold text-navy-900 sm:text-[40px]">
-            Advance your practice with purpose.
+
+          {/* Set tight and large. `text-balance` stops the last line dropping a
+              single orphaned word once it wraps on a laptop. */}
+          <h1 className="text-[40px] leading-[1.05] font-semibold tracking-[-0.02em] text-balance text-navy-900 sm:text-[58px] lg:text-[70px]">
+            Advance your practice with{' '}
+            <span className="animate-brand">purpose</span>.
           </h1>
-          <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
-            Lectures, laboratories and assessments — structured for each day of
+
+          <p className="mt-6 max-w-xl text-[16px] leading-relaxed text-ink-soft sm:text-[18px]">
+            Lectures, laboratories and assessments, structured for each day of
             the programme.
           </p>
 
-          <div className="mt-8">
+          <div className="mt-9">
             <ButtonLink href="/login">Sign in</ButtonLink>
           </div>
         </div>

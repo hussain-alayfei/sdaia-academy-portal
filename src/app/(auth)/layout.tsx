@@ -14,7 +14,7 @@ export default function AuthLayout({
         <Link href="/" className="inline-flex w-fit rounded-sm bg-white p-3">
           <Image
             src="/sdaia-academy.png"
-            alt="SDAIA Academy — Saudi Data & AI Authority"
+            alt="SDAIA Academy, Saudi Data &amp; AI Authority"
             width={1046}
             height={166}
             priority
@@ -24,10 +24,11 @@ export default function AuthLayout({
 
         <div className="hidden lg:block">
           <h2 className="max-w-sm text-2xl font-semibold text-white">
-            Advance your practice with purpose.
+            Advance your practice with{' '}
+            <span className="text-teal-300">purpose</span>.
           </h2>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-navy-200">
-            Lectures, laboratories and assessments — structured for each day of
+            Lectures, laboratories and assessments, structured for each day of
             the programme.
           </p>
         </div>

@@ -51,14 +51,14 @@ export function AddLinkForm({
           id="link_title"
           name="title"
           required
-          placeholder="Lab 1 — First model call"
+          placeholder="Lab 1: first model call"
         />
       </Field>
 
       <Field
         label="URL"
         htmlFor="external_url"
-        hint="Google Colab, GitHub, Drive — anything with a link."
+        hint="Google Colab, GitHub, Drive, or anything with a link."
         error={state?.errors?.external_url}
       >
         <Input
@@ -205,7 +205,7 @@ export function UploadFileForm({
           id="upload_title"
           name="title"
           required
-          placeholder="Day 1 — Slides"
+          placeholder="Day 1 slides"
         />
       </Field>
 
