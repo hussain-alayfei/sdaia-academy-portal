@@ -7,7 +7,13 @@ import { Badge, EmptyState } from '@/components/ui'
 import { RESOURCE_LABELS, formatBytes } from '@/lib/format'
 import type { Resource } from '@/lib/types'
 
-function ResourceRow({ resource }: { resource: Resource }) {
+function ResourceRow({
+  resource,
+  showKind,
+}: {
+  resource: Resource
+  showKind: boolean
+}) {
   const external = Boolean(resource.external_url)
   const href = external ? resource.external_url! : `/api/files/${resource.id}`
   const size = formatBytes(resource.file_size)
@@ -30,7 +36,9 @@ function ResourceRow({ resource }: { resource: Resource }) {
             <p className="font-medium text-navy-900 group-hover:text-teal-800">
               {resource.title}
             </p>
-            <Badge tone="neutral">{RESOURCE_LABELS[resource.kind]}</Badge>
+            {showKind ? (
+              <Badge tone="neutral">{RESOURCE_LABELS[resource.kind]}</Badge>
+            ) : null}
             {!resource.is_published ? (
               <Badge tone="amber">Draft</Badge>
             ) : null}
@@ -47,7 +55,10 @@ function ResourceRow({ resource }: { resource: Resource }) {
           ) : null}
         </div>
 
-        <span className="mt-1.5 shrink-0 text-ink-faint group-hover:text-teal-700">
+        <span className="mt-1.5 inline-flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-ink-faint group-hover:text-teal-700">
+          <span className="hidden sm:inline">
+            {external ? 'Open' : 'Download'}
+          </span>
           {external ? (
             <LinkIcon width={16} height={16} />
           ) : (
@@ -64,10 +75,12 @@ function ResourceRow({ resource }: { resource: Resource }) {
 
 export function ResourceList({
   resources,
+  showKind = true,
   emptyTitle = 'Nothing published yet',
   emptyDescription = 'Your instructor has not added materials for this day. Check back later.',
 }: {
   resources: Resource[]
+  showKind?: boolean
   emptyTitle?: string
   emptyDescription?: string
 }) {
@@ -78,7 +91,7 @@ export function ResourceList({
   return (
     <ul className="divide-y divide-line">
       {resources.map((r) => (
-        <ResourceRow key={r.id} resource={r} />
+        <ResourceRow key={r.id} resource={r} showKind={showKind} />
       ))}
     </ul>
   )

@@ -1,0 +1,224 @@
+{
+  "schema": "sdaia-assessment/v1",
+  "assessment": {
+    "kind": "quiz",
+    "day": 3,
+    "title": "Day 3 quiz",
+    "duration_minutes": 10
+  },
+  "questions": [
+    {
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Model limits",
+      "stem": "Why does a language model need tools when building a software solution?",
+      "options": {
+        "A": "To retrain itself overnight on every private company document set",
+        "B": "To reach live data, exact maths, or outside actions",
+        "C": "To replace all application code with free-form generated text only",
+        "D": "To store permanent memories of every previous user conversation"
+      },
+      "correct": "B",
+      "rationale": "Models generate language from context. Tools give the surrounding application controlled ways to fetch data, compute values, or change external systems."
+    },
+    {
+      "format": "true_false",
+      "difficulty": "easy",
+      "topic": "Tool execution",
+      "stem": "Does the language model itself execute an approved tool call against an external system?",
+      "options": { "A": "True", "B": "False" },
+      "correct": "B",
+      "rationale": "The model proposes a structured tool call. Application code validates, authorizes, executes, and returns the result."
+    },
+    {
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Function calling",
+      "stem": "What is function calling, also called tool calling, in a generative AI system?",
+      "options": {
+        "A": "A direct network call the model opens to any public website address",
+        "B": "A silent rewrite of the model weights during a live user session",
+        "C": "A database trigger that scores every generated sentence in storage",
+        "D": "A structured request for a named capability the code may run"
+      },
+      "correct": "D",
+      "rationale": "Function calling is a structured proposal from the model. The application decides whether and how to run the named capability."
+    },
+    {
+      "format": "true_false",
+      "difficulty": "easy",
+      "topic": "Tool success",
+      "stem": "Is a model-generated tool call by itself enough evidence that the external action succeeded?",
+      "options": { "A": "True", "B": "False" },
+      "correct": "B",
+      "rationale": "Only a verified tool result from the application supports a success claim. A proposed call is not proof of execution."
+    },
+    {
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Tool contract",
+      "stem": "What should a reliable tool contract include for the model and the surrounding code?",
+      "options": {
+        "A": "An open prompt that lets the model invent any argument shape it likes",
+        "B": "A shared password that students embed inside generated answer text",
+        "C": "A clear name, description, input schema, and output shape",
+        "D": "A promise that every call will succeed without any validation step"
+      },
+      "correct": "C",
+      "rationale": "Clear names, decision-boundary descriptions, narrow schemas, and predictable outputs reduce ambiguous or unsafe calls."
+    },
+    {
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Lifecycle stages",
+      "stem": "Which sequence correctly describes the five-stage tool-calling lifecycle?",
+      "options": {
+        "A": "Offer tools, get a call, run it in code, return data, finish or loop",
+        "B": "Train the model, publish weights, skip checks, then trust every claim",
+        "C": "Store prompts, delete logs, disable timeouts, and allow every tool",
+        "D": "Rank the slides, shuffle days, unlock grades, and hide the rationale"
+      },
+      "correct": "A",
+      "rationale": "The cycle is: send the request with tools, receive a tool call, execute in the application, return the result, then get a final answer or another call."
+    },
+    {
+      "format": "true_false",
+      "difficulty": "easy",
+      "topic": "Schema limits",
+      "stem": "Does JSON Schema validation alone replace authorization and human approval for consequential actions?",
+      "options": { "A": "True", "B": "False" },
+      "correct": "B",
+      "rationale": "Schema checks argument shape. Semantic validation, permissions, and approval gates are still required for risky actions."
+    },
+    {
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Tool categories",
+      "stem": "Which tool type usually needs the strongest controls before it runs?",
+      "options": {
+        "A": "A read tool that fetches a published policy paragraph from storage",
+        "B": "A compute tool that totals a prepared list of invoice line amounts",
+        "C": "A write tool that submits a payment or updates a record",
+        "D": "A retrieval tool that searches an approved knowledge index set"
+      },
+      "correct": "C",
+      "rationale": "Write tools change external state. They need stricter authorization, previews, and often human approval."
+    },
+    {
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Parallel tools",
+      "stem": "When is it safest to run several tool operations at the same time?",
+      "options": {
+        "A": "When one operation must consume the output of another first",
+        "B": "When two write tools target the same account balance row",
+        "C": "When approval is still pending for a high-risk write action",
+        "D": "When the operations are independent and do not conflict"
+      },
+      "correct": "D",
+      "rationale": "Independent reads or computations can run together. Dependent or conflicting actions should stay sequential."
+    },
+    {
+      "format": "true_false",
+      "difficulty": "easy",
+      "topic": "Workflow choice",
+      "stem": "Should a fully known, fixed business process start as a deterministic workflow rather than an open agent loop?",
+      "options": { "A": "True", "B": "False" },
+      "correct": "A",
+      "rationale": "Known sequences belong in application-controlled workflows. Agents help when intermediate evidence changes the next step."
+    },
+    {
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "ReAct pattern",
+      "stem": "What does the ReAct pattern combine inside a controlled agent loop?",
+      "options": {
+        "A": "Offline chunking paired with permanent model fine-tuning jobs",
+        "B": "Reasoning steps with tool actions and later observations",
+        "C": "Random tool choice with unrestricted outbound network access",
+        "D": "Slide narration paired with automatic grade submission hooks"
+      },
+      "correct": "B",
+      "rationale": "ReAct interleaves reasoning, tool actions, and observations so the agent can update its next step from evidence."
+    },
+    {
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Plan and execute",
+      "stem": "When is Plan-and-Execute often a better fit than a short ReAct loop?",
+      "options": {
+        "A": "When work needs an ordered multi-step plan first",
+        "B": "When a single lookup answers the user with one tool call alone",
+        "C": "When no tool is allowed and only free text may be returned",
+        "D": "When the system must avoid logging any intermediate run state"
+      },
+      "correct": "A",
+      "rationale": "Plan-and-Execute first builds a plan, then carries out steps. It fits longer tasks that need structured sequencing."
+    },
+    {
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Agent controls",
+      "stem": "Which control most directly stops an agent from looping without bound?",
+      "options": {
+        "A": "A larger context window paired with no timeout settings at all",
+        "B": "A warmer sampling temperature used only for creative wording",
+        "C": "A longer system prompt that still omits allowed-tool lists",
+        "D": "A maximum-step limit with clear stopping rules"
+      },
+      "correct": "D",
+      "rationale": "Maximum steps, budgets, timeouts, and stopping conditions keep the loop predictable and finite."
+    },
+    {
+      "format": "true_false",
+      "difficulty": "medium",
+      "topic": "Human approval",
+      "stem": "Should consequential write actions use preview and meaningful human confirmation before execution?",
+      "options": { "A": "True", "B": "False" },
+      "correct": "A",
+      "rationale": "Human-in-the-loop gates protect high-impact actions. Preview and confirmation reduce irreversible mistakes."
+    },
+    {
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Routing pattern",
+      "stem": "What is the main job of a routing pattern in a multi-skill assistant?",
+      "options": {
+        "A": "Direct each request to the fitting specialist path",
+        "B": "Merge every tool into one unrestricted mega-function entry",
+        "C": "Disable tracing so later inspection of routes is impossible",
+        "D": "Force every request through the same write tool first"
+      },
+      "correct": "A",
+      "rationale": "Routing classifies the request and directs it to the right specialist workflow or tool set."
+    },
+    {
+      "format": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Controlled agents",
+      "stem": "Which design best matches a reliable controlled agent for a course assistant?",
+      "options": {
+        "A": "Open tools, no step limit, and silent writes into student records",
+        "B": "Narrow tools, clear state, budgets, traces, and stop rules",
+        "C": "Hidden prompts, skipped checks, and unverified success claims",
+        "D": "One giant tool that can email, pay, and delete without review"
+      },
+      "correct": "B",
+      "rationale": "Reliable agents combine flexible decisions with narrow tools, visible state, budgets, guardrails, tracing, and clear stopping rules."
+    },
+    {
+      "format": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Evaluation focus",
+      "stem": "What should evaluation measure beyond whether the final answer sounds fluent?",
+      "options": {
+        "A": "Only the character count of the generated rationale paragraph",
+        "B": "Only how often the model avoids calling any available tool",
+        "C": "Tool choice, arguments, recovery, safety, cost, and claims",
+        "D": "Only whether the student interface used a dark colour theme"
+      },
+      "correct": "C",
+      "rationale": "Agent evaluation must check tool selection, argument quality, execution, recovery, task success, safety, latency, cost, and false claims of success."
+    }
+  ]
+}

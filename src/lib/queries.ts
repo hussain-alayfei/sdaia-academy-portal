@@ -105,17 +105,23 @@ export const getMyScores = cache(
 
 /* ------------------------------------------------ instructor-side reads -- */
 
+export type RosterStudent = Profile & { enrolled_at: string }
+
 export const getRoster = cache(
-  async (courseId: string): Promise<Profile[]> => {
+  async (courseId: string): Promise<RosterStudent[]> => {
     const supabase = await createClient()
     const { data } = await supabase
       .from('enrollments')
-      .select('student:profiles(*)')
+      .select('enrolled_at, student:profiles(*)')
       .eq('course_id', courseId)
 
     return (data ?? [])
-      .map((row) => row.student as unknown as Profile)
+      .map((row) => {
+        const student = row.student as unknown as Profile | null
+        return student ? { ...student, enrolled_at: row.enrolled_at } : null
+      })
       .filter(Boolean)
+      .map((student) => student as RosterStudent)
       .sort((a, b) => a.full_name.localeCompare(b.full_name))
   }
 )

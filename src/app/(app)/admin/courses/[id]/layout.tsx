@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 
 import { CourseTabs } from '@/components/admin/course-tabs'
 
-import { Arabic, BackLink, Badge, Button } from '@/components/ui'
+import { Arabic, BackLink, Badge, Button, ButtonLink } from '@/components/ui'
 import { toggleCoursePublished } from '@/app/actions/admin'
 import { canManageCourse, getCourseById, requireManager } from '@/lib/dal'
 
@@ -49,21 +49,31 @@ export default async function CourseAdminLayout({
           </p>
         </div>
 
-        <form action={toggleCoursePublished} className="shrink-0">
-          <input type="hidden" name="course_id" value={course.id} />
-          <input
-            type="hidden"
-            name="next"
-            value={course.is_published ? 'false' : 'true'}
-          />
-          <Button
-            type="submit"
-            variant={course.is_published ? 'secondary' : 'primary'}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <ButtonLink
+            href={`/c/${course.slug}?view=student`}
+            variant="secondary"
             size="sm"
           >
-            {course.is_published ? 'Unpublish' : 'Publish course'}
-          </Button>
-        </form>
+            Student view
+          </ButtonLink>
+
+          <form action={toggleCoursePublished}>
+            <input type="hidden" name="course_id" value={course.id} />
+            <input
+              type="hidden"
+              name="next"
+              value={course.is_published ? 'false' : 'true'}
+            />
+            <Button
+              type="submit"
+              variant={course.is_published ? 'secondary' : 'primary'}
+              size="sm"
+            >
+              {course.is_published ? 'Unpublish' : 'Publish course'}
+            </Button>
+          </form>
+        </div>
       </div>
 
       <CourseTabs courseId={course.id} />

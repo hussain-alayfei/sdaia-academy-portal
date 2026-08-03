@@ -11,7 +11,7 @@ import {
   FlagIcon,
 } from '@/components/icons'
 import { IntegrityGuard } from '@/components/integrity-guard'
-import { Button, cx } from '@/components/ui'
+import { Alert, Button, cx } from '@/components/ui'
 import { formatClock } from '@/lib/format'
 import type { PaperQuestion } from '@/lib/quiz'
 
@@ -63,6 +63,19 @@ export function QuizRunner({
   const [save, setSave] = useState<SaveState>('idle')
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [warnings, setWarnings] = useState(initialWarnings)
+  const [integrityByQuestion, setIntegrityByQuestion] = useState<
+    Record<string, { count: number; invalidated: boolean }>
+  >(() =>
+    Object.fromEntries(
+      questions.map((q) => [
+        q.id,
+        {
+          count: q.integrityWarningCount,
+          invalidated: q.integrityInvalidated,
+        },
+      ])
+    )
+  )
   const [confirming, setConfirming] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -182,12 +195,15 @@ export function QuizRunner({
     <div className="min-h-dvh bg-canvas">
       <IntegrityGuard
         attemptId={attemptId}
+        questionId={question.id}
+        questionNumber={index + 1}
         active={!finished}
-        onWarning={setWarnings}
-        onStopped={() => {
-          submitted.current = true
-          setFinished(true)
-          router.refresh()
+        onWarning={(totalCount, questionCount, invalidated) => {
+          setWarnings(totalCount)
+          setIntegrityByQuestion((prev) => ({
+            ...prev,
+            [question.id]: { count: questionCount, invalidated },
+          }))
         }}
       />
 
@@ -207,10 +223,10 @@ export function QuizRunner({
           {warnings > 0 ? (
             <span
               className="inline-flex items-center gap-1.5 rounded-xs border border-amber-200 bg-amber-50 px-2 py-1 text-[12px] font-medium text-amber-800"
-              title="Switching away from this page is recorded"
+              title="Integrity events recorded during this attempt"
             >
               <AlertIcon width={13} height={13} />
-              {warnings} of 2 warnings
+              {warnings} integrity event{warnings === 1 ? '' : 's'}
             </span>
           ) : null}
 
@@ -239,6 +255,7 @@ export function QuizRunner({
               const isAnswered = Boolean(answers[q.id])
               const isFlagged = flags[q.id]
               const isCurrent = i === index
+              const invalidated = integrityByQuestion[q.id]?.invalidated
 
               return (
                 <li key={q.id}>
@@ -248,11 +265,15 @@ export function QuizRunner({
                     aria-current={isCurrent ? 'true' : undefined}
                     aria-label={`Question ${i + 1}${
                       isAnswered ? ', answered' : ', not answered'
-                    }${isFlagged ? ', flagged' : ''}`}
+                    }${isFlagged ? ', flagged' : ''}${
+                      invalidated ? ', worth zero points due to integrity events' : ''
+                    }`}
                     className={cx(
                       'relative grid size-9 place-items-center rounded-sm border text-[13px] font-medium transition-colors',
                       isCurrent
                         ? 'border-navy-900 bg-navy-900 text-white'
+                        : invalidated
+                          ? 'border-danger-500/40 bg-danger-50 text-danger-600'
                         : isAnswered
                           ? 'border-teal-300 bg-teal-50 text-teal-800 hover:border-teal-500'
                           : 'border-line-strong bg-surface text-ink-soft hover:border-navy-400 hover:text-navy-800'
@@ -264,6 +285,14 @@ export function QuizRunner({
                         aria-hidden
                         className="absolute -top-1 -right-1 size-2.5 rounded-full border border-surface bg-amber-500"
                       />
+                    ) : null}
+                    {invalidated ? (
+                      <span
+                        aria-hidden
+                        className="absolute -bottom-1 -left-1 grid size-3.5 place-items-center rounded-full border border-surface bg-danger-500 text-[8px] font-bold text-white"
+                      >
+                        0
+                      </span>
                     ) : null}
                   </button>
                 </li>
@@ -300,6 +329,24 @@ export function QuizRunner({
                 {flags[question.id] ? 'Flagged for later' : 'Flag for later'}
               </button>
             </div>
+
+            {integrityByQuestion[question.id]?.invalidated ? (
+              <Alert
+                tone="danger"
+                className="mb-5 px-4 py-3.5 text-[14px]"
+                title="This question is worth zero points"
+              >
+                Three integrity events were recorded while you were on this
+                question. Continue with the rest of the assessment; your other
+                questions are unaffected.
+              </Alert>
+            ) : integrityByQuestion[question.id]?.count ? (
+              <Alert tone="amber" className="mb-5" title="Integrity warning">
+                {integrityByQuestion[question.id].count} of 3 events recorded on
+                this question. Three events make only this question worth zero
+                points.
+              </Alert>
+            ) : null}
 
             <h1 className="text-[17px] leading-relaxed font-medium text-navy-900 sm:text-[18px]">
               {question.stem}

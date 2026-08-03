@@ -8,11 +8,18 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Before changing this codebase in a new conversation:
 
-1. Read [`docs/CONTEXT.md`](docs/CONTEXT.md) (invariants, roles, layout).
-2. For quizzes / assessments, also read [`docs/ASSESSMENTS.md`](docs/ASSESSMENTS.md) and [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md).
-3. Follow project skills under `.cursor/skills/` when they match the task.
-4. Repo root is **`portal/`**. Never commit the parent folder (`_backups/` has real student PII).
+1. Read [`docs/CONTEXT.md`](docs/CONTEXT.md) end to end (verified handoff, service access, working-tree warning, invariants, day tiles, `safeNext`, motion).
+2. For quizzes, also [`docs/ASSESSMENTS.md`](docs/ASSESSMENTS.md) and [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md).
+3. For course content, notebooks, labs, datasets, or future-day assessments,
+   read [`docs/CONTENT-AUTHORING.md`](docs/CONTENT-AUTHORING.md).
+4. Use project skills under `.cursor/skills/` when they match.
+5. Repo root is **`portal/`**. Never commit the parent `_backups/` folder (PII).
 
-Key invariants: RLS is the security boundary; answer keys are a separate table;
-timer/grading/integrity are Postgres RPCs; student published content is cached
-via `revalidateCourseContent`; Vercel region is `bom1`.
+## Non-negotiables (short list)
+
+- RLS + `course_id`; answer keys only in `assessment_answer_keys`
+- Quiz trust in RPCs; call `revalidateCourseContent` after content writes
+- `safeNext` for every post-login redirect (open-redirect class bug)
+- Page entrance = `animate-page` (fade only); day tiles are content-height, not `aspect-square`
+- Vercel `bom1`; `SUPABASE_SECRET_KEY` server-only
+- `vercel --prod` ≠ `git push`

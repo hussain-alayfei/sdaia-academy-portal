@@ -4,65 +4,80 @@
 
 ```
 src/app/
-  (auth)/          login, signup — minimal chrome
-  (app)/           portal chrome (header + footer)
-    home/          join course + enrolled list
-    c/[slug]/      student course + day pages
-    admin/         instructor console
-  (quiz)/          quiz-only layout (no portal chrome)
+  page.tsx                 landing (signed-out); animate-page on hero
+  (auth)/                  login, signup — navy brand rail + form column
+    template.tsx           animate-page on the form column (rail stays put)
+  (app)/                   portal chrome (header + footer)
+    template.tsx           animate-page on every in-app navigation
+    loading.tsx            LoadingPanel
+    home/                  join course; managers redirect to /admin
+    c/[slug]/              student course schedule (day tiles)
+      loading.tsx
+      day/[dayNumber]/      materials + AssessmentCards
+        loading.tsx
+    admin/                 instructor console (requireManager)
+      loading.tsx
+  (quiz)/                  quiz-only layout (no portal chrome)
     quiz/[assessmentId]/   rules → runner → review
-  api/files/[id]/  permission check + 60s signed storage URL
+      loading.tsx
+  api/files/[id]/          permission check + short-lived signed URL
 ```
 
-`(app)/template.tsx` remounts on navigation so `animate-rise` plays once per
-page change without repeating the class on every page.
+Public paths in `src/proxy.ts`: `/`, `/login`, `/signup`, `/auth/*`.
+Static `.md` under `public/` skips the matcher.
+
+## Auth and redirects
+
+1. `proxy.ts` refreshes the session with `getClaims()` (local JWKS for ES256).
+2. Unauthenticated users hitting a private path go to `/login?next=<pathname>`.
+3. After login, **`safeNext`** in `src/app/actions/auth.ts` sanitises `next`
+   before `redirect()`. Never accept a value that is only “starts with `/`”.
+4. Pages use `requireProfile()` / `requireManager()` from `dal.ts`.
+5. Postgres RLS still decides which rows return.
 
 ## Data access layers
 
 | Module | Client | Audience | Cached? |
 | --- | --- | --- | --- |
-| `dal.ts` | user JWT | session, profile, enrollment, can-manage | request-scoped `cache()` |
+| `dal.ts` | user JWT | session, profile, enrollment, can-manage | request `cache()` |
 | `queries.ts` | user JWT | instructor live content | request-scoped |
 | `published.ts` | secret key | student published content | `unstable_cache` + tag `course-content:<id>` |
 | `quiz.ts` | user JWT | attempts, paper, review, results | request-scoped |
 
-**Rule:** never put per-student data (attempts, scores, integrity) in
-`published.ts`. Never serve instructors from the published cache.
-
-After any admin content mutation:
+**Rules:** never put per-student data in `published.ts`. Never serve instructors
+from the published cache. After content mutations:
 
 ```ts
 revalidatePath(...)
 revalidateCourseContent(courseId)
 ```
 
-## Auth flow
+## Enrolment and storage
 
-1. `proxy.ts` refreshes the session via `getClaims()` (local JWKS verify for ES256).
-2. Public paths: `/`, `/login`, `/signup`, `/auth/*`. Static `.md` skips the matcher.
-3. Pages call `requireProfile()` / `requireManager()` from `dal.ts`.
-4. Postgres RLS still decides which rows return.
+- Students have **no insert** on `enrollments`. Join runs `redeem_join_code`.
+- Private storage bucket; path `{course_id}/{day_id}/{file}`. Downloads via
+  `/api/files/[id]` (permission + 60s signed URL). Upload paths must start with
+  that prefix and must not contain `..`.
 
-## Enrolment
+## Caching and region
 
-Students have **no insert** on `enrollments`. Joining runs
-`redeem_join_code(code)` (security definer): validates the join code, inserts
-the enrolment. Guessing a course UUID is useless.
-
-## Storage
-
-Private bucket. Object path `{course_id}/{day_id}/{file}`. Browser uploads
-directly to Supabase. Downloads go through `/api/files/[id]` which checks
-permission and mints a short-lived signed URL.
-
-## Caching & region
-
-- Functions: `vercel.json` → `"regions": ["bom1"]` (must match Supabase Mumbai).
-- Student content cache: tagged per course; invalidated on app mutations only.
-- Editing rows in the SQL editor does **not** bust the cache (up to 1 hour).
+- `vercel.json` → `"regions": ["bom1"]` (must match Supabase Mumbai).
+- Student content cache tagged per course; invalidated only by app mutations.
+- SQL-editor edits do not bust the cache.
 
 ## Server Actions vs RPCs
 
-Thin actions in `src/app/actions/*` parse FormData / JSON, call Supabase, then
-revalidate. Anything that must be atomic or unforgeable (start attempt, save
-answer, submit, integrity, import questions) is a Postgres RPC.
+Thin actions in `src/app/actions/*` validate input, call Supabase, revalidate.
+Anything atomic or unforgeable (attempts, grading, integrity, question import)
+is a Postgres security-definer RPC.
+
+## Motion cheat sheet
+
+| Class | Meaning |
+| --- | --- |
+| `animate-page` | Full-page / template fade (no slide) |
+| `animate-rise` | Small panel entrance with slight Y travel |
+| `animate-brand` | Mosaic colour cycle on hero “purpose” |
+| `animate-dot` | LoadingDots pulse |
+
+Loading: `LoadingDots` / `LoadingPanel` in `src/components/ui.tsx`.

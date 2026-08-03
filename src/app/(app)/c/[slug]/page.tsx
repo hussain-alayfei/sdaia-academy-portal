@@ -15,6 +15,7 @@ import {
   PageHeader,
   Panel,
 } from '@/components/ui'
+import { StudentViewBanner } from '@/components/student-view-banner'
 import { getCourseBySlug, isManager, requireProfile } from '@/lib/dal'
 import {
   ASSESSMENT_LABELS,
@@ -34,10 +35,8 @@ import {
   getResourceCounts,
 } from '@/lib/queries'
 
-// The five hues of the SDAIA mosaic mark, cycled by position so the schedule
-// grid reads as varied instead of every tile turning the same shade of teal
-// on hover. Fixed per day rather than truly random: a tile should hover to
-// the same colour every time, not reroll on each render.
+// Fixed per day so the connected journey is easy to scan and each day keeps
+// the same visual identity on every render.
 const DAY_HOVER_COLORS = [
   { border: '#12b5a5', soft: 'rgba(18,181,165,.08)', text: '#0b6a61' }, // teal
   { border: '#3d9e56', soft: 'rgba(61,158,86,.08)', text: '#2c7541' }, // green
@@ -69,10 +68,12 @@ export async function generateMetadata({
 
 export default async function CoursePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ view?: string }>
 }) {
-  const { slug } = await params
+  const [{ slug }, query] = await Promise.all([params, searchParams])
 
   // The gate and the course load are independent, so pay for one round trip
   // instead of two. RLS still scopes the course read to this user.
@@ -88,7 +89,9 @@ export default async function CoursePage({
   // Students share one cached, published-only copy of the schedule — a whole
   // cohort opening this page costs the database one read rather than thirty.
   // Instructors read live, because they need to see their own drafts.
-  const live = isManager(profile)
+  const manager = isManager(profile)
+  const studentView = manager && query.view === 'student'
+  const live = manager && !studentView
 
   const [days, counts, assessments] = await Promise.all([
     live ? getCourseDays(course.id) : getPublishedCourseDays(course.id),
@@ -112,6 +115,10 @@ export default async function CoursePage({
 
   return (
     <div>
+      {studentView ? (
+        <StudentViewBanner exitHref={`/admin/courses/${course.id}`} />
+      ) : null}
+
       <PageHeader
         eyebrow="Course"
         title={course.title}
@@ -134,12 +141,13 @@ export default async function CoursePage({
         </div>
       )}
 
-      <div className="mb-4">
+      <div className="mb-5">
         <h2 className="text-[17px] font-semibold text-navy-900">
-          Daily schedule
+          Your five-day journey
         </h2>
         <p className="mt-1 text-[13px] text-ink-soft">
-          Open a day for its slides, labs and assessment.
+          Follow the days in order for each day&apos;s slides, labs and assessment.
+          The filled circle marks today&apos;s day.
         </p>
       </div>
 
@@ -151,14 +159,10 @@ export default async function CoursePage({
           />
         </Panel>
       ) : (
-        <ul
-          className="grid justify-start gap-3"
-          style={{
-            gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 220px))',
-          }}
-        >
+        <ol className="relative grid gap-4 before:absolute before:top-5 before:bottom-5 before:left-5 before:w-px before:bg-line-strong before:content-[''] md:grid-cols-5 md:gap-2 md:before:top-5 md:before:right-[10%] md:before:bottom-auto md:before:left-[10%] md:before:h-px md:before:w-auto">
           {days.map((day, index) => {
             const brand = DAY_HOVER_COLORS[index % DAY_HOVER_COLORS.length]
+            const current = day.is_current
             const count = counts[day.id] ?? 0
             const chip = assessmentChipLabel(assessmentsPerDay.get(day.id) ?? [])
             const weekday = formatWeekday(day.scheduled_date)
@@ -171,15 +175,30 @@ export default async function CoursePage({
               .join(' · ')
 
             return (
-              <li key={day.id} className="min-w-0">
-                {/*
-                  Height comes from the content, with a floor to keep the row
-                  even. It used to be aspect-square, which fixed the height at
-                  the tile's width and then clipped the title and the Arabic
-                  subtitle into each other once either ran long.
-                */}
+              <li
+                key={day.id}
+                className="relative min-w-0 ps-14 md:ps-0 md:pt-14"
+              >
+                <span
+                  aria-hidden={!current}
+                  aria-label={current ? `Day ${day.day_number}, current day` : undefined}
+                  style={{
+                    '--brand': brand.border,
+                    '--brand-soft': brand.soft,
+                    '--brand-text': brand.text,
+                  } as CSSProperties}
+                  className={
+                    current
+                      ? 'absolute top-0 left-0 z-[1] grid size-10 place-items-center rounded-full border-2 border-[var(--brand)] bg-[var(--brand)] text-[14px] font-bold text-white shadow-[0_0_0_4px_var(--brand-soft)] md:left-1/2 md:-translate-x-1/2'
+                      : 'absolute top-0 left-0 z-[1] grid size-10 place-items-center rounded-full border-2 border-[var(--brand)] bg-surface text-[14px] font-semibold text-[var(--brand-text)] md:left-1/2 md:-translate-x-1/2'
+                  }
+                >
+                  {day.day_number}
+                </span>
                 <Link
-                  href={`/c/${course.slug}/day/${day.day_number}`}
+                  href={`/c/${course.slug}/day/${day.day_number}${
+                    studentView ? '?view=student' : ''
+                  }`}
                   style={
                     {
                       '--brand': brand.border,
@@ -187,29 +206,37 @@ export default async function CoursePage({
                       '--brand-text': brand.text,
                     } as CSSProperties
                   }
-                  className="group relative flex h-full min-h-[184px] flex-col rounded-md border border-line-strong bg-surface p-3.5 transition-colors duration-200 hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]"
+                  className={
+                    current
+                      ? 'group relative flex h-full min-h-[170px] flex-col rounded-md border-2 border-[var(--brand)] bg-[var(--brand-soft)] p-4 transition-colors duration-200 md:min-h-[226px]'
+                      : 'group relative flex h-full min-h-[170px] flex-col rounded-md border border-line-strong bg-surface p-4 transition-colors duration-200 hover:border-[var(--brand)] hover:bg-[var(--brand-soft)] md:min-h-[226px]'
+                  }
                 >
-                  <div className="flex items-start justify-between gap-1.5">
-                    <span className="grid size-10 place-items-center rounded-md border border-line bg-navy-50 text-center transition-colors duration-200 group-hover:border-[var(--brand)] group-hover:bg-[var(--brand-soft)]">
-                      <span className="text-[8px] leading-none font-semibold tracking-widest text-ink-faint uppercase">
-                        Day
-                      </span>
-                      <span className="text-[18px] leading-none font-semibold text-navy-800 transition-colors duration-200 group-hover:text-[var(--brand-text)]">
-                        {day.day_number}
-                      </span>
+                  <div className="flex min-h-6 items-start justify-between gap-2">
+                    <span className="text-[10px] font-semibold tracking-[0.16em] text-[var(--brand-text)] uppercase">
+                      Day {day.day_number}
                     </span>
-                    {!day.is_published ? (
-                      <Badge tone="amber">Draft</Badge>
-                    ) : null}
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      {current ? <Badge tone="teal">Today</Badge> : null}
+                      {!day.is_published ? (
+                        <Badge tone="amber">Draft</Badge>
+                      ) : null}
+                    </div>
                   </div>
 
-                  <p className="mt-3 line-clamp-2 text-[13px] leading-snug font-semibold text-navy-900 transition-colors duration-200 group-hover:text-[var(--brand-text)]">
+                  <p className="mt-2 line-clamp-3 text-[14px] leading-snug font-semibold text-navy-900 transition-colors duration-200 group-hover:text-[var(--brand-text)]">
                     {day.title}
                   </p>
 
                   {day.title_ar ? (
-                    <p className="mt-1.5 line-clamp-1 text-[11px] leading-relaxed text-ink-soft">
+                    <p className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed text-ink-soft">
                       <Arabic>{day.title_ar}</Arabic>
+                    </p>
+                  ) : null}
+
+                  {day.summary ? (
+                    <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-ink-soft md:hidden xl:block">
+                      {day.summary}
                     </p>
                   ) : null}
 
@@ -243,7 +270,7 @@ export default async function CoursePage({
               </li>
             )
           })}
-        </ul>
+        </ol>
       )}
     </div>
   )

@@ -17,6 +17,8 @@ import type { AssessmentKind, QuestionDifficulty } from '@/lib/types'
 
 export const OPTION_LABELS = ['A', 'B', 'C', 'D'] as const
 export type OptionLabel = (typeof OPTION_LABELS)[number]
+export const TRUE_FALSE_OPTION_LABELS = ['A', 'B'] as const
+export type QuestionFormat = 'multiple_choice' | 'true_false'
 
 /** How many questions each kind is meant to carry. */
 export const QUESTION_COUNTS: Record<AssessmentKind, number> = {
@@ -33,6 +35,20 @@ export const DIFFICULTY_MIX: Record<
   pre: { easy: 6, medium: 9, hard: 5 },
   quiz: { easy: 3, medium: 5, hard: 2 },
   post: { easy: 9, medium: 13, hard: 8 },
+}
+
+export function difficultyMixFor(
+  kind: AssessmentKind,
+  questionCount = QUESTION_COUNTS[kind]
+): Record<QuestionDifficulty, number> | null {
+  const standard = DIFFICULTY_MIX[kind]
+  const standardCount = QUESTION_COUNTS[kind]
+  if (questionCount < standardCount) return null
+  return {
+    easy: standard.easy + (questionCount - standardCount),
+    medium: standard.medium,
+    hard: standard.hard,
+  }
 }
 
 /** Default minutes on the clock, keyed by kind. */
@@ -76,27 +92,62 @@ const TopicText = plainText(3, 80, {
   'A topic must contain two to four words.'
 )
 
+const MultipleChoiceOptionsSchema = z
+  .object({
+    A: OptionText,
+    B: OptionText,
+    C: OptionText,
+    D: OptionText,
+  })
+  .strict()
+
+const TrueFalseOptionsSchema = z
+  .object({
+    A: z.literal('True'),
+    B: z.literal('False'),
+  })
+  .strict()
+
 const QuestionSchema = z.object({
+  format: z.enum(['multiple_choice', 'true_false']).default('multiple_choice'),
   difficulty: z.enum(['easy', 'medium', 'hard']),
   topic: TopicText,
   stem: plainText(15, 1200, {
     short: 'A stem that short cannot be a self-contained question.',
     long: 'Stems must be under 1200 characters.',
   }),
-  options: z
-    .object({
-      A: OptionText,
-      B: OptionText,
-      C: OptionText,
-      D: OptionText,
-    })
-    .strict(),
+  options: z.union([MultipleChoiceOptionsSchema, TrueFalseOptionsSchema]),
   correct: z.enum(OPTION_LABELS),
   rationale: plainText(10, 1200, {
     short: 'A rationale must explain why the answer is correct.',
     long: 'Rationales must be under 1200 characters.',
   }),
-}).strict()
+}).strict().superRefine((question, context) => {
+  const optionCount = Object.keys(question.options).length
+  if (question.format === 'multiple_choice' && optionCount !== 4) {
+    context.addIssue({
+      code: 'custom',
+      path: ['options'],
+      message: 'A multiple-choice question must contain options A, B, C, and D.',
+    })
+  }
+  if (question.format === 'true_false') {
+    if (optionCount !== 2) {
+      context.addIssue({
+        code: 'custom',
+        path: ['options'],
+        message: 'A true/false question must contain only A: True and B: False.',
+      })
+    }
+    if (!TRUE_FALSE_OPTION_LABELS.includes(question.correct as 'A' | 'B')) {
+      context.addIssue({
+        code: 'custom',
+        path: ['correct'],
+        message: 'A true/false answer must be A or B.',
+      })
+    }
+  }
+})
 
 export const AssessmentFileSchema = z.object({
   schema: z.literal(
@@ -122,6 +173,14 @@ export const AssessmentFileSchema = z.object({
 
 export type AssessmentFile = z.infer<typeof AssessmentFileSchema>
 export type ParsedQuestion = AssessmentFile['questions'][number]
+
+export function optionLabelsFor(
+  question: Pick<ParsedQuestion, 'format'>
+): readonly OptionLabel[] {
+  return question.format === 'true_false'
+    ? TRUE_FALSE_OPTION_LABELS
+    : OPTION_LABELS
+}
 
 /* ------------------------------------------------------------ extraction -- */
 
@@ -222,7 +281,8 @@ function numericOption(value: string) {
  */
 export function inspectQuestions(
   file: AssessmentFile,
-  targetKind?: AssessmentKind
+  targetKind?: AssessmentKind,
+  expectedQuestionCount?: number
 ): ValidationReport {
   const errors: string[] = []
   const warnings: string[] = []
@@ -235,7 +295,9 @@ export function inspectQuestions(
   const seen = new Map<string, number>()
 
   questions.forEach((q, i) => {
-    const bodies = OPTION_LABELS.map((l) => q.options[l])
+    const optionLabels = optionLabelsFor(q)
+    const options = q.options as Partial<Record<OptionLabel, string>>
+    const bodies = optionLabels.map((l) => options[l] ?? '')
 
     // Four distinct options. Two identical choices make the item unanswerable.
     const lowered = bodies.map((b) => b.toLowerCase())
@@ -255,24 +317,28 @@ export function inspectQuestions(
       seen.set(key, i)
     }
 
-    // Length cue: the reason to care is that a student can score above chance by
-    // always picking the longest answer.
-    const lengths = bodies.map((b) => b.length)
-    const shortest = Math.min(...lengths)
-    const longest = Math.max(...lengths)
-    if (shortest > 0 && longest / shortest > LENGTH_RATIO_LIMIT) {
-      errors.push(
-        `${label(i)}: the longest option is ${Math.round(
-          (longest / shortest) * 100
-        )}% of the shortest, so length hints at the answer.`
-      )
-    }
+    // Length cues only apply to multiple choice. True/false options are fixed
+    // labels ("True" / "False"), so length maths would be meaningless.
+    if (q.format === 'multiple_choice') {
+      const lengths = bodies.map((b) => b.length)
+      const shortest = Math.min(...lengths)
+      const longest = Math.max(...lengths)
+      if (shortest > 0 && longest / shortest > LENGTH_RATIO_LIMIT) {
+        errors.push(
+          `${label(i)}: the longest option is ${Math.round(
+            (longest / shortest) * 100
+          )}% of the shortest, so length hints at the answer.`
+        )
+      }
 
-    const correctLength = q.options[q.correct].length
-    if (questions.length > 1 && correctLength === longest && longest > shortest) {
-      errors.push(
-        `${label(i)}: the correct option is the longest one.`
-      )
+      const correctLength = options[q.correct]?.length ?? 0
+      if (
+        questions.length > 1 &&
+        correctLength === longest &&
+        longest > shortest
+      ) {
+        errors.push(`${label(i)}: the correct option is the longest one.`)
+      }
     }
 
     for (const [pattern, name] of BANNED_OPTION_PATTERNS) {
@@ -282,7 +348,8 @@ export function inspectQuestions(
       }
     }
 
-    const negative = q.stem.match(NEGATIVE_PIVOT)
+    const negative =
+      q.format === 'true_false' ? null : q.stem.match(NEGATIVE_PIVOT)
     if (negative) {
       errors.push(
         `${label(i)} uses "${negative[0]}" as negative wording. Ask for the correct answer positively.`
@@ -327,16 +394,16 @@ export function inspectQuestions(
 
     const stemWords = words(q.stem)
     const optionWords = Object.fromEntries(
-      OPTION_LABELS.map((optionLabel) => [
+      optionLabels.map((optionLabel) => [
         optionLabel,
-        words(q.options[optionLabel]),
+        words(options[optionLabel] ?? ''),
       ])
-    ) as Record<OptionLabel, Set<string>>
+    ) as Partial<Record<OptionLabel, Set<string>>>
     const cueWords = [...stemWords].filter(
       (word) =>
-        optionWords[q.correct].has(word) &&
-        OPTION_LABELS.filter((optionLabel) => optionLabel !== q.correct).every(
-          (optionLabel) => !optionWords[optionLabel].has(word)
+        optionWords[q.correct]?.has(word) &&
+        optionLabels.filter((optionLabel) => optionLabel !== q.correct).every(
+          (optionLabel) => !optionWords[optionLabel]?.has(word)
         )
     )
     if (cueWords.length > 0) {
@@ -352,7 +419,9 @@ export function inspectQuestions(
   /* ---- across the set ---- */
 
   const kind = targetKind ?? file.assessment?.kind
-  const expected = kind ? QUESTION_COUNTS[kind] : undefined
+  const expected = kind
+    ? (expectedQuestionCount ?? QUESTION_COUNTS[kind])
+    : undefined
 
   if (expected !== undefined && questions.length !== expected) {
     errors.push(
@@ -373,15 +442,26 @@ export function inspectQuestions(
     )
   }
 
-  if (questions.length >= MIN_FOR_KEY_SPREAD) {
+  // Answer-key spread is measured on multiple-choice items only. True/false
+  // questions can only key A or B, so folding them into an A–D balance check
+  // would force every mixed paper to fail.
+  const mcqQuestions = questions.filter((q) => q.format === 'multiple_choice')
+  const tfQuestions = questions.filter((q) => q.format === 'true_false')
+
+  if (mcqQuestions.length >= MIN_FOR_KEY_SPREAD) {
     const counts = new Map<OptionLabel, number>(
       OPTION_LABELS.map((l) => [l, 0])
     )
-    for (const q of questions) {
+    for (const q of mcqQuestions) {
       counts.set(q.correct, (counts.get(q.correct) ?? 0) + 1)
     }
 
-    if (kind && questions.length === QUESTION_COUNTS[kind]) {
+    if (
+      kind &&
+      questions.length === QUESTION_COUNTS[kind] &&
+      expected === QUESTION_COUNTS[kind] &&
+      tfQuestions.length === 0
+    ) {
       const range = ANSWER_KEY_RANGES[kind]
       for (const l of OPTION_LABELS) {
         const count = counts.get(l) ?? 0
@@ -395,25 +475,41 @@ export function inspectQuestions(
       const unused = OPTION_LABELS.filter((l) => (counts.get(l) ?? 0) === 0)
       if (unused.length > 0) {
         errors.push(
-          `Every answer letter must be used; none of the questions currently use ${unused.join(' or ')}.`
+          `Every multiple-choice answer letter must be used; none of the multiple-choice questions currently use ${unused.join(' or ')}.`
         )
       }
 
       for (const l of OPTION_LABELS) {
-        const share = (counts.get(l) ?? 0) / questions.length
+        const share = (counts.get(l) ?? 0) / mcqQuestions.length
         if (share > KEY_SHARE_LIMIT) {
           errors.push(
-            `${Math.round(share * 100)}% of answers are ${l}; no letter may exceed 30%.`
+            `${Math.round(share * 100)}% of multiple-choice answers are ${l}; no letter may exceed 30%.`
           )
         }
       }
     }
   }
 
+  if (tfQuestions.length >= 4) {
+    const trueCount = tfQuestions.filter((q) => q.correct === 'A').length
+    const falseCount = tfQuestions.filter((q) => q.correct === 'B').length
+    if (trueCount === 0 || falseCount === 0) {
+      errors.push(
+        'True/false keys must use both True (A) and False (B) across the set.'
+      )
+    }
+  }
+
   // Only worth checking the mix when the count is the one the mix was written
   // for; otherwise the numbers are not comparable.
   if (kind && expected !== undefined && questions.length === expected) {
-    const target = DIFFICULTY_MIX[kind]
+    const target = difficultyMixFor(kind, expected)
+    if (!target) {
+      errors.push(
+        `No difficulty mix is configured for ${expected} ${kind} questions.`
+      )
+      return { errors, warnings }
+    }
     const actual: Record<QuestionDifficulty, number> = {
       easy: 0,
       medium: 0,
@@ -458,7 +554,8 @@ export type ParseResult =
  */
 export function parseAssessmentFile(
   raw: string,
-  targetKind?: AssessmentKind
+  targetKind?: AssessmentKind,
+  expectedQuestionCount?: number
 ): ParseResult {
   if (!raw.trim()) {
     return { ok: false, report: { errors: ['Nothing to import.'], warnings: [] } }
@@ -490,7 +587,11 @@ export function parseAssessmentFile(
     return { ok: false, report: { errors: errors.slice(0, 25), warnings: [] } }
   }
 
-  const report = inspectQuestions(parsed.data, targetKind)
+  const report = inspectQuestions(
+    parsed.data,
+    targetKind,
+    expectedQuestionCount
+  )
   if (report.errors.length > 0) return { ok: false, report }
 
   return { ok: true, file: parsed.data, report }

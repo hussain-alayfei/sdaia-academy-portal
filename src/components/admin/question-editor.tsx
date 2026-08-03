@@ -16,7 +16,12 @@ import {
   Textarea,
   cx,
 } from '@/components/ui'
-import { OPTION_LABELS, type OptionLabel } from '@/lib/assessment-schema'
+import {
+  OPTION_LABELS,
+  TRUE_FALSE_OPTION_LABELS,
+  type OptionLabel,
+  type QuestionFormat,
+} from '@/lib/assessment-schema'
 import type { QuestionForEditing } from '@/lib/quiz'
 
 /**
@@ -41,6 +46,15 @@ function QuestionForm({
     undefined
   )
   const formRef = useRef<HTMLFormElement>(null)
+  const initialFormat: QuestionFormat =
+    question?.format === 'true_false' ||
+    (question?.options.length === 2 &&
+      question.options.every(
+        (option) => option.label === 'A' || option.label === 'B'
+      ))
+      ? 'true_false'
+      : 'multiple_choice'
+  const [format, setFormat] = useState<QuestionFormat>(initialFormat)
 
   useEffect(() => {
     if (!state?.ok) return
@@ -48,17 +62,24 @@ function QuestionForm({
       onDone?.()
     } else {
       formRef.current?.reset()
+      setFormat('multiple_choice')
     }
   }, [state, question, onDone])
 
   const uid = question?.id ?? 'new'
+  const optionLabels =
+    format === 'true_false' ? TRUE_FALSE_OPTION_LABELS : OPTION_LABELS
 
   // The stored key is an option id; the form works in labels, so map across.
   const currentCorrect =
     question?.options.find((o) => o.id === question.correctOptionId)?.label ?? 'A'
 
-  const bodyFor = (label: OptionLabel) =>
-    question?.options.find((o) => o.label === label)?.body ?? ''
+  const bodyFor = (label: OptionLabel) => {
+    if (format === 'true_false') {
+      return label === 'A' ? 'True' : 'False'
+    }
+    return question?.options.find((o) => o.label === label)?.body ?? ''
+  }
 
   return (
     <form ref={formRef} action={action} className="space-y-4" noValidate>
@@ -70,7 +91,25 @@ function QuestionForm({
 
       {state?.message ? <Alert>{state.message}</Alert> : null}
 
-      <div className="grid gap-4 sm:grid-cols-[160px_minmax(0,1fr)]">
+      <div className="grid gap-4 sm:grid-cols-[160px_160px_minmax(0,1fr)]">
+        <Field
+          label="Format"
+          htmlFor={`format-${uid}`}
+          error={state?.errors?.format}
+        >
+          <Select
+            id={`format-${uid}`}
+            name="format"
+            value={format}
+            onChange={(event) =>
+              setFormat(event.target.value as QuestionFormat)
+            }
+          >
+            <option value="multiple_choice">Multiple choice</option>
+            <option value="true_false">True / false</option>
+          </Select>
+        </Field>
+
         <Field
           label="Difficulty"
           htmlFor={`difficulty-${uid}`}
@@ -122,7 +161,7 @@ function QuestionForm({
           Options · select the correct one
         </legend>
 
-        {OPTION_LABELS.map((label) => (
+        {optionLabels.map((label) => (
           <div key={label} className="flex items-start gap-2.5">
             <label
               className="mt-2.5 flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-navy-800"
@@ -143,7 +182,9 @@ function QuestionForm({
                 name={label}
                 rows={1}
                 required
+                readOnly={format === 'true_false'}
                 defaultValue={bodyFor(label)}
+                key={`${format}-${label}-${bodyFor(label)}`}
                 aria-label={`Option ${label}`}
                 className="min-h-10"
               />
@@ -163,8 +204,9 @@ function QuestionForm({
         ) : null}
 
         <p className="text-[12px] text-ink-faint">
-          Keep all four a similar length. If the correct answer is the longest,
-          students can find it without knowing the material.
+          {format === 'true_false'
+            ? 'True/false questions use fixed A: True and B: False labels.'
+            : 'Keep all four a similar length. If the correct answer is the longest, students can find it without knowing the material.'}
         </p>
       </fieldset>
 

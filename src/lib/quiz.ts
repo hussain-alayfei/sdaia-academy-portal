@@ -126,8 +126,12 @@ export const getCourseAttempts = cache(
 )
 
 /** Integrity log for one assessment, oldest first so it reads as a timeline. */
+export type IntegrityEventForResults = IntegrityEvent & {
+  questionPosition: number | null
+}
+
 export const getIntegrityEvents = cache(
-  async (assessmentId: string): Promise<IntegrityEvent[]> => {
+  async (assessmentId: string): Promise<IntegrityEventForResults[]> => {
     const supabase = await createClient()
 
     // Scoped through the attempt, because events carry no assessment_id of their
@@ -135,7 +139,7 @@ export const getIntegrityEvents = cache(
     const { data } = await supabase
       .from('assessment_integrity_events')
       .select(
-        'id, attempt_id, course_id, student_id, kind, warning_number, occurred_at, attempt:assessment_attempts!inner(assessment_id)'
+        'id, attempt_id, course_id, student_id, question_id, question_warning_number, kind, warning_number, occurred_at, attempt:assessment_attempts!inner(assessment_id), question:assessment_questions(position)'
       )
       .eq('attempt.assessment_id', assessmentId)
       .order('occurred_at')
@@ -145,9 +149,12 @@ export const getIntegrityEvents = cache(
       attempt_id: event.attempt_id,
       course_id: event.course_id,
       student_id: event.student_id,
+      question_id: event.question_id,
+      question_warning_number: event.question_warning_number,
       kind: event.kind,
       warning_number: event.warning_number,
       occurred_at: event.occurred_at,
+      questionPosition: event.question?.position ?? null,
     }))
   }
 )
@@ -242,6 +249,8 @@ export type PaperQuestion = {
   options: Array<{ id: string; body: string }>
   selectedOptionId: string | null
   flagged: boolean
+  integrityWarningCount: number
+  integrityInvalidated: boolean
 }
 
 /** Narrow the jsonb snapshot into the shape it was written as. */
@@ -272,7 +281,8 @@ export async function getAttemptPaper(
   const supabase = await createClient()
   const questionIds = order.map((entry) => entry.q)
 
-  const [{ data: questions }, { data: responses }] = await Promise.all([
+  const [{ data: questions }, { data: responses }, { data: events }] =
+    await Promise.all([
     supabase
       .from('assessment_questions')
       .select('id, stem, options:assessment_options(id, body)')
@@ -281,6 +291,11 @@ export async function getAttemptPaper(
       .from('assessment_responses')
       .select('question_id, selected_option_id, flagged')
       .eq('attempt_id', attempt.id),
+    supabase
+      .from('assessment_integrity_events')
+      .select('question_id, question_warning_number')
+      .eq('attempt_id', attempt.id)
+      .not('question_id', 'is', null),
   ])
 
   const byId = new Map((questions ?? []).map((q) => [q.id, q]))
@@ -290,6 +305,17 @@ export async function getAttemptPaper(
       { selectedOptionId: r.selected_option_id, flagged: r.flagged },
     ])
   )
+  const warningCounts = new Map<string, number>()
+  for (const event of events ?? []) {
+    if (!event.question_id) continue
+    warningCounts.set(
+      event.question_id,
+      Math.max(
+        warningCounts.get(event.question_id) ?? 0,
+        event.question_warning_number ?? 0
+      )
+    )
+  }
 
   return order.flatMap((entry, index) => {
     const question = byId.get(entry.q)
@@ -302,6 +328,7 @@ export async function getAttemptPaper(
     })
 
     const answer = answers.get(entry.q)
+    const integrityWarningCount = warningCounts.get(entry.q) ?? 0
 
     return [
       {
@@ -311,6 +338,8 @@ export async function getAttemptPaper(
         options: ordered,
         selectedOptionId: answer?.selectedOptionId ?? null,
         flagged: answer?.flagged ?? false,
+        integrityWarningCount,
+        integrityInvalidated: integrityWarningCount >= 3,
       },
     ]
   })
@@ -327,6 +356,8 @@ export type ReviewQuestion = {
   correctOptionId: string | null
   rationale: string | null
   isCorrect: boolean
+  integrityWarningCount: number
+  integrityInvalidated: boolean
 }
 
 /**
@@ -343,7 +374,12 @@ export async function getAttemptReview(
   const order = readQuestionOrder(attempt.question_order)
   const supabase = await createClient()
 
-  const [{ data: questions }, { data: responses }, { data: keys }] =
+  const [
+    { data: questions },
+    { data: responses },
+    { data: keys },
+    { data: events },
+  ] =
     await Promise.all([
       supabase
         .from('assessment_questions')
@@ -356,10 +392,26 @@ export async function getAttemptReview(
       supabase
         .from('assessment_answer_keys')
         .select('question_id, option_id, rationale'),
+      supabase
+        .from('assessment_integrity_events')
+        .select('question_id, question_warning_number')
+        .eq('attempt_id', attempt.id)
+        .not('question_id', 'is', null),
     ])
 
   const answers = new Map((responses ?? []).map((r) => [r.question_id, r]))
   const keyByQuestion = new Map((keys ?? []).map((k) => [k.question_id, k]))
+  const warningCounts = new Map<string, number>()
+  for (const event of events ?? []) {
+    if (!event.question_id) continue
+    warningCounts.set(
+      event.question_id,
+      Math.max(
+        warningCounts.get(event.question_id) ?? 0,
+        event.question_warning_number ?? 0
+      )
+    )
+  }
 
   // Show them in the order they sat, falling back to stored position for
   // anything the snapshot does not mention.
@@ -371,6 +423,7 @@ export async function getAttemptReview(
   return sorted.map((question, index) => {
     const answer = answers.get(question.id)
     const key = keyByQuestion.get(question.id)
+    const integrityWarningCount = warningCounts.get(question.id) ?? 0
 
     return {
       id: question.id,
@@ -383,6 +436,8 @@ export async function getAttemptReview(
       correctOptionId: key?.option_id ?? null,
       rationale: key?.rationale ?? null,
       isCorrect: answer?.is_correct === true,
+      integrityWarningCount,
+      integrityInvalidated: integrityWarningCount >= 3,
     }
   })
 }

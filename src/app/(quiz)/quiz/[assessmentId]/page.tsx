@@ -7,6 +7,8 @@ import { AlertIcon, ClockIcon, EyeOffIcon, LockIcon } from '@/components/icons'
 import { QuizExpired } from '@/components/quiz-expired'
 import { QuizReview } from '@/components/quiz-review'
 import { QuizRunner } from '@/components/quiz-runner'
+import { QuizPreview } from '@/components/quiz-preview'
+import { StudentViewBanner } from '@/components/student-view-banner'
 import { Alert, Button, Panel } from '@/components/ui'
 import { isManager, requireProfile } from '@/lib/dal'
 import { ASSESSMENT_LABELS, formatDuration } from '@/lib/format'
@@ -14,6 +16,7 @@ import { getPublishedQuestionCounts } from '@/lib/published'
 import {
   getAttemptPaper,
   getAttemptReview,
+  getQuestionsForEditing,
   getMyAttempt,
   secondsRemaining,
 } from '@/lib/quiz'
@@ -28,9 +31,12 @@ export default async function QuizPage({
   searchParams,
 }: {
   params: Promise<{ assessmentId: string }>
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; view?: string }>
 }) {
-  const [{ assessmentId }, { error }] = await Promise.all([params, searchParams])
+  const [{ assessmentId }, { error, view }] = await Promise.all([
+    params,
+    searchParams,
+  ])
 
   const profile = await requireProfile()
   const supabase = await createClient()
@@ -40,26 +46,33 @@ export default async function QuizPage({
   const { data: assessment } = await supabase
     .from('assessments')
     .select(
-      'id, course_id, kind, title, description, duration_minutes, is_locked, is_published, day:course_days(day_number), course:courses(slug, title)'
+      'id, course_id, kind, title, description, duration_minutes, required_question_count, is_locked, is_published, day:course_days(day_number), course:courses(slug, title)'
     )
     .eq('id', assessmentId)
     .maybeSingle()
 
   if (!assessment) notFound()
 
+  const studentView = isManager(profile) && view === 'student'
+
   const slug = assessment.course?.slug
   const dayNumber = assessment.day?.day_number
+  const previewQuery = studentView ? '?view=student' : ''
   const backHref =
-    slug && dayNumber ? `/c/${slug}/day/${dayNumber}` : slug ? `/c/${slug}` : '/home'
+    slug && dayNumber
+      ? `/c/${slug}/day/${dayNumber}${previewQuery}`
+      : slug
+        ? `/c/${slug}${previewQuery}`
+        : '/home'
   const backLabel = dayNumber ? `Back to day ${dayNumber}` : 'Back to the course'
 
-  const attempt = await getMyAttempt(assessmentId)
+  const attempt = studentView ? null : await getMyAttempt(assessmentId)
 
   /* ---- instructors ---- */
 
   // Sitting your own quiz would consume the one attempt and write a score
   // against your name, so managers get sent to the editor instead.
-  if (!attempt && isManager(profile)) {
+  if (!attempt && isManager(profile) && !studentView) {
     return (
       <Shell>
         <Panel className="p-6">
@@ -123,10 +136,21 @@ export default async function QuizPage({
 
   const counts = await getPublishedQuestionCounts(assessment.course_id)
   const questionCount = counts[assessment.id] ?? 0
-  const openable = !assessment.is_locked && questionCount > 0
+  const previewQuestions = studentView
+    ? await getQuestionsForEditing(assessment.id)
+    : []
+  const openable =
+    !assessment.is_locked &&
+    questionCount === assessment.required_question_count
 
   return (
     <Shell>
+      {studentView ? (
+        <StudentViewBanner
+          exitHref={`/admin/courses/${assessment.course_id}/assessments/${assessment.id}`}
+        />
+      ) : null}
+
       <div className="animate-page">
         <p className="text-[12px] font-semibold tracking-wide text-teal-700 uppercase">
           {ASSESSMENT_LABELS[assessment.kind]}
@@ -155,44 +179,73 @@ export default async function QuizPage({
 
         <ul className="mt-3 space-y-3 text-[14px] text-ink">
           <Rule icon={<ClockIcon width={16} height={16} />}>
-            <strong className="font-medium text-navy-900">
-              {formatDuration(assessment.duration_minutes)}
-            </strong>{' '}
-            for {questionCount} question{questionCount === 1 ? '' : 's'}. The
-            clock starts when you press begin and runs on the server, so closing
-            the page does not pause it.
+            {studentView ? (
+              <>
+                Students receive <strong className="font-medium text-navy-900">{formatDuration(assessment.duration_minutes)}</strong>{' '}
+                for {questionCount} question{questionCount === 1 ? '' : 's'}.
+                Your preview has no timer, so you can inspect it calmly.
+              </>
+            ) : (
+              <>
+                <strong className="font-medium text-navy-900">{formatDuration(assessment.duration_minutes)}</strong>{' '}
+                for {questionCount} question{questionCount === 1 ? '' : 's'}.
+                The clock starts when you press begin and runs on the server,
+                so closing the page does not pause it.
+              </>
+            )}
           </Rule>
 
           <Rule icon={<LockIcon width={16} height={16} />}>
-            <strong className="font-medium text-navy-900">One attempt.</strong>{' '}
-            There is no second try, and no way to reopen it once submitted.
+            {studentView ? (
+              <>
+                <strong className="font-medium text-navy-900">Unlimited previews.</strong>{' '}
+                Restart as often as needed; no attempt or score is created.
+              </>
+            ) : (
+              <>
+                <strong className="font-medium text-navy-900">One attempt.</strong>{' '}
+                There is no second try, and no way to reopen it once submitted.
+              </>
+            )}
           </Rule>
 
           <Rule icon={<AlertIcon width={16} height={16} />}>
             One question at a time. You can skip, flag anything to come back to,
-            and move freely between them. Every answer saves the moment you pick
-            it, so a lost connection costs you nothing.
+            and move freely between them. {studentView ? 'Preview answers stay only in this browser until you exit.' : 'Every answer saves the moment you pick it, so a lost connection costs you nothing.'}
           </Rule>
 
           <Rule icon={<EyeOffIcon width={16} height={16} />}>
             <strong className="font-medium text-navy-900">
               Stay on this page.
             </strong>{' '}
-            Switching tab or window, copying and pasting are recorded and shown to
-            your instructor. You get two warnings; on the third the attempt is
-            submitted as it stands and flagged.
+            {studentView ? 'The real student attempt records tab/window changes and copy or paste. Preview mode does not create integrity records.' : 'Switching tab or window, copying and pasting are recorded per question. Right-clicking is allowed. A large warning explains each recorded event. Three events while you are on the same question make only that question worth zero points. The assessment continues, and your other questions are unaffected.'}
           </Rule>
         </ul>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          {openable ? (
+          {studentView ? (
+            <QuizPreview
+              title={assessment.title}
+              questions={previewQuestions.map((question) => ({
+                id: question.id,
+                stem: question.stem,
+                options: question.options.map((option) => ({
+                  id: option.id,
+                  body: option.body,
+                })),
+                correctOptionId: question.correctOptionId,
+                rationale: question.rationale,
+              }))}
+              questionCount={assessment.required_question_count}
+            />
+          ) : openable ? (
             <form action={beginAttempt}>
               <input type="hidden" name="assessment_id" value={assessment.id} />
               <Button type="submit">Begin the assessment</Button>
             </form>
           ) : (
             <p className="text-[14px] text-ink-soft">
-              {questionCount === 0
+              {questionCount !== assessment.required_question_count
                 ? 'This assessment is not ready yet. Your instructor is still preparing it.'
                 : 'This is not open yet. Your instructor will release it when the class is ready.'}
             </p>

@@ -77,32 +77,50 @@ export async function saveAnswer(input: {
 /**
  * Record one integrity event and report where the student now stands.
  *
- * The count lives on the attempt row, so a reload does not hand back a fresh set
- * of chances. On the third event the database submits the attempt itself, which
- * is why `stopped` can come back true without the client asking for it.
+ * Counts live in the database, so a reload does not hand back a fresh set of
+ * chances. The total stays on the attempt; the per-question count stays on the
+ * event rows. A third event invalidates that question without ending the quiz.
  */
 export async function reportIntegrityEvent(input: {
   attemptId: string
+  questionId: string
   kind: string
 }): Promise<IntegrityResult & { message?: string }> {
   await requireProfile()
 
   if (!INTEGRITY_KINDS.includes(input.kind as IntegrityEventKind)) {
-    return { warning_count: 0, stopped: false, message: 'Unknown event' }
+    return {
+      active: true,
+      question_invalidated: false,
+      question_warning_count: 0,
+      warning_count: 0,
+      message: 'Unknown event',
+    }
   }
 
   const supabase = await createClient()
   const { data, error } = await supabase.rpc('record_integrity_event', {
     p_attempt: input.attemptId,
     p_kind: input.kind,
+    p_question: input.questionId,
   })
 
-  if (error) return { warning_count: 0, stopped: false, message: error.message }
+  if (error) {
+    return {
+      active: true,
+      question_invalidated: false,
+      question_warning_count: 0,
+      warning_count: 0,
+      message: error.message,
+    }
+  }
 
   const result = (data ?? {}) as Partial<IntegrityResult>
   return {
+    active: result.active ?? true,
+    question_invalidated: result.question_invalidated ?? false,
+    question_warning_count: result.question_warning_count ?? 0,
     warning_count: result.warning_count ?? 0,
-    stopped: result.stopped ?? false,
   }
 }
 
@@ -113,7 +131,7 @@ export async function reportIntegrityEvent(input: {
  */
 export async function finishAttempt(input: {
   attemptId: string
-  reason?: 'submitted' | 'timed_out' | 'integrity_stopped'
+  reason?: 'submitted' | 'timed_out'
 }): Promise<{ ok: true; result: SubmitResult } | { ok: false; message: string }> {
   await requireProfile()
   const supabase = await createClient()

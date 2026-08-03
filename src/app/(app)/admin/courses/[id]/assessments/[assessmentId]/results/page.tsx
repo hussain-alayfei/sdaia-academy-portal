@@ -146,13 +146,18 @@ export default async function ResultsPage({
                     attempt.submitted_at
                   )
                   const log = eventsByAttempt.get(attempt.id) ?? []
+                  const penalized = log.some(
+                    (event) => (event.question_warning_number ?? 0) >= 3
+                  )
 
                   return (
                     <tr
                       key={attempt.id}
                       className={cx(
                         'align-top transition-colors',
-                        stopped ? 'bg-danger-50/40' : 'hover:bg-navy-50/50'
+                        stopped || penalized
+                          ? 'bg-danger-50/40'
+                          : 'hover:bg-navy-50/50'
                       )}
                     >
                       <td className="px-4 py-3">
@@ -171,7 +176,9 @@ export default async function ResultsPage({
                           <span
                             className={cx(
                               'text-[14px] font-medium tabular-nums',
-                              stopped ? 'text-danger-600' : 'text-navy-900'
+                              stopped || penalized
+                                ? 'text-danger-600'
+                                : 'text-navy-900'
                             )}
                           >
                             {correct}/{total}
@@ -219,7 +226,9 @@ export default async function ResultsPage({
                             <span
                               className={cx(
                                 'inline-flex items-center gap-1.5 text-[13px] font-medium',
-                                stopped ? 'text-danger-600' : 'text-amber-700'
+                                stopped || penalized
+                                  ? 'text-danger-600'
+                                  : 'text-amber-700'
                               )}
                             >
                               <AlertIcon width={13} height={13} />
@@ -233,6 +242,13 @@ export default async function ResultsPage({
                                   className="text-[12px] text-ink-faint"
                                 >
                                   {EVENT_LABELS[event.kind]} ·{' '}
+                                  {event.questionPosition !== null
+                                    ? `Question ${event.questionPosition + 1}${
+                                        event.question_warning_number
+                                          ? ` (${event.question_warning_number}/3)`
+                                          : ''
+                                      } · `
+                                    : ''}
                                   {new Date(event.occurred_at).toLocaleTimeString(
                                     'en-GB',
                                     { hour: '2-digit', minute: '2-digit' }

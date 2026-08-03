@@ -1,7 +1,11 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-import { deleteAssessment } from '@/app/actions/admin'
+import {
+  deleteAssessment,
+  toggleAssessmentLocked,
+  toggleAssessmentPublished,
+} from '@/app/actions/admin'
 import {
   deleteQuestion,
   moveQuestion,
@@ -24,7 +28,6 @@ import {
   PanelHeader,
   cx,
 } from '@/components/ui'
-import { QUESTION_COUNTS } from '@/lib/assessment-schema'
 import { canManageCourse, getCourseById } from '@/lib/dal'
 import {
   ASSESSMENT_LABELS,
@@ -65,7 +68,8 @@ export default async function AssessmentEditorPage({
   if (!assessment) notFound()
 
   const hasAttempts = attempts.length > 0
-  const expected = QUESTION_COUNTS[assessment.kind]
+  const expected = assessment.required_question_count
+  const ready = questions.length === expected
 
   const mix = questions.reduce<Record<QuestionDifficulty, number>>(
     (acc, q) => {
@@ -114,17 +118,112 @@ export default async function AssessmentEditorPage({
         ) : null}
       </div>
 
-      {error === 'empty' ? (
-        <Alert title="Nothing to publish yet">
-          This assessment has no questions, so a student would see a card they
-          cannot open. Import a file or write a question first.
+      {error === 'count' ? (
+        <Alert title="Question count is not ready">
+          A {assessment.kind} assessment needs exactly {expected} questions
+          before it can be published. This one currently has {questions.length}.
         </Alert>
       ) : null}
+
+      {error === 'publish-first' ? (
+        <Alert title="Publish before unlocking">
+          Students can only start an assessment after it is visible to them.
+          Publish it first, then unlock it.
+        </Alert>
+      ) : null}
+
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)]">
+        <Panel className="p-5 sm:p-6">
+          <h3 className="mb-1 text-[15px] font-semibold text-navy-900">
+            Details and timing
+          </h3>
+          <p className="mb-4 text-[13px] text-ink-soft">
+            Choose the student day page and set the server-enforced time limit.
+          </p>
+          <AssessmentForm
+            courseId={course.id}
+            days={days}
+            assessment={assessment}
+          />
+        </Panel>
+
+        <Panel className="p-5 sm:p-6">
+          <h3 className="text-[15px] font-semibold text-navy-900">
+            Student access
+          </h3>
+          <div className="mt-3 rounded-sm border border-line bg-navy-50/60 p-3">
+            <p className="text-[14px] font-semibold text-navy-900">
+              {!assessment.is_published
+                ? 'Hidden from students'
+                : assessment.is_locked
+                  ? 'Visible, but locked'
+                  : 'Visible and open'}
+            </p>
+            <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
+              {!assessment.is_published
+                ? 'Students cannot see this assessment yet.'
+                : assessment.is_locked
+                  ? 'Students can see the card, but they cannot start an attempt.'
+                  : 'Students can see the card and start their timed attempt.'}
+            </p>
+          </div>
+
+          {!ready ? (
+            <Alert className="mt-3">
+              Add exactly {expected} questions before publishing or unlocking.
+              This assessment currently has {questions.length}.
+            </Alert>
+          ) : null}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <form action={toggleAssessmentPublished}>
+              <input type="hidden" name="course_id" value={course.id} />
+              <input type="hidden" name="assessment_id" value={assessment.id} />
+              <input
+                type="hidden"
+                name="next"
+                value={assessment.is_published ? 'false' : 'true'}
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={!ready && !assessment.is_published}
+              >
+                {assessment.is_published
+                  ? 'Hide from students'
+                  : 'Publish as locked'}
+              </Button>
+            </form>
+
+            {assessment.is_published ? (
+              <form action={toggleAssessmentLocked}>
+                <input type="hidden" name="course_id" value={course.id} />
+                <input type="hidden" name="assessment_id" value={assessment.id} />
+                <input
+                  type="hidden"
+                  name="next"
+                  value={assessment.is_locked ? 'false' : 'true'}
+                />
+                <Button
+                  type="submit"
+                  variant={assessment.is_locked ? 'primary' : 'secondary'}
+                  disabled={!ready && assessment.is_locked}
+                >
+                  {assessment.is_locked
+                    ? 'Unlock for students'
+                    : 'Lock for students'}
+                </Button>
+              </form>
+            ) : null}
+          </div>
+        </Panel>
+      </div>
 
       <QuestionImport
         courseId={course.id}
         assessmentId={assessment.id}
         kind={assessment.kind}
+        expectedQuestionCount={assessment.required_question_count}
         hasAttempts={hasAttempts}
       />
 
@@ -307,21 +406,6 @@ export default async function AssessmentEditorPage({
         assessmentId={assessment.id}
         disabled={hasAttempts}
       />
-
-      <Panel className="p-5 sm:p-6">
-        <h3 className="mb-1 text-[15px] font-semibold text-navy-900">
-          Settings
-        </h3>
-        <p className="mb-4 text-[13px] text-ink-soft">
-          Which day it appears on, how long students get, and whether it is
-          released.
-        </p>
-        <AssessmentForm
-          courseId={course.id}
-          days={days}
-          assessment={assessment}
-        />
-      </Panel>
 
       {hasAttempts ? (
         <Panel className="border-danger-500/25 p-5 sm:p-6">

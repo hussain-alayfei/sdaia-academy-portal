@@ -13,32 +13,41 @@
 
 | Path | Who |
 | --- | --- |
-| `/home` | Student hub + join form |
-| `/c/[slug]` | Full-width day schedule |
+| `/` | Landing (signed-out) |
+| `/login`, `/signup` | Auth |
+| `/home` | Student hub + join; managers → `/admin` |
+| `/c/[slug]` | Day tile schedule |
 | `/c/[slug]/day/[n]` | Materials + assessment cards |
 | `/quiz/[id]` | Rules / runner / review |
-| `/admin/courses/[id]` | Schedule |
-| `/admin/courses/[id]/assessments` | Publish / unlock |
-| `/admin/courses/[id]/assessments/[id]` | Import + editor |
-| `/admin/courses/[id]/assessments/[id]/results` | Scores + integrity |
-| `/admin/courses/[id]/students` | Roster (read-only scores) |
+| `/admin/...` | Instructor console |
+
+## Day tiles (current)
+
+- Columns: `repeat(auto-fill, minmax(190px, 220px))`
+- `min-h-[184px]`, height from content (not square)
+- Chip via `assessmentChipLabel` — kind name or `"N assessments"`
+- Hover: mosaic colour vars per day index
+
+## Motion
+
+| Class | Role |
+| --- | --- |
+| `animate-page` | Templates + landing + quiz shell |
+| `animate-rise` | Small panels (question editor) |
+| `animate-brand` | Hero “purpose” colour loop |
+| `animate-dot` | LoadingDots |
 
 ## Caching tags
 
-Tag: `course-content:<courseId>` via `courseContentTag()` / `revalidateCourseContent()`.
-
-SQL-editor edits do not invalidate — use the instructor UI.
-
-## Design tokens
-
-Defined in `src/app/globals.css`. Motion: `animate-rise`, `animate-slide-next`,
-`animate-slide-prev`, `animate-pop`, `animate-fade`. `prefers-reduced-motion`
-already disables them.
+`course-content:<courseId>` via `revalidateCourseContent()`. SQL editor edits
+do not invalidate.
 
 ## Common pitfalls
 
-1. Exporting a non-async value from a `'use server'` file → build fails.
-2. Putting attempt/score data in `published.ts` → cross-user leak risk / wrong cache.
-3. Showing correctness on options → answer key leak mid-attempt.
-4. Forgetting `revalidateCourseContent` → students see stale question counts for up to an hour.
-5. Deploying without `bom1` → multi-second page loads.
+1. Exporting a non-async value from `'use server'` → build fails.
+2. Putting attempt/score data in `published.ts`.
+3. Correctness on options → mid-attempt key leak.
+4. Forgetting `revalidateCourseContent`.
+5. Deploy without `bom1`.
+6. Login redirect with only `startsWith('/')` → open redirect.
+7. Assuming `vercel --prod` updated GitHub.

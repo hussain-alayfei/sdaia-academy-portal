@@ -6,7 +6,7 @@ import { importQuestions, type ImportState } from '@/app/actions/questions'
 import { AlertIcon, LinkIcon } from '@/components/icons'
 import { Alert, Badge, Button, Panel, PanelHeader, cx } from '@/components/ui'
 import { DIFFICULTY_LABELS, DIFFICULTY_TONES } from '@/lib/format'
-import { OPTION_LABELS, QUESTION_COUNTS } from '@/lib/assessment-schema'
+import { optionLabelsFor } from '@/lib/assessment-schema'
 import type { AssessmentKind } from '@/lib/types'
 
 /**
@@ -20,11 +20,13 @@ export function QuestionImport({
   courseId,
   assessmentId,
   kind,
+  expectedQuestionCount,
   hasAttempts,
 }: {
   courseId: string
   assessmentId: string
   kind: AssessmentKind
+  expectedQuestionCount: number
   hasAttempts: boolean
 }) {
   const [state, action, pending] = useActionState<ImportState, FormData>(
@@ -38,8 +40,6 @@ export function QuestionImport({
   // After a dry run the server hands back canonical JSON, so an uploaded file
   // becomes editable text and the Import button has something to resubmit.
   const editorValue = state?.preview && state.raw && !text ? state.raw : text
-
-  const expected = QUESTION_COUNTS[kind]
 
   return (
     <div className="space-y-4">
@@ -58,8 +58,9 @@ export function QuestionImport({
           </h3>
           <p className="mt-1 text-[13px] text-ink-soft">
             Paste the JSON block your model produced, or upload the file. A{' '}
-            {kind === 'quiz' ? 'day quiz' : `${kind}-assessment`} normally holds{' '}
-            {expected} questions. Importing replaces everything currently here.
+            This {kind === 'quiz' ? 'day quiz' : `${kind}-assessment`} requires{' '}
+            exactly {expectedQuestionCount} questions. Importing replaces
+            everything currently here.
           </p>
           <a
             href="/assessment-authoring-prompt.md"
@@ -193,14 +194,18 @@ export function QuestionImport({
                   <Badge tone={DIFFICULTY_TONES[q.difficulty]}>
                     {DIFFICULTY_LABELS[q.difficulty]}
                   </Badge>
+                  {q.format === 'true_false' ? (
+                    <Badge tone="neutral">True / false</Badge>
+                  ) : null}
                   {q.topic ? <Badge tone="neutral">{q.topic}</Badge> : null}
                 </div>
 
                 <p className="text-[14px] font-medium text-navy-900">{q.stem}</p>
 
                 <ul className="mt-2 space-y-1">
-                  {OPTION_LABELS.map((label) => {
+                  {optionLabelsFor(q).map((label) => {
                     const correct = q.correct === label
+                    const body = (q.options as Record<string, string>)[label]
                     return (
                       <li
                         key={label}
@@ -212,7 +217,7 @@ export function QuestionImport({
                         )}
                       >
                         <span className="w-4 shrink-0">{label}</span>
-                        <span>{q.options[label]}</span>
+                        <span>{body}</span>
                         {correct ? (
                           <span className="text-[11px] tracking-wide uppercase">
                             correct

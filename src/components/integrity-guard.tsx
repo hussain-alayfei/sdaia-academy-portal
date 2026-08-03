@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { reportIntegrityEvent } from '@/app/actions/quiz'
 import { AlertIcon } from '@/components/icons'
-import { Button } from '@/components/ui'
+import { Button, cx } from '@/components/ui'
 
 /**
- * Watches for the obvious ways of looking something up mid-quiz, warns twice,
- * and lets the database end the attempt on the third.
+ * Watches for the obvious ways of looking something up mid-quiz. Each question
+ * gets its own server-owned count: the third event makes only that question
+ * worth zero points, while the student continues the assessment.
  *
  * ## What this is and is not
  *
@@ -26,7 +27,7 @@ import { Button } from '@/components/ui'
  *
  * `record_integrity_event` increments a column on the attempt. If the tally lived
  * in React state, reloading the page would hand back a fresh set of chances,
- * which is exactly what someone would try after the second warning.
+ * which is exactly what someone might try after receiving a warning.
  */
 
 const EVENT_DESCRIPTIONS: Record<string, string> = {
@@ -34,7 +35,6 @@ const EVENT_DESCRIPTIONS: Record<string, string> = {
   window_blur: 'this window lost focus',
   copy: 'you tried to copy the question text',
   paste: 'you tried to paste into an answer',
-  context_menu: 'you opened the right-click menu',
 }
 
 /**
@@ -46,19 +46,27 @@ const DEBOUNCE_MS = 1500
 
 export function IntegrityGuard({
   attemptId,
+  questionId,
+  questionNumber,
   active,
   onWarning,
-  onStopped,
 }: {
   attemptId: string
+  questionId: string
+  questionNumber: number
   /** False once the attempt is over, so the result screen is not policed. */
   active: boolean
-  onWarning?: (count: number) => void
-  onStopped: () => void
+  onWarning?: (
+    totalCount: number,
+    questionCount: number,
+    invalidated: boolean
+  ) => void
 }) {
-  const [notice, setNotice] = useState<{ kind: string; count: number } | null>(
-    null
-  )
+  const [notice, setNotice] = useState<{
+    kind: string
+    questionCount: number
+    invalidated: boolean
+  } | null>(null)
   const lastEventAt = useRef(0)
   const inFlight = useRef(false)
   const paused = useRef(false)
@@ -73,27 +81,33 @@ export function IntegrityGuard({
 
       inFlight.current = true
       try {
-        const result = await reportIntegrityEvent({ attemptId, kind })
+        const result = await reportIntegrityEvent({
+          attemptId,
+          questionId,
+          kind,
+        })
         if (result.message) return
+        if (!result.active) return
 
-        onWarning?.(result.warning_count)
-
-        if (result.stopped) {
-          // The database has already submitted the attempt. Let the page reload
-          // into the result screen, which explains what happened.
-          onStopped()
-          return
-        }
+        onWarning?.(
+          result.warning_count,
+          result.question_warning_count,
+          result.question_invalidated
+        )
 
         // Stop counting while the dialog is up: dismissing it moves focus, and
         // that would otherwise register as another offence.
         paused.current = true
-        setNotice({ kind, count: result.warning_count })
+        setNotice({
+          kind,
+          questionCount: result.question_warning_count,
+          invalidated: result.question_invalidated,
+        })
       } finally {
         inFlight.current = false
       }
     },
-    [active, attemptId, onStopped, onWarning]
+    [active, attemptId, onWarning, questionId]
   )
 
   useEffect(() => {
@@ -115,23 +129,16 @@ export function IntegrityGuard({
       event.preventDefault()
       void record('paste')
     }
-    const onContextMenu = (event: Event) => {
-      event.preventDefault()
-      void record('context_menu')
-    }
-
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('blur', onBlur)
     document.addEventListener('copy', onCopy)
     document.addEventListener('paste', onPaste)
-    document.addEventListener('contextmenu', onContextMenu)
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('blur', onBlur)
       document.removeEventListener('copy', onCopy)
       document.removeEventListener('paste', onPaste)
-      document.removeEventListener('contextmenu', onContextMenu)
     }
   }, [active, record])
 
@@ -145,7 +152,8 @@ export function IntegrityGuard({
 
   if (!notice) return null
 
-  const final = notice.count >= 2
+  const final = notice.invalidated
+  const finalWarning = notice.questionCount === 2
   const reason = EVENT_DESCRIPTIONS[notice.kind] ?? 'something unexpected happened'
 
   return (
@@ -155,7 +163,12 @@ export function IntegrityGuard({
       aria-labelledby="integrity-title"
       className="fixed inset-0 z-50 grid place-items-center bg-navy-900/55 p-4 backdrop-blur-[2px]"
     >
-      <div className="animate-pop w-full max-w-md rounded-md border border-line bg-surface p-6 shadow-lg">
+      <div
+        className={cx(
+          'animate-pop w-full max-w-xl rounded-md border-2 bg-surface p-6 sm:p-8',
+          final ? 'border-danger-500' : 'border-amber-400'
+        )}
+      >
         <div className="mb-3 flex items-center gap-2.5">
           <span
             className={
@@ -168,20 +181,26 @@ export function IntegrityGuard({
           </span>
           <h2
             id="integrity-title"
-            className="text-[16px] font-semibold text-navy-900"
+            className="text-[19px] font-semibold text-navy-900 sm:text-[21px]"
           >
-            {final ? 'Second and final warning' : 'First warning'}
+            {final
+              ? `Question ${questionNumber} is now worth zero points`
+              : finalWarning
+                ? `Final warning for question ${questionNumber}`
+                : `Warning 1 of 3 for question ${questionNumber}`}
           </h2>
         </div>
 
-        <p className="text-[14px] text-ink">
+        <p className="text-[15px] leading-relaxed text-ink">
           This attempt recorded that {reason}. Your instructor can see it.
         </p>
 
-        <p className="mt-2 text-[14px] text-ink">
+        <p className="mt-3 text-[15px] leading-relaxed text-ink">
           {final
-            ? 'If it happens once more, your attempt is submitted exactly as it stands and flagged for review. Stay on this page until you have finished.'
-            : 'You have one more warning. After that the attempt is submitted as it stands and flagged for your instructor.'}
+            ? 'You may continue the assessment and answer every other question. This question cannot earn a point, even if its answer is correct.'
+            : finalWarning
+              ? 'One more recorded event while you are on this question will make this question worth zero points. Your assessment will not be submitted automatically.'
+              : 'This warning applies only to this question. Three recorded events on the same question make that question worth zero points; the rest of your assessment continues normally.'}
         </p>
 
         <div className="mt-5">

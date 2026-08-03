@@ -7,6 +7,7 @@ import { requireManager } from '@/lib/dal'
 import { revalidateCourseContent } from '@/lib/published'
 import {
   OPTION_LABELS,
+  optionLabelsFor,
   parseAssessmentFile,
   type ParsedQuestion,
 } from '@/lib/assessment-schema'
@@ -76,7 +77,7 @@ export async function importQuestions(
 
   const { data: assessment } = await supabase
     .from('assessments')
-    .select('id, kind, title, day_id, duration_minutes')
+    .select('id, kind, title, day_id, duration_minutes, required_question_count')
     .eq('id', assessmentId)
     .eq('course_id', courseId)
     .maybeSingle()
@@ -92,7 +93,11 @@ export async function importQuestions(
     raw = await upload.text()
   }
 
-  const result = parseAssessmentFile(raw, assessment.kind as AssessmentKind)
+  const result = parseAssessmentFile(
+    raw,
+    assessment.kind as AssessmentKind,
+    assessment.required_question_count
+  )
 
   if (!result.ok) {
     return {
@@ -146,10 +151,13 @@ export async function importQuestions(
   }
 
   const payload = result.file.questions.map((q) => ({
+    format: q.format,
     difficulty: q.difficulty,
     topic: q.topic ?? null,
     stem: q.stem,
-    options: Object.fromEntries(OPTION_LABELS.map((l) => [l, q.options[l]])),
+    options: Object.fromEntries(
+      optionLabelsFor(q).map((l) => [l, (q.options as Record<string, string>)[l]])
+    ),
     correct: q.correct,
     rationale: q.rationale ?? null,
   }))
@@ -175,17 +183,52 @@ export async function importQuestions(
 
 /* ====================================================== single question == */
 
-const QuestionFormSchema = z.object({
-  difficulty: z.enum(['easy', 'medium', 'hard']),
-  topic: z.string().trim().max(80).optional(),
-  stem: z.string().trim().min(15, 'Write the question out in full.'),
-  A: z.string().trim().min(1, 'Option A cannot be empty.'),
-  B: z.string().trim().min(1, 'Option B cannot be empty.'),
-  C: z.string().trim().min(1, 'Option C cannot be empty.'),
-  D: z.string().trim().min(1, 'Option D cannot be empty.'),
-  correct: z.enum(OPTION_LABELS),
-  rationale: z.string().trim().max(1200).optional(),
-})
+const QuestionFormSchema = z
+  .object({
+    format: z.enum(['multiple_choice', 'true_false']).default('multiple_choice'),
+    difficulty: z.enum(['easy', 'medium', 'hard']),
+    topic: z.string().trim().max(80).optional(),
+    stem: z.string().trim().min(15, 'Write the question out in full.'),
+    A: z.string().trim().min(1, 'Option A cannot be empty.'),
+    B: z.string().trim().min(1, 'Option B cannot be empty.'),
+    C: z.string().trim().optional(),
+    D: z.string().trim().optional(),
+    correct: z.enum(OPTION_LABELS),
+    rationale: z.string().trim().max(1200).optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.format === 'true_false') {
+      if (value.A !== 'True' || value.B !== 'False') {
+        context.addIssue({
+          code: 'custom',
+          message: 'True/false options must be A: True and B: False.',
+          path: ['A'],
+        })
+      }
+      if (value.correct !== 'A' && value.correct !== 'B') {
+        context.addIssue({
+          code: 'custom',
+          message: 'A true/false answer must be A or B.',
+          path: ['correct'],
+        })
+      }
+      return
+    }
+    if (!value.C?.trim()) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Option C cannot be empty.',
+        path: ['C'],
+      })
+    }
+    if (!value.D?.trim()) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Option D cannot be empty.',
+        path: ['D'],
+      })
+    }
+  })
 
 export type QuestionFormState =
   | {
@@ -205,6 +248,7 @@ export async function saveQuestion(
   const { supabase } = await assertCanManage(courseId)
 
   const parsed = QuestionFormSchema.safeParse({
+    format: formData.get('format') || 'multiple_choice',
     difficulty: formData.get('difficulty'),
     topic: formData.get('topic'),
     stem: formData.get('stem'),
@@ -221,14 +265,20 @@ export async function saveQuestion(
   }
 
   const v = parsed.data
+  const options =
+    v.format === 'true_false'
+      ? { A: 'True', B: 'False' }
+      : { A: v.A, B: v.B, C: v.C!, D: v.D! }
+
   const { error } = await supabase.rpc('save_assessment_question', {
     p_assessment: assessmentId,
     p_question_id: questionId || null,
     p_payload: {
+      format: v.format,
       difficulty: v.difficulty,
       topic: v.topic ?? null,
       stem: v.stem,
-      options: { A: v.A, B: v.B, C: v.C, D: v.D },
+      options,
       correct: v.correct,
       rationale: v.rationale ?? null,
     },
@@ -246,6 +296,13 @@ export async function deleteQuestion(formData: FormData) {
   const assessmentId = String(formData.get('assessment_id') ?? '')
   const questionId = String(formData.get('question_id') ?? '')
   const { supabase } = await assertCanManage(courseId)
+
+  const { count: attemptCount } = await supabase
+    .from('assessment_attempts')
+    .select('id', { count: 'exact', head: true })
+    .eq('assessment_id', assessmentId)
+
+  if (attemptCount) return
 
   await supabase
     .from('assessment_questions')
@@ -269,6 +326,13 @@ export async function moveQuestion(formData: FormData) {
   const questionId = String(formData.get('question_id') ?? '')
   const direction = formData.get('direction') === 'up' ? 'up' : 'down'
   const { supabase } = await assertCanManage(courseId)
+
+  const { count: attemptCount } = await supabase
+    .from('assessment_attempts')
+    .select('id', { count: 'exact', head: true })
+    .eq('assessment_id', assessmentId)
+
+  if (attemptCount) return
 
   const { data: questions } = await supabase
     .from('assessment_questions')

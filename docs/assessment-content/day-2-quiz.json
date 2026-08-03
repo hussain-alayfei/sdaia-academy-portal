@@ -1,0 +1,186 @@
+{
+  "schema": "sdaia-assessment/v1",
+  "assessment": { "kind": "quiz", "day": 2, "title": "Day 2 quiz", "duration_minutes": 10 },
+  "questions": [
+    {
+      "difficulty": "easy", "topic": "RAG purpose",
+      "stem": "What does retrieval-augmented generation provide to a language model at answer time?",
+      "options": {
+        "A": "Selected evidence from external knowledge sources",
+        "B": "Permanent training on every available document",
+        "C": "Unrestricted private access to every connected system",
+        "D": "Guaranteed correctness for every generated claim"
+      },
+      "correct": "A",
+      "rationale": "RAG retrieves relevant external passages and adds them to the model's context for the current request. It does not retrain the model or guarantee correctness."
+    },
+    {
+      "difficulty": "easy", "topic": "Text embeddings",
+      "stem": "What is an embedding in a retrieval system?",
+      "options": {
+        "A": "A readable summary stored beside each passage",
+        "B": "A numerical vector representing an item's meaning",
+        "C": "A permissions label controlling access to each passage",
+        "D": "A generated answer returned for a user's question"
+      },
+      "correct": "B",
+      "rationale": "An embedding is a numerical representation used to compare the meaning of chunks and queries. The chunk itself remains the readable content."
+    },
+    {
+      "difficulty": "easy", "topic": "Agent capability",
+      "stem": "What capability mainly distinguishes an AI agent from a standard RAG answering pipeline?",
+      "options": {
+        "A": "It stores approved documents in a searchable vector index",
+        "B": "It divides source documents into coherent chunks",
+        "C": "It chooses steps and uses controlled external tools",
+        "D": "It converts text passages into numerical vectors"
+      },
+      "correct": "C",
+      "rationale": "An agent can direct part of a process by choosing steps and using approved tools. Standard RAG mainly follows a fixed retrieval-and-answer sequence."
+    },
+    {
+      "difficulty": "medium", "topic": "RAG pipelines",
+      "stem": "How does the offline RAG pipeline differ from the online pipeline?",
+      "options": {
+        "A": "It answers each question using only the user's current prompt",
+        "B": "It reranks candidates for each incoming question",
+        "C": "It assembles evidence for each generated response",
+        "D": "It prepares and indexes sources before questions arrive"
+      },
+      "correct": "D",
+      "rationale": "The offline pipeline ingests, cleans, chunks, embeds, and indexes content before users ask questions. The online pipeline retrieves and uses that index for each request."
+    },
+    {
+      "difficulty": "medium", "topic": "Chunking strategy",
+      "stem": "What is the main goal when choosing chunk boundaries for RAG?",
+      "options": {
+        "A": "Create coherent units that retain enough meaning",
+        "B": "Create identical units from every document type",
+        "C": "Create the smallest units the database accepts",
+        "D": "Create overlapping units across the entire source"
+      },
+      "correct": "A",
+      "rationale": "A useful chunk is small enough to retrieve precisely but large enough to preserve a complete idea, including important conditions and context."
+    },
+    {
+      "difficulty": "medium", "topic": "Hybrid search",
+      "stem": "Why can hybrid search retrieve better evidence than vector search alone?",
+      "options": {
+        "A": "It removes the need to rank retrieved passages",
+        "B": "It combines exact-term and semantic matching signals",
+        "C": "It replaces source documents with generated summaries",
+        "D": "It guarantees that every relevant passage is returned"
+      },
+      "correct": "B",
+      "rationale": "Hybrid search combines lexical matching for exact terms with vector matching for related meaning. This is valuable for identifiers, specialized terms, and paraphrased questions."
+    },
+    {
+      "difficulty": "medium", "topic": "Chunk metadata",
+      "stem": "Which RAG requirement depends most directly on accurate chunk metadata?",
+      "options": {
+        "A": "Generating fluent sentences from a model prompt",
+        "B": "Calculating vector distance between two embeddings",
+        "C": "Filtering by permission and citing the correct source",
+        "D": "Splitting each source paragraph at a natural sentence boundary"
+      },
+      "correct": "C",
+      "rationale": "Metadata carries source, version, category, and access information. Those fields support authorization filters, reliable citations, and lifecycle management."
+    },
+    {
+      "difficulty": "medium", "topic": "Search reranking",
+      "stem": "What is the purpose of reranking in a RAG retrieval pipeline?",
+      "options": {
+        "A": "To divide source files into smaller searchable units",
+        "B": "To convert the user question into an embedding vector",
+        "C": "To fill the index with repeated copies of all source passages",
+        "D": "To reorder candidates using a more precise relevance check"
+      },
+      "correct": "D",
+      "rationale": "Initial retrieval favors broad recall. Reranking examines the smaller candidate set more carefully so the passages most useful for the question appear first."
+    },
+    {
+      "difficulty": "hard", "topic": "Failure diagnosis",
+      "stem": "A retrieved passage omits a policy condition that appears in the next source paragraph. Which area should be inspected first?",
+      "options": {
+        "A": "Chunk boundaries and final context assembly",
+        "B": "Model temperature and response formatting",
+        "C": "User interface colors and loading states",
+        "D": "Agent permissions and external action approval"
+      },
+      "correct": "A",
+      "rationale": "The condition may have been split into another chunk or removed while assembling the context. Inspecting those stages isolates the likely retrieval-chain failure."
+    },
+    {
+      "difficulty": "hard", "topic": "Architecture selection",
+      "stem": "A support assistant only answers from approved manuals and performs no actions. Which architecture is the clearest starting point?",
+      "options": {
+        "A": "An autonomous agent with several unrestricted tools",
+        "B": "A fixed RAG pipeline with governed source retrieval",
+        "C": "A fine-tuned model without access to the manuals",
+        "D": "A direct model call without retrieved source evidence"
+      },
+      "correct": "B",
+      "rationale": "The requirement is knowledge-grounded answering, not action execution. A fixed RAG pipeline meets it with less cost, latency, state, and risk than an agent."
+    },
+    {
+      "difficulty": "easy", "topic": "Answer grounding",
+      "stem": "What does grounding connect a generated answer to?",
+      "options": {
+        "A": "The model's internal training schedule",
+        "B": "The user's preferred response writing style",
+        "C": "Evidence supplied from approved sources",
+        "D": "The tool's private task execution history"
+      },
+      "correct": "C",
+      "rationale": "Grounding connects an answer to supplied evidence. In RAG, the retrieved passages provide that evidence for the current request."
+    },
+    {
+      "difficulty": "easy", "topic": "Content ingestion",
+      "stem": "What does ingestion do in the offline RAG pipeline?",
+      "options": {
+        "A": "Ranking passages after a user submits a question",
+        "B": "Generating an answer from retrieved passages",
+        "C": "Measuring similarity between query vectors",
+        "D": "Collecting approved content for processing"
+      },
+      "correct": "D",
+      "rationale": "Ingestion collects content from approved sources and brings it into the processing pipeline before extraction, cleaning, chunking, and indexing."
+    },
+    {
+      "difficulty": "easy", "topic": "Document chunks",
+      "stem": "What is a chunk in a RAG knowledge base?",
+      "options": {
+        "A": "A score that measures semantic similarity",
+        "B": "A controlled tool selected by an autonomous AI agent",
+        "C": "A retrievable unit taken from a larger source",
+        "D": "A final answer generated by a language model"
+      },
+      "correct": "C",
+      "rationale": "A chunk is a smaller retrievable unit created from a larger document or source. Its embedding is the numerical representation used to find it."
+    },
+    {
+      "difficulty": "easy", "topic": "Top k retrieval",
+      "stem": "What does top-k specify during retrieval?",
+      "options": {
+        "A": "The number of approved documents ingested each working day",
+        "B": "The number of embeddings stored for each source chunk",
+        "C": "The number of model responses displayed to each user",
+        "D": "The number of highest-ranked candidates returned"
+      },
+      "correct": "D",
+      "rationale": "Top-k is the number of highest-ranked candidates returned by retrieval. Increasing it can improve coverage but can also add noise, tokens, latency, and cost."
+    },
+    {
+      "difficulty": "easy", "topic": "Keyword search",
+      "stem": "Which type of information is keyword search especially strong at finding?",
+      "options": {
+        "A": "Exact identifiers, codes, and specialized names",
+        "B": "Related meanings written with different vocabulary",
+        "C": "Broad concepts without any shared search terms",
+        "D": "Generated explanations based on retrieved context"
+      },
+      "correct": "A",
+      "rationale": "Keyword search is strong when exact strings matter, such as names, identifiers, codes, and specialized terminology. Vector search is stronger for related meaning expressed with different words."
+    }
+  ]
+}

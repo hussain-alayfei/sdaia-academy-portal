@@ -29,6 +29,9 @@ export function QuizReview({
   const total = attempt.question_count ?? questions.length
   const correct = attempt.correct_count ?? 0
   const percent = total > 0 ? Math.round((correct / total) * 100) : 0
+  const penalizedCount = questions.filter(
+    (question) => question.integrityInvalidated
+  ).length
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
@@ -54,17 +57,30 @@ export function QuizReview({
 
         {attempt.status === 'integrity_stopped' ? (
           <Alert tone="danger" className="mt-4" title="Attempt ended early">
-            This attempt was submitted automatically after {attempt.warning_count}{' '}
-            recorded moves away from the quiz page. Your instructor can see the
-            log.
+            This attempt used the previous integrity policy and was submitted
+            automatically after {attempt.warning_count} recorded events. New
+            attempts continue and apply penalties question by question.
           </Alert>
         ) : null}
 
-        {attempt.status === 'submitted' && attempt.warning_count > 0 ? (
+        {penalizedCount > 0 ? (
+          <Alert
+            tone="danger"
+            className="mt-4"
+            title={`${penalizedCount} question${penalizedCount === 1 ? '' : 's'} received no point`}
+          >
+            Three integrity events were recorded on each marked question. The
+            rest of the assessment was scored normally.
+          </Alert>
+        ) : null}
+
+        {attempt.status === 'submitted' &&
+        attempt.warning_count > 0 &&
+        penalizedCount === 0 ? (
           <Alert tone="amber" className="mt-4">
-            {attempt.warning_count} warning
-            {attempt.warning_count === 1 ? ' was' : 's were'} recorded during this
-            attempt, and your instructor can see them.
+            {attempt.warning_count} integrity event
+            {attempt.warning_count === 1 ? ' was' : 's were'} recorded during
+            this attempt. No question reached the three-event penalty.
           </Alert>
         ) : null}
 
@@ -95,17 +111,23 @@ export function QuizReview({
                 <span
                   className={cx(
                     'inline-flex items-center gap-1.5 rounded-xs px-2 py-0.5 text-[12px] font-medium',
-                    question.isCorrect
+                    question.integrityInvalidated
+                      ? 'bg-danger-50 text-danger-600'
+                      : question.isCorrect
                       ? 'bg-teal-50 text-teal-800'
                       : 'bg-danger-50 text-danger-600'
                   )}
                 >
-                  {question.isCorrect ? (
+                  {question.isCorrect && !question.integrityInvalidated ? (
                     <CheckIcon width={13} height={13} />
                   ) : (
                     <CrossIcon width={13} height={13} />
                   )}
-                  {question.isCorrect ? 'Correct' : 'Wrong'}
+                  {question.integrityInvalidated
+                    ? 'No point · integrity rule'
+                    : question.isCorrect
+                      ? 'Correct'
+                      : 'Wrong'}
                 </span>
                 <span className="text-[12px] text-ink-faint">
                   Question {index + 1}
@@ -121,6 +143,13 @@ export function QuizReview({
               <p className="text-[15px] leading-relaxed font-medium text-navy-900">
                 {question.stem}
               </p>
+
+              {question.integrityInvalidated ? (
+                <p className="mt-2 text-[13px] font-medium text-danger-600">
+                  {question.integrityWarningCount} events were recorded on this
+                  question, so it could not earn a point.
+                </p>
+              ) : null}
 
               <ul className="mt-3 space-y-2">
                 {question.options.map((option) => {

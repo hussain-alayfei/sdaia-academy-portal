@@ -95,7 +95,7 @@ export default async function AssessmentsPage({
             <ul className="divide-y divide-line">
               {items.map((assessment) => {
                 const count = counts[assessment.id] ?? 0
-                const ready = count > 0
+                const ready = count === assessment.required_question_count
 
                 return (
                   <li key={assessment.id}>
@@ -196,7 +196,9 @@ export default async function AssessmentsPage({
                               }
                               size="sm"
                             >
-                              {assessment.is_locked ? 'Open now' : 'Lock'}
+                              {assessment.is_locked
+                                ? 'Unlock for students'
+                                : 'Lock for students'}
                             </Button>
                           </form>
                         ) : null}

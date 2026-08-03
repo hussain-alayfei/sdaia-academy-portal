@@ -1,31 +1,40 @@
 ---
-description: Core SDAIA Academy Portal context — stack, invariants, docs map. Always apply in this repo.
+description: Core SDAIA Academy Portal context — invariants, auth redirect, day tiles, motion. Always apply in this repo.
 alwaysApply: true
 ---
 
 # SDAIA Academy Portal
 
 Training portal: Next.js 16 + Supabase + Vercel (`bom1`). Repo root is `portal/`
-only — never touch or commit parent `_backups/` (PII).
+only — never commit parent `_backups/` (PII).
 
 ## Before coding
 
-Read `docs/CONTEXT.md`. For assessments also `docs/ASSESSMENTS.md` and
-`docs/DATA-MODEL.md`. Architecture: `docs/ARCHITECTURE.md`. Deploy: `DEPLOY.md`.
+Read `docs/CONTEXT.md`. Quizzes → also `docs/ASSESSMENTS.md` + `docs/DATA-MODEL.md`.
+Deploy/region/cache → `DEPLOY.md`. Architecture → `docs/ARCHITECTURE.md`.
 
 ## Do not break
 
-- RLS + `course_id` on content tables; helpers in `app_private.*`
-- Answer keys in `assessment_answer_keys` only — never on options
-- Quiz trust in RPCs: `start_attempt`, `save_response`, `submit_attempt`, `record_integrity_event`
-- Call `revalidateCourseContent(courseId)` after content mutations
-- Keep `SUPABASE_SECRET_KEY` server-only (cache reader)
-- Keep `vercel.json` regions `["bom1"]` unless Supabase moves
-- Courses are 5 days; scores are quiz-only (no manual entry)
+- RLS + `course_id`; helpers in `app_private.*`
+- Answer keys only in `assessment_answer_keys`
+- Quiz RPCs own timer / grading / integrity / import
+- `revalidateCourseContent(courseId)` after content mutations
+- `SUPABASE_SECRET_KEY` server-only; keep `vercel.json` regions `["bom1"]`
+- Courses are 5 days; scores are quiz-only
+- **Open redirect:** every login `next` must use `safeNext` in
+  `src/app/actions/auth.ts`. Never `startsWith('/')` alone (`//evil.com` is bad)
+
+## UI / motion (current)
+
+- Page templates: `animate-page` (opacity fade). Reserve `animate-rise` for small panels
+- Day tiles: `minmax(190px, 220px)`, content height + `min-h-[184px]`, no `aspect-square`
+- Assessment chip on course overview names the kind, not a generic “quiz”
+- Loading: `LoadingPanel` / `LoadingDots` via route `loading.tsx` files
+- Design: navy + teal, 1px borders, no drop shadows on rows, IBM Plex
 
 ## Conventions
 
 - Server Actions thin; atomic logic in Postgres
-- Students: `published.ts` cache. Instructors: live `queries.ts` / `quiz.ts`
-- Design: navy + teal accent, IBM Plex, no emoji / pill chrome / heavy shadows
-- `'use server'` files export async functions only (no plain `export const`)
+- Students → `published.ts`. Instructors → live `queries.ts` / `quiz.ts`
+- `'use server'` files export async functions only
+- Prefer updating docs in the same change when behaviour drifts

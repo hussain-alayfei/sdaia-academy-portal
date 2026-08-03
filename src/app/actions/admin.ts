@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 import { MAX_COURSE_DAYS } from '@/lib/course'
+import { QUESTION_COUNTS } from '@/lib/assessment-schema'
 import { revalidateCourseContent } from '@/lib/published'
 import { createClient } from '@/lib/supabase/server'
 import { requireManager } from '@/lib/dal'
@@ -287,6 +288,50 @@ export async function toggleDayPublished(formData: FormData) {
   revalidateCourseContent(courseId)
 }
 
+/**
+ * Mark one day as the cohort's current day on the student journey map.
+ *
+ * Clears any other current flag in the same course first so the unique
+ * partial index stays happy and students always see at most one highlight.
+ */
+export async function setCurrentDay(formData: FormData) {
+  const courseId = String(formData.get('course_id') ?? '')
+  const dayId = String(formData.get('day_id') ?? '')
+  const { supabase } = await assertCanManage(courseId)
+
+  await supabase
+    .from('course_days')
+    .update({ is_current: false })
+    .eq('course_id', courseId)
+    .eq('is_current', true)
+
+  await supabase
+    .from('course_days')
+    .update({ is_current: true })
+    .eq('id', dayId)
+    .eq('course_id', courseId)
+
+  revalidatePath(`/admin/courses/${courseId}`)
+  revalidatePath(`/admin/courses/${courseId}/days/${dayId}`)
+  revalidateCourseContent(courseId)
+}
+
+export async function clearCurrentDay(formData: FormData) {
+  const courseId = String(formData.get('course_id') ?? '')
+  const dayId = String(formData.get('day_id') ?? '')
+  const { supabase } = await assertCanManage(courseId)
+
+  await supabase
+    .from('course_days')
+    .update({ is_current: false })
+    .eq('id', dayId)
+    .eq('course_id', courseId)
+
+  revalidatePath(`/admin/courses/${courseId}`)
+  revalidatePath(`/admin/courses/${courseId}/days/${dayId}`)
+  revalidateCourseContent(courseId)
+}
+
 export async function deleteDay(formData: FormData) {
   const courseId = String(formData.get('course_id') ?? '')
   const dayId = String(formData.get('day_id') ?? '')
@@ -357,6 +402,16 @@ export async function addLinkResource(
   }
 
   const v = parsed.data
+
+  const { data: day } = await supabase
+    .from('course_days')
+    .select('id')
+    .eq('id', dayId)
+    .eq('course_id', courseId)
+    .maybeSingle()
+
+  if (!day) return fail('That day is not part of this course.')
+
   const { error } = await supabase.from('resources').insert({
     course_id: courseId,
     day_id: dayId,
@@ -394,6 +449,15 @@ export async function registerUploadedResource(input: {
   mimeType: string | null
 }): Promise<FormState> {
   const { supabase } = await assertCanManage(input.courseId)
+
+  const { data: day } = await supabase
+    .from('course_days')
+    .select('id')
+    .eq('id', input.dayId)
+    .eq('course_id', input.courseId)
+    .maybeSingle()
+
+  if (!day) return fail('That day is not part of this course.')
 
   // The client picks the object path, so pin it to this course and day —
   // otherwise a manager of course A could attach an object from course B.
@@ -539,8 +603,6 @@ export async function saveAssessment(
     description: v.description || null,
     duration_minutes: v.duration_minutes,
     shuffle: formData.get('shuffle') === 'on',
-    is_published: formData.get('is_published') === 'on',
-    is_locked: formData.get('is_locked') === 'on',
     position: positionForKind(v.kind),
   }
 
@@ -550,7 +612,12 @@ export async function saveAssessment(
         .update(payload)
         .eq('id', assessmentId)
         .eq('course_id', courseId)
-    : await supabase.from('assessments').insert(payload)
+    : await supabase.from('assessments').insert({
+        ...payload,
+        required_question_count: QUESTION_COUNTS[v.kind],
+        is_published: false,
+        is_locked: true,
+      })
 
   if (error) return fail(error.message)
 
@@ -572,14 +639,25 @@ export async function toggleAssessmentPublished(formData: FormData) {
   const { supabase } = await assertCanManage(courseId)
 
   if (next) {
+    const { data: assessment } = await supabase
+      .from('assessments')
+      .select('required_question_count')
+      .eq('id', assessmentId)
+      .eq('course_id', courseId)
+      .maybeSingle()
+
+    if (!assessment) {
+      redirect(`/admin/courses/${courseId}/assessments`)
+    }
+
     const { count } = await supabase
       .from('assessment_questions')
       .select('id', { count: 'exact', head: true })
       .eq('assessment_id', assessmentId)
 
-    if (!count) {
+    if (count !== assessment.required_question_count) {
       redirect(
-        `/admin/courses/${courseId}/assessments/${assessmentId}?error=empty`
+        `/admin/courses/${courseId}/assessments/${assessmentId}?error=count`
       )
     }
   }
@@ -600,6 +678,32 @@ export async function toggleAssessmentLocked(formData: FormData) {
   const assessmentId = String(formData.get('assessment_id') ?? '')
   const next = formData.get('next') === 'true'
   const { supabase } = await assertCanManage(courseId)
+
+  if (!next) {
+    const { data: assessment } = await supabase
+      .from('assessments')
+      .select('required_question_count, is_published')
+      .eq('id', assessmentId)
+      .eq('course_id', courseId)
+      .maybeSingle()
+
+    if (!assessment?.is_published) {
+      redirect(
+        `/admin/courses/${courseId}/assessments/${assessmentId}?error=publish-first`
+      )
+    }
+
+    const { count } = await supabase
+      .from('assessment_questions')
+      .select('id', { count: 'exact', head: true })
+      .eq('assessment_id', assessmentId)
+
+    if (count !== assessment.required_question_count) {
+      redirect(
+        `/admin/courses/${courseId}/assessments/${assessmentId}?error=count`
+      )
+    }
+  }
 
   await supabase
     .from('assessments')

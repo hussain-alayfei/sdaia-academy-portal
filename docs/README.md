@@ -1,17 +1,23 @@
 # Portal documentation
 
-Start here when you need project context in a new chat or onboarding pass.
+Start here when refreshing context for a new chat or onboarding.
 
 | Doc | What it covers |
 | --- | --- |
-| [CONTEXT.md](CONTEXT.md) | Product purpose, stack, roles, invariants, where things live |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Routes, data layers, caching, auth, deploy region |
-| [ASSESSMENTS.md](ASSESSMENTS.md) | In-app quiz engine: authoring, runner, anti-cheat, grading |
-| [DATA-MODEL.md](DATA-MODEL.md) | Tables, RLS shape, RPCs, enums |
+| [CONTEXT.md](CONTEXT.md) | **Start here.** Product, verified handoff state, service connections, invariants, day tiles, motion, `safeNext`, file map |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Routes, auth, caching, loading, data layers |
+| [ASSESSMENTS.md](ASSESSMENTS.md) | Quiz engine, authoring rules, security checklist |
+| [CONTENT-AUTHORING.md](CONTENT-AUTHORING.md) | Preferred source-first style for slides, notebooks, labs, datasets, and future-day assessments |
+| [DATA-MODEL.md](DATA-MODEL.md) | Tables, RLS, RPCs, enums |
 
-Operational deploy notes (env vars, GitHub, Vercel, Mumbai region) stay in
-[`../DEPLOY.md`](../DEPLOY.md). The LLM authoring brief students never see is
-[`../public/assessment-authoring-prompt.md`](../public/assessment-authoring-prompt.md).
+| Also | |
+| --- | --- |
+| [`../DEPLOY.md`](../DEPLOY.md) | Vercel, env vars, `bom1`, GitHub |
+| [`../public/assessment-authoring-prompt.md`](../public/assessment-authoring-prompt.md) | LLM authoring brief |
+| [`.cursor/rules/`](../.cursor/rules/) | Always-on + assessment rules |
+| [`.cursor/skills/`](../.cursor/skills/) | Agent skills for portal + assessments |
 
-For Cursor agents: project rules live in `.cursor/rules/`, skills in
-`.cursor/skills/`. Read those first in a new conversation about this repo.
+If docs disagree with code, **trust the code** and update the docs in the same change.
+
+The current verification results, MCP safety scope, GitHub remote warning, and
+new-chat checklist live in `CONTEXT.md`; do not duplicate them from memory.

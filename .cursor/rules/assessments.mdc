@@ -1,20 +1,28 @@
 ---
-description: Assessment engine patterns — quizzes, import, RLS, RPCs, integrity.
-globs: "**/assessment*/**,**/quiz*/**,**/questions.ts,**/quiz.ts,**/assessment-schema.ts,**/integrity-guard.tsx,supabase/migrations/**"
+description: Assessment engine — quizzes, import, RLS, RPCs, integrity, day chips.
+globs: "**/assessment*/**,**/quiz*/**,**/questions.ts,**/quiz.ts,**/assessment-schema.ts,**/integrity-guard.tsx,**/assessment-cards.tsx,supabase/migrations/**"
 alwaysApply: false
 ---
 
 # Assessment engine
 
 One attempt per student. Auto-grade only. Third integrity strike →
-`integrity_stopped`. Full review after submit. Cards live on the day page.
+the third event on the same question makes that question worth zero while the
+attempt continues. `integrity_stopped` is legacy-only. Full review after submit.
+Full cards on the **day page**.
+
+## Course overview chip
+
+On `c/[slug]/page.tsx`, name the assessment kind (`Pre-assessment` / `Quiz` /
+`Post-assessment`). Only use `"N assessments"` when a day has more than one.
+Never label a pre/post as “1 quiz”.
 
 ## Authoring
 
 - Prompt: `public/assessment-authoring-prompt.md`
-- Validate: `src/lib/assessment-schema.ts` (`sdaia-assessment/v1`) — most
-  authoring rules are hard errors; word-cue style checks stay warnings
-- Import also confirms file day + duration against the selected assessment
+- Validate: `src/lib/assessment-schema.ts` (`sdaia-assessment/v1`) — most rules
+  are hard errors; word-cue style checks stay warnings
+- Import confirms file day + duration against the selected assessment
 - Import/edit RPCs refuse if attempts exist → Reset attempts first
 
 ## Runtime
@@ -25,5 +33,5 @@ One attempt per student. Auto-grade only. Third integrity strike →
 
 ## After schema/RPC changes
 
-Re-run the security checklist in `docs/ASSESSMENTS.md`, regenerate
-`src/lib/types.ts`, and call `revalidateCourseContent` from question mutations.
+Re-run the checklist in `docs/ASSESSMENTS.md`, regenerate `src/lib/types.ts`,
+and call `revalidateCourseContent` from question mutations.

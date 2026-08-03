@@ -149,6 +149,8 @@ expose — callable from policies, but with no HTTP endpoint.
   (`{course_id}/{day_id}/{file}`), so upload rights follow course ownership.
 - Quiz answer keys sit in a separate table; students cannot read them until they
   have submitted. Grading and the timer run in Postgres RPCs, not the browser.
+- Post-login redirects run through `safeNext` in `src/app/actions/auth.ts`. A
+  check that only requires a leading `/` is an open redirect (`//evil.com`).
 
 Verify isolation with
 [`supabase/isolation-test.sql`](supabase/isolation-test.sql) once two courses
@@ -221,10 +223,13 @@ npx tsc --noEmit
 
 ## Documentation map
 
+Agent / chat context starts at [`docs/CONTEXT.md`](docs/CONTEXT.md) (kept in sync
+with the live codebase). Index: [`docs/README.md`](docs/README.md).
+
 | Doc | Audience |
 | --- | --- |
-| [`docs/CONTEXT.md`](docs/CONTEXT.md) | New chats / onboarding |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Routes, caching, auth |
+| [`docs/CONTEXT.md`](docs/CONTEXT.md) | New chats / onboarding (read first) |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Routes, caching, auth, loading |
 | [`docs/ASSESSMENTS.md`](docs/ASSESSMENTS.md) | Quiz engine |
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Schema + RPCs |
 | [`DEPLOY.md`](DEPLOY.md) | Vercel / GitHub / region |

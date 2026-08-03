@@ -39,7 +39,7 @@ export function AssessmentForm({
       {state?.message ? <Alert>{state.message}</Alert> : null}
       {state?.ok ? <Alert tone="teal">Saved.</Alert> : null}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Type" htmlFor={`kind-${uid}`} error={state?.errors?.kind}>
           <Select id={`kind-${uid}`} name="kind" defaultValue={kind}>
             <option value="pre">
@@ -77,23 +77,24 @@ export function AssessmentForm({
           </Select>
         </Field>
 
-        <Field
-          label="Minutes"
-          htmlFor={`duration_minutes-${uid}`}
-          hint="The clock runs on the server."
-          error={state?.errors?.duration_minutes}
-        >
-          <Input
-            id={`duration_minutes-${uid}`}
-            name="duration_minutes"
-            type="number"
-            min={1}
-            max={300}
-            required
-            defaultValue={assessment?.duration_minutes ?? DEFAULT_DURATIONS[kind]}
-          />
-        </Field>
       </div>
+
+      <Field
+        label="Time limit"
+        htmlFor={`duration_minutes-${uid}`}
+        hint="Minutes from the moment a student starts. The clock runs on the server."
+        error={state?.errors?.duration_minutes}
+      >
+        <Input
+          id={`duration_minutes-${uid}`}
+          name="duration_minutes"
+          type="number"
+          min={1}
+          max={300}
+          required
+          defaultValue={assessment?.duration_minutes ?? DEFAULT_DURATIONS[kind]}
+        />
+      </Field>
 
       <Field label="Title" htmlFor={`title-${uid}`} error={state?.errors?.title}>
         <Input
@@ -120,41 +121,17 @@ export function AssessmentForm({
         />
       </Field>
 
+      {!assessment ? (
+        <div className="rounded-sm border border-line bg-navy-50/60 p-3 text-[13px] text-navy-800">
+          New assessments start hidden and locked. Add the required questions,
+          then use the publish and unlock controls on the assessment page.
+        </div>
+      ) : null}
+
       <fieldset className="space-y-2.5">
         <legend className="mb-1 text-[13px] font-medium text-navy-800">
-          Release
+          Question order
         </legend>
-
-        <label className="flex items-start gap-2.5 text-[13px] text-navy-800">
-          <input
-            type="checkbox"
-            name="is_published"
-            defaultChecked={assessment?.is_published ?? false}
-            className="mt-0.5 size-4 rounded-xs border-line-strong accent-teal-600"
-          />
-          <span>
-            Published
-            <span className="block text-[12px] text-ink-faint">
-              The card appears on the day page. Needs at least one question.
-            </span>
-          </span>
-        </label>
-
-        <label className="flex items-start gap-2.5 text-[13px] text-navy-800">
-          <input
-            type="checkbox"
-            name="is_locked"
-            defaultChecked={assessment?.is_locked ?? true}
-            className="mt-0.5 size-4 rounded-xs border-line-strong accent-teal-600"
-          />
-          <span>
-            Keep locked
-            <span className="block text-[12px] text-ink-faint">
-              Students see it but cannot start. Untick when the class is ready.
-            </span>
-          </span>
-        </label>
-
         <label className="flex items-start gap-2.5 text-[13px] text-navy-800">
           <input
             type="checkbox"

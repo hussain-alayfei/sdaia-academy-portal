@@ -42,10 +42,12 @@ export function AssessmentCards({
   assessments,
   attempts,
   questionCounts,
+  studentView = false,
 }: {
   assessments: Assessment[]
   attempts: Record<string, AssessmentAttempt>
   questionCounts: Record<string, number>
+  studentView?: boolean
 }) {
   if (assessments.length === 0) return null
 
@@ -141,7 +143,9 @@ export function AssessmentCards({
           <li key={assessment.id}>
             {interactive ? (
               <Link
-                href={`/quiz/${assessment.id}`}
+                href={`/quiz/${assessment.id}${
+                  studentView ? '?view=student' : ''
+                }`}
                 className={cx(
                   'group flex items-center gap-4 rounded-md border bg-surface p-4 transition-colors sm:gap-5 sm:p-5',
                   state.kind === 'done'

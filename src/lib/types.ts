@@ -26,6 +26,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_notices: {
+        Row: {
+          body: string
+          created_at: string
+          dismissed_at: string | null
+          id: string
+          show_after: string
+          student_id: string
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          dismissed_at?: string | null
+          id?: string
+          show_after?: string
+          student_id: string
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          dismissed_at?: string | null
+          id?: string
+          show_after?: string
+          student_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'account_notices_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       assessment_answer_keys: {
         Row: {
           course_id: string
@@ -149,6 +187,8 @@ export type Database = {
           id: string
           kind: Database['public']['Enums']['integrity_event_kind']
           occurred_at: string
+          question_id: string | null
+          question_warning_number: number | null
           student_id: string
           warning_number: number
         }
@@ -158,6 +198,8 @@ export type Database = {
           id?: string
           kind: Database['public']['Enums']['integrity_event_kind']
           occurred_at?: string
+          question_id?: string | null
+          question_warning_number?: number | null
           student_id: string
           warning_number: number
         }
@@ -167,6 +209,8 @@ export type Database = {
           id?: string
           kind?: Database['public']['Enums']['integrity_event_kind']
           occurred_at?: string
+          question_id?: string | null
+          question_warning_number?: number | null
           student_id?: string
           warning_number?: number
         }
@@ -183,6 +227,13 @@ export type Database = {
             columns: ['course_id']
             isOneToOne: false
             referencedRelation: 'courses'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'assessment_integrity_events_question_id_fkey'
+            columns: ['question_id']
+            isOneToOne: false
+            referencedRelation: 'assessment_questions'
             referencedColumns: ['id']
           },
           {
@@ -245,6 +296,7 @@ export type Database = {
           course_id: string
           created_at: string
           difficulty: Database['public']['Enums']['question_difficulty']
+          format: Database['public']['Enums']['question_format']
           id: string
           position: number
           stem: string
@@ -256,6 +308,7 @@ export type Database = {
           course_id: string
           created_at?: string
           difficulty?: Database['public']['Enums']['question_difficulty']
+          format?: Database['public']['Enums']['question_format']
           id?: string
           position?: number
           stem: string
@@ -267,6 +320,7 @@ export type Database = {
           course_id?: string
           created_at?: string
           difficulty?: Database['public']['Enums']['question_difficulty']
+          format?: Database['public']['Enums']['question_format']
           id?: string
           position?: number
           stem?: string
@@ -434,6 +488,7 @@ export type Database = {
           kind: Database['public']['Enums']['assessment_kind']
           opens_at: string | null
           position: number
+          required_question_count: number
           shuffle: boolean
           title: string
           updated_at: string
@@ -451,6 +506,7 @@ export type Database = {
           kind: Database['public']['Enums']['assessment_kind']
           opens_at?: string | null
           position?: number
+          required_question_count?: number
           shuffle?: boolean
           title: string
           updated_at?: string
@@ -468,6 +524,7 @@ export type Database = {
           kind?: Database['public']['Enums']['assessment_kind']
           opens_at?: string | null
           position?: number
+          required_question_count?: number
           shuffle?: boolean
           title?: string
           updated_at?: string
@@ -495,6 +552,7 @@ export type Database = {
           created_at: string
           day_number: number
           id: string
+          is_current: boolean
           is_published: boolean
           scheduled_date: string | null
           summary: string | null
@@ -507,6 +565,7 @@ export type Database = {
           created_at?: string
           day_number: number
           id?: string
+          is_current?: boolean
           is_published?: boolean
           scheduled_date?: string | null
           summary?: string | null
@@ -519,6 +578,7 @@ export type Database = {
           created_at?: string
           day_number?: number
           id?: string
+          is_current?: boolean
           is_published?: boolean
           scheduled_date?: string | null
           summary?: string | null
@@ -727,7 +787,7 @@ export type Database = {
         Returns: number
       }
       record_integrity_event: {
-        Args: { p_attempt: string; p_kind: string }
+        Args: { p_attempt: string; p_kind: string; p_question: string }
         Returns: Json
       }
       redeem_join_code: { Args: { code: string }; Returns: Json }
@@ -769,6 +829,7 @@ export type Database = {
         | 'paste'
         | 'context_menu'
       question_difficulty: 'easy' | 'medium' | 'hard'
+      question_format: 'multiple_choice' | 'true_false'
       resource_kind:
         | 'slides'
         | 'pdf'
@@ -798,6 +859,7 @@ export type AppRole = Enums<'app_role'>
 export type ResourceKind = Enums<'resource_kind'>
 export type AssessmentKind = Enums<'assessment_kind'>
 export type QuestionDifficulty = Enums<'question_difficulty'>
+export type QuestionFormat = Enums<'question_format'>
 export type AttemptStatus = Enums<'attempt_status'>
 export type IntegrityEventKind = Enums<'integrity_event_kind'>
 
@@ -845,6 +907,8 @@ export type SubmitResult = {
 
 /** Shape returned by record_integrity_event. */
 export type IntegrityResult = {
+  active: boolean
+  question_invalidated: boolean
+  question_warning_count: number
   warning_count: number
-  stopped: boolean
 }
