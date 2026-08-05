@@ -105,8 +105,23 @@ export function IntegrityGuard({
     invalidated: boolean
   } | null>(null)
 
-  /** Non-null while the student is outside fullscreen and the clock is ticking. */
+  /**
+   * Whether the document is fullscreen *right now*.
+   *
+   * Driven by state rather than by reacting to `fullscreenchange` alone. An
+   * earlier version only listened for the event, so once a student was already
+   * outside fullscreen no further event ever fired: the overlay vanished and the
+   * paper stayed readable in a window for the rest of the exam. Holding the
+   * condition in state means the gate reappears whenever it is true, however the
+   * student got there — including on first load.
+   */
+  const [isFullscreen, setIsFullscreen] = useState(true)
+
+  /** Seconds left to return before the exit is recorded. Null = not counting. */
   const [graceLeft, setGraceLeft] = useState<number | null>(null)
+
+  /** One warning per exit, not a drip for as long as they stay outside. */
+  const chargedForThisExit = useRef(false)
 
   const lastEventAt = useRef(0)
   const inFlight = useRef(false)
@@ -194,18 +209,24 @@ export function IntegrityGuard({
   useEffect(() => {
     if (!active || !requireFullscreen) return
 
-    const onChange = () => {
-      if (document.fullscreenElement) {
+    const sync = () => {
+      const inside = Boolean(document.fullscreenElement)
+      setIsFullscreen(inside)
+
+      if (inside) {
         setGraceLeft(null)
-      } else {
-        setGraceLeft(Math.ceil(FULLSCREEN_GRACE_MS / 1000))
+        chargedForThisExit.current = false
+      } else if (!chargedForThisExit.current) {
+        setGraceLeft((current) =>
+          current === null ? Math.ceil(FULLSCREEN_GRACE_MS / 1000) : current
+        )
       }
     }
 
-    document.addEventListener('fullscreenchange', onChange)
-    onChange()
+    document.addEventListener('fullscreenchange', sync)
+    sync()
 
-    return () => document.removeEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', sync)
   }, [active, requireFullscreen])
 
   /* The grace countdown. Returning to fullscreen clears it before it fires, so
@@ -215,6 +236,7 @@ export function IntegrityGuard({
 
     if (graceLeft <= 0) {
       setGraceLeft(null)
+      chargedForThisExit.current = true
       void record('fullscreen_exit')
       return
     }
@@ -223,10 +245,22 @@ export function IntegrityGuard({
     return () => window.clearTimeout(id)
   }, [graceLeft, record])
 
-  const returnToFullscreen = () => {
-    void document.documentElement.requestFullscreen?.().catch(() => {
-      // Refused or unsupported. Nothing to police, so stop the countdown
-      // rather than freezing someone whose browser will not comply.
+  /**
+   * The only reliable way in.
+   *
+   * `requestFullscreen` is refused outside a user gesture, which is why asking
+   * for it in a mount effect silently did nothing and the exam opened windowed.
+   * This runs from a real button press, so the browser honours it.
+   */
+  const enterFullscreen = () => {
+    const request = document.documentElement.requestFullscreen?.bind(
+      document.documentElement
+    )
+    if (!request) return
+
+    request().catch(() => {
+      // Refused. Do not strand the student behind a gate they cannot pass.
+      setIsFullscreen(true)
       setGraceLeft(null)
     })
   }
@@ -241,25 +275,51 @@ export function IntegrityGuard({
 
   /* ------------------------------------------------------------ render -- */
 
-  if (graceLeft !== null && !notice) {
+  /**
+   * The gate. Opaque, not translucent: while it is up the paper behind it must
+   * be unreadable, or leaving fullscreen becomes a way to browse the exam
+   * calmly. It is shown from state, so it returns every single time the student
+   * is outside fullscreen — including the very first render, which is what
+   * makes the exam enter fullscreen at all.
+   */
+  if (active && requireFullscreen && !isFullscreen && !notice) {
+    const counting = graceLeft !== null
+
     return (
-      <Overlay tone="amber">
-        <Heading tone="amber">Return to fullscreen</Heading>
+      <Overlay tone={counting ? 'amber' : 'danger'} opaque>
+        <Heading tone={counting ? 'amber' : 'danger'}>
+          {counting ? 'Return to fullscreen' : 'Fullscreen is required'}
+        </Heading>
+
         <p className="mt-4 text-[17px] leading-relaxed text-ink sm:text-[19px]">
-          Your exam must stay in fullscreen. Come back within{' '}
-          <strong className="font-bold text-navy-900 tabular-nums">
-            {graceLeft} second{graceLeft === 1 ? '' : 's'}
-          </strong>{' '}
-          and nothing is recorded.
+          This exam runs in fullscreen. Your questions are hidden until you go
+          back.
         </p>
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
-          If you stay outside fullscreen, this counts as one warning.
-        </p>
+
+        {counting ? (
+          <p className="mt-4 rounded-md border-2 border-amber-300 bg-amber-50 px-4 py-3.5 text-[17px] leading-relaxed font-semibold text-amber-800 sm:text-[19px]">
+            Return within{' '}
+            <span className="tabular-nums">
+              {graceLeft} second{graceLeft === 1 ? '' : 's'}
+            </span>{' '}
+            and nothing is recorded.
+          </p>
+        ) : (
+          <p className="mt-4 rounded-md border-2 border-danger-500 bg-danger-50 px-4 py-3.5 text-[17px] leading-relaxed font-semibold text-danger-600 sm:text-[19px]">
+            One warning was recorded for leaving fullscreen. Going back now costs
+            you nothing more.
+          </p>
+        )}
+
         <div className="mt-6">
-          <Button onClick={returnToFullscreen} autoFocus>
-            Return to fullscreen
+          <Button onClick={enterFullscreen} autoFocus>
+            Enter fullscreen and continue
           </Button>
         </div>
+
+        <p className="mt-4 text-[14px] leading-relaxed text-ink-faint">
+          Your answers are all saved, and your time is still running.
+        </p>
       </Overlay>
     )
   }
@@ -325,9 +385,12 @@ export function IntegrityGuard({
 
 function Overlay({
   tone,
+  opaque = false,
   children,
 }: {
   tone: 'amber' | 'danger'
+  /** Fully hides the paper behind it, rather than blurring it. */
+  opaque?: boolean
   children: React.ReactNode
 }) {
   return (
@@ -335,7 +398,10 @@ function Overlay({
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="integrity-title"
-      className="fixed inset-0 z-50 grid place-items-center bg-navy-900/75 p-4 backdrop-blur-[3px]"
+      className={cx(
+        'fixed inset-0 z-50 grid place-items-center p-4',
+        opaque ? 'bg-canvas' : 'bg-navy-900/75 backdrop-blur-[3px]'
+      )}
     >
       <div
         className={cx(

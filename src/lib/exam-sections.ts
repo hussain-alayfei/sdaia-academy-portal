@@ -17,6 +17,12 @@ export type ExamUseCase = {
   requirementsTitle: string | null
   requirements: string[]
   closing: string | null
+  /** Arabic variants. Any missing field falls back to its English counterpart. */
+  titleAr: string | null
+  introAr: string | null
+  requirementsTitleAr: string | null
+  requirementsAr: string[]
+  closingAr: string | null
 }
 
 export type ExamSectionLayout = 'one_per_screen' | 'single_page'
@@ -28,6 +34,8 @@ export type ExamSection = {
   brief: string | null
   layout: ExamSectionLayout
   useCase: ExamUseCase | null
+  titleAr: string | null
+  briefAr: string | null
 }
 
 const asString = (value: unknown): string | null =>
@@ -40,14 +48,22 @@ function readUseCase(value: unknown): ExamUseCase | null {
   const intro = asString(raw.intro)
   if (!intro) return null
 
+  const strings = (value: unknown): string[] =>
+    Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === 'string')
+      : []
+
   return {
     title: asString(raw.title) ?? 'The use case',
     intro,
     requirementsTitle: asString(raw.requirements_title),
-    requirements: Array.isArray(raw.requirements)
-      ? raw.requirements.filter((item): item is string => typeof item === 'string')
-      : [],
+    requirements: strings(raw.requirements),
     closing: asString(raw.closing),
+    titleAr: asString(raw.title_ar),
+    introAr: asString(raw.intro_ar),
+    requirementsTitleAr: asString(raw.requirements_title_ar),
+    requirementsAr: strings(raw.requirements_ar),
+    closingAr: asString(raw.closing_ar),
   }
 }
 
@@ -78,6 +94,8 @@ export function readExamSections(value: unknown): ExamSection[] {
           brief: asString(raw.brief),
           layout: raw.layout === 'single_page' ? 'single_page' : 'one_per_screen',
           useCase: readUseCase(raw.use_case),
+          titleAr: asString(raw.title_ar),
+          briefAr: asString(raw.brief_ar),
         },
       ]
     })

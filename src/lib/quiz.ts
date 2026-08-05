@@ -277,7 +277,9 @@ export type PaperQuestion = {
   section: number
   format: AssessmentQuestion['format']
   stem: string
-  options: Array<{ id: string; body: string }>
+  /** Null falls back to the English stem at render time. */
+  stemAr: string | null
+  options: Array<{ id: string; body: string; bodyAr: string | null }>
   selectedOptionId: string | null
   flagged: boolean
   integrityWarningCount: number
@@ -316,7 +318,9 @@ export async function getAttemptPaper(
     await Promise.all([
     supabase
       .from('assessment_questions')
-      .select('id, stem, section, format, options:assessment_options(id, body)')
+      .select(
+        'id, stem, stem_ar, section, format, options:assessment_options(id, body, body_ar)'
+      )
       .in('id', questionIds),
     supabase
       .from('assessment_responses')
@@ -355,7 +359,9 @@ export async function getAttemptPaper(
     const options = new Map(question.options.map((o) => [o.id, o]))
     const ordered = entry.o.flatMap((id) => {
       const option = options.get(id)
-      return option ? [{ id: option.id, body: option.body }] : []
+      return option
+        ? [{ id: option.id, body: option.body, bodyAr: option.body_ar ?? null }]
+        : []
     })
 
     const answer = answers.get(entry.q)
@@ -368,6 +374,7 @@ export async function getAttemptPaper(
         section: question.section ?? 1,
         format: question.format ?? 'multiple_choice',
         stem: question.stem,
+        stemAr: question.stem_ar ?? null,
         options: ordered,
         selectedOptionId: answer?.selectedOptionId ?? null,
         flagged: answer?.flagged ?? false,

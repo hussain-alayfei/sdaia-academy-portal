@@ -10,10 +10,19 @@ import {
   ClockIcon,
   FlagIcon,
 } from '@/components/icons'
+import { ExamLanguageToggle } from '@/components/exam-language-toggle'
 import { ExamLockdown } from '@/components/exam-lockdown'
 import { IntegrityGuard } from '@/components/integrity-guard'
 import { QuizFrozen } from '@/components/quiz-frozen'
 import { Alert, Button, cx } from '@/components/ui'
+import {
+  dirFor,
+  pickText,
+  readStoredLanguage,
+  storeLanguage,
+  t,
+  type ExamLanguage,
+} from '@/lib/exam-language'
 import { formatClock } from '@/lib/format'
 import {
   buildExamPages,
@@ -63,6 +72,8 @@ export function QuizRunner({
   resultsHidden = false,
   warningLimit = null,
   startFrozen = false,
+  initialLanguage = 'en',
+  bilingual = false,
 }: {
   attemptId: string
   title: string
@@ -78,8 +89,33 @@ export function QuizRunner({
   warningLimit?: number | null
   /** The attempt was already frozen when this page rendered. */
   startFrozen?: boolean
+  /** Language chosen on the rules screen. */
+  initialLanguage?: ExamLanguage
+  /** True when the paper actually carries a translation worth offering. */
+  bilingual?: boolean
 }) {
   const router = useRouter()
+
+  /**
+   * Reading language. Held here, never sent to the server.
+   *
+   * Starts from what the rules screen chose, then re-reads storage once on
+   * mount so a mid-exam reload comes back in the language the student was
+   * actually reading rather than resetting to English.
+   */
+  const [language, setLanguage] = useState<ExamLanguage>(initialLanguage)
+
+  useEffect(() => {
+    const stored = readStoredLanguage()
+    if (stored) setLanguage(stored)
+  }, [])
+
+  const changeLanguage = (next: ExamLanguage) => {
+    setLanguage(next)
+    storeLanguage(next)
+  }
+
+  const rtl = language === 'ar'
 
   const pages = useMemo(
     () => buildExamPages(questions, sections),
@@ -113,6 +149,8 @@ export function QuizRunner({
   const [confirming, setConfirming] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [frozen, setFrozen] = useState(startFrozen)
+  /** Shown when Next / skip is blocked because the current page is unanswered. */
+  const [needAnswer, setNeedAnswer] = useState(false)
 
   /** Exam papers run in fullscreen; practice quizzes do not. */
   const examMode = warningLimit !== null
@@ -168,26 +206,23 @@ export function QuizRunner({
   )
 
   /**
-   * Enter fullscreen once, when an exam attempt opens.
+   * Can this browser actually do fullscreen?
    *
-   * Best effort by design. iPhone Safari cannot fullscreen a non-video element,
-   * and any browser can refuse the request. A student on such a device sits the
-   * exam windowed rather than being blocked, and the fullscreen warning is never
-   * armed against them — `requireFullscreen` below is gated on the browser
-   * actually being capable of it.
+   * iPhone Safari cannot fullscreen a non-video element. Where the answer is no,
+   * the gate never appears and the fullscreen warning is never armed, so a
+   * student on such a device sits the exam windowed rather than being locked out
+   * of a rule they cannot satisfy.
+   *
+   * Entering fullscreen is *not* attempted here. `requestFullscreen` is refused
+   * outside a user gesture, and this component mounts after a form redirect with
+   * no gesture attached — an earlier version asked here and was silently
+   * ignored, which is why the exam opened windowed. `IntegrityGuard` puts a
+   * blocking gate over the paper instead, and its button supplies the gesture.
    */
   const canFullscreen =
     typeof document !== 'undefined' &&
     Boolean(document.fullscreenEnabled) &&
     typeof document.documentElement.requestFullscreen === 'function'
-
-  useEffect(() => {
-    if (!examMode || frozen || submitted.current || !canFullscreen) return
-    if (document.fullscreenElement) return
-    void document.documentElement.requestFullscreen?.().catch(() => {})
-    // Once per mount: re-requesting on every render would fight the student.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   /* Leaving fullscreen when the exam ends is courtesy, not policy. */
   useEffect(() => {
@@ -255,6 +290,7 @@ export function QuizRunner({
   const choose = (questionId: string, optionId: string) => {
     setActiveQuestionId(questionId)
     setAnswers((prev) => ({ ...prev, [questionId]: optionId }))
+    setNeedAnswer(false)
     void persist(questionId, optionId, flags[questionId] ?? false)
   }
 
@@ -265,15 +301,44 @@ export function QuizRunner({
     void persist(questionId, answers[questionId] ?? null, next)
   }
 
+  const pageIsAnswered = useCallback(
+    (p: (typeof pages)[number] | undefined) => {
+      if (!p) return false
+      return p.questions.every((i) => Boolean(answers[questions[i]?.id]))
+    },
+    [answers, questions]
+  )
+
   const goToPage = (target: number) => {
     if (target < 0 || target >= pages.length) return
+    // Forward moves require every question on this screen to have an answer.
+    // Back is always free so students can revisit and change their minds.
+    if (target > pageIndex && !pageIsAnswered(page)) {
+      setNeedAnswer(true)
+      return
+    }
+    setNeedAnswer(false)
     setDirection(target > pageIndex ? 'next' : 'prev')
     setPageIndex(target)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const goToQuestion = (questionIndex: number) => {
-    goToPage(pageOfQuestion(pages, questionIndex))
+    const targetPage = pageOfQuestion(pages, questionIndex)
+    if (targetPage > pageIndex && !pageIsAnswered(page)) {
+      setNeedAnswer(true)
+      return
+    }
+    // Jumping ahead past unanswered screens is not allowed — answer as you go.
+    if (targetPage > pageIndex + 1) {
+      for (let p = pageIndex; p < targetPage; p++) {
+        if (!pageIsAnswered(pages[p])) {
+          setNeedAnswer(true)
+          return
+        }
+      }
+    }
+    goToPage(targetPage)
   }
 
   const unanswered = useMemo(
@@ -286,6 +351,8 @@ export function QuizRunner({
   )
 
   const answeredCount = questions.length - unanswered.length
+  const currentPageAnswered = pageIsAnswered(page)
+  const allAnswered = unanswered.length === 0
 
   /** Runs of the same section, for the grouped navigator. */
   const navGroups = useMemo(() => {
@@ -318,7 +385,14 @@ export function QuizRunner({
   }
 
   return (
-    <div className={cx('min-h-dvh bg-canvas', lockdown && 'select-none')}>
+    // `dir` is set here rather than on <html> so only the exam mirrors. The
+    // numbered navigator, the clock and the option letters stay legible either
+    // way because they are Western numerals and Latin letters by design.
+    <div
+      dir={dirFor(language)}
+      lang={language}
+      className={cx('min-h-dvh bg-canvas', lockdown && 'select-none')}
+    >
       <ExamLockdown active={lockdown && !finished} />
 
       <IntegrityGuard
@@ -351,10 +425,24 @@ export function QuizRunner({
               {title}
             </p>
             <p className="text-[12px] text-ink-faint">
-              {answeredCount} of {questions.length} answered
-              {flagged.length > 0 ? ` · ${flagged.length} flagged` : ''}
+              {answeredCount} {t('of', language)} {questions.length}{' '}
+              {t('answered', language)}
+              {flagged.length > 0
+                ? ` · ${flagged.length} ${t('flagged', language)}`
+                : ''}
             </p>
           </div>
+
+          {/* Stays reachable for the whole attempt. A student who picked the
+              wrong language at the start must not have to abandon the exam to
+              fix it. */}
+          {bilingual ? (
+            <ExamLanguageToggle
+              value={language}
+              onChange={changeLanguage}
+              size="sm"
+            />
+          ) : null}
 
           {/* Kept visible once anything is on the record. A student who can see
               "2 of 5" knows exactly where they stand; one who cannot is being
@@ -371,7 +459,7 @@ export function QuizRunner({
             >
               <AlertIcon width={14} height={14} />
               {warningLimit !== null
-                ? `${warnings} of ${warningLimit} warnings`
+                ? `${warnings} ${t('of', language)} ${warningLimit} ${t('warnings', language)}`
                 : `${warnings} integrity event${warnings === 1 ? '' : 's'}`}
             </span>
           ) : null}
@@ -491,11 +579,11 @@ export function QuizRunner({
           {page.section && page.opensSection ? (
             <div className="mb-5 rounded-md border border-line bg-navy-50/60 p-4 sm:p-5">
               <h2 className="text-[16px] font-semibold text-navy-900 sm:text-[18px]">
-                {page.section.title}
+                {pickText(page.section.title, page.section.titleAr, language)}
               </h2>
               {page.section.brief ? (
                 <p className="mt-1.5 text-[14px] leading-relaxed text-ink-soft">
-                  {page.section.brief}
+                  {pickText(page.section.brief, page.section.briefAr, language)}
                 </p>
               ) : null}
             </div>
@@ -508,22 +596,39 @@ export function QuizRunner({
               className="mb-6 rounded-md border-2 border-navy-900/15 bg-surface p-5 sm:p-7"
             >
               <h3 className="text-[12px] font-semibold tracking-wide text-teal-700 uppercase">
-                {page.section.useCase.title}
+                {pickText(
+                  page.section.useCase.title,
+                  page.section.useCase.titleAr,
+                  language
+                )}
               </h3>
 
               <p className="mt-3 text-[15.5px] leading-relaxed text-ink sm:text-[16.5px]">
-                {page.section.useCase.intro}
+                {pickText(
+                  page.section.useCase.intro,
+                  page.section.useCase.introAr,
+                  language
+                )}
               </p>
 
               {page.section.useCase.requirements.length > 0 ? (
                 <>
                   {page.section.useCase.requirementsTitle ? (
                     <p className="mt-5 text-[14px] font-semibold text-navy-900">
-                      {page.section.useCase.requirementsTitle}
+                      {pickText(
+                        page.section.useCase.requirementsTitle,
+                        page.section.useCase.requirementsTitleAr,
+                        language
+                      )}
                     </p>
                   ) : null}
                   <ul className="mt-2.5 space-y-2">
-                    {page.section.useCase.requirements.map((item) => (
+                    {(language === 'ar' &&
+                    page.section.useCase.requirementsAr.length ===
+                      page.section.useCase.requirements.length
+                      ? page.section.useCase.requirementsAr
+                      : page.section.useCase.requirements
+                    ).map((item) => (
                       <li
                         key={item}
                         className="flex gap-2.5 text-[14.5px] leading-relaxed text-ink"
@@ -541,7 +646,11 @@ export function QuizRunner({
 
               {page.section.useCase.closing ? (
                 <p className="mt-5 border-t border-line pt-4 text-[14px] text-ink-soft">
-                  {page.section.useCase.closing}
+                  {pickText(
+                    page.section.useCase.closing,
+                    page.section.useCase.closingAr,
+                    language
+                  )}
                 </p>
               ) : null}
             </section>
@@ -596,7 +705,7 @@ export function QuizRunner({
                   ) : null}
 
                   <h1 className="text-[17px] leading-relaxed font-medium text-navy-900 sm:text-[18px]">
-                    {question.stem}
+                    {pickText(question.stem, question.stemAr, language)}
                   </h1>
 
                   <ul className="mt-5 space-y-2.5">
@@ -632,7 +741,7 @@ export function QuizRunner({
                               {String.fromCharCode(65 + i)}
                             </span>
                             <span className="text-[14.5px] leading-relaxed text-ink">
-                              {option.body}
+                              {pickText(option.body, option.bodyAr, language)}
                             </span>
                           </label>
                         </li>
@@ -646,6 +755,21 @@ export function QuizRunner({
         </div>
 
         {/* ------------------------------------------------------------ moves */}
+        {!currentPageAnswered || needAnswer ? (
+          <Alert
+            tone="amber"
+            className="mt-6"
+            title={
+              page.questions.length > 1
+                ? 'Answer every question on this page first'
+                : 'Choose an answer before continuing'
+            }
+          >
+            You cannot leave a question blank. Select an option, then press Next.
+            Use Flag for later if you want to come back after answering.
+          </Alert>
+        ) : null}
+
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <Button
             variant="secondary"
@@ -656,11 +780,35 @@ export function QuizRunner({
           </Button>
 
           {!isLastPage ? (
-            <Button onClick={() => goToPage(pageIndex + 1)}>
+            <Button
+              onClick={() => goToPage(pageIndex + 1)}
+              disabled={!currentPageAnswered}
+              title={
+                currentPageAnswered
+                  ? undefined
+                  : 'Answer this question before continuing'
+              }
+            >
               {page.questions.length > 1 ? 'Next' : 'Next question'}
             </Button>
           ) : (
-            <Button onClick={() => setConfirming(true)}>Review and submit</Button>
+            <Button
+              onClick={() => {
+                if (!allAnswered) {
+                  setNeedAnswer(true)
+                  return
+                }
+                setConfirming(true)
+              }}
+              disabled={!allAnswered}
+              title={
+                allAnswered
+                  ? undefined
+                  : 'Answer every question before submitting'
+              }
+            >
+              Review and submit
+            </Button>
           )}
 
           <span className="ml-auto text-[12px] text-ink-faint">
@@ -674,7 +822,7 @@ export function QuizRunner({
           </span>
         </div>
 
-        {!isLastPage ? (
+        {!isLastPage && allAnswered ? (
           <div className="mt-4">
             <button
               type="button"
@@ -710,14 +858,6 @@ export function QuizRunner({
                   {answeredCount} of {questions.length}
                 </dd>
               </div>
-              {unanswered.length > 0 ? (
-                <div className="flex items-center justify-between gap-4">
-                  <dt className="text-danger-600">Left blank</dt>
-                  <dd className="font-medium text-danger-600">
-                    {unanswered.map((q) => q.position + 1).join(', ')}
-                  </dd>
-                </div>
-              ) : null}
               {flagged.length > 0 ? (
                 <div className="flex items-center justify-between gap-4">
                   <dt className="text-amber-800">Still flagged</dt>
@@ -729,9 +869,11 @@ export function QuizRunner({
             </dl>
 
             <p className="mt-4 text-[13px] text-ink-soft">
-              {unanswered.length > 0
-                ? 'Blank answers count as wrong. You can go back and fill them in.'
-                : 'You have answered everything.'}{' '}
+              {allAnswered
+                ? flagged.length > 0
+                  ? 'Every question has an answer. You still have flags — review those if you want, then submit.'
+                  : 'You have answered everything.'
+                : 'Every question needs an answer before you can submit.'}{' '}
               This is your one attempt, so it cannot be reopened.
               {resultsHidden
                 ? ' Your score is not shown when you submit; your instructor releases marks after the exam.'
@@ -739,7 +881,10 @@ export function QuizRunner({
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button onClick={() => void submit('submitted')} disabled={submitting}>
+              <Button
+                onClick={() => void submit('submitted')}
+                disabled={submitting || !allAnswered}
+              >
                 {submitting ? 'Submitting…' : 'Submit for marking'}
               </Button>
               <Button
@@ -749,17 +894,17 @@ export function QuizRunner({
               >
                 Keep working
               </Button>
-              {unanswered.length > 0 ? (
+              {flagged.length > 0 ? (
                 <Button
                   variant="ghost"
                   onClick={() => {
                     setConfirming(false)
-                    goToQuestion(unanswered[0].position)
+                    goToQuestion(flagged[0].position)
                   }}
                   disabled={submitting}
                 >
                   <CheckIcon width={15} height={15} />
-                  Go to the first blank
+                  Go to first flagged
                 </Button>
               ) : null}
             </div>

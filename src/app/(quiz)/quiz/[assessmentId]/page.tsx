@@ -9,8 +9,9 @@ import { QuizReview } from '@/components/quiz-review'
 import { QuizRunner } from '@/components/quiz-runner'
 import { QuizPreview } from '@/components/quiz-preview'
 import { QuizSubmitted } from '@/components/quiz-submitted'
+import { ExamStartPanel } from '@/components/exam-start-panel'
 import { StudentViewBanner } from '@/components/student-view-banner'
-import { Alert, BackLink, Button, Panel } from '@/components/ui'
+import { Alert, BackLink, Button, Panel, cx } from '@/components/ui'
 import { isManager, requireProfile } from '@/lib/dal'
 import { readExamSections } from '@/lib/exam-sections'
 import { ASSESSMENT_LABELS, formatDuration } from '@/lib/format'
@@ -48,7 +49,7 @@ export default async function QuizPage({
   const { data: assessment } = await supabase
     .from('assessments')
     .select(
-      'id, course_id, kind, title, description, duration_minutes, required_question_count, is_locked, is_published, sections, instructions, results_released, integrity_warning_limit, day:course_days(day_number), course:courses(slug, title)'
+      'id, course_id, kind, title, description, duration_minutes, required_question_count, is_locked, is_published, sections, instructions, instructions_ar, results_released, integrity_warning_limit, day:course_days(day_number), course:courses(slug, title)'
     )
     .eq('id', assessmentId)
     .maybeSingle()
@@ -120,6 +121,7 @@ export default async function QuizPage({
         resultsHidden={!assessment.results_released}
         warningLimit={assessment.integrity_warning_limit}
         startFrozen={Boolean(attempt.frozen_at)}
+        bilingual={Boolean(assessment.instructions_ar)}
       />
     )
   }
@@ -165,10 +167,14 @@ export default async function QuizPage({
     questionCount === assessment.required_question_count
 
   // Stored as one point per line, so authoring stays plain text.
-  const instructionPoints = (assessment.instructions ?? '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
+  const toPoints = (value: string | null) =>
+    (value ?? '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+
+  const instructionPoints = toPoints(assessment.instructions)
+  const instructionPointsAr = toPoints(assessment.instructions_ar)
 
   return (
     <Shell>
@@ -205,42 +211,39 @@ export default async function QuizPage({
       {/* The exam briefing. Set deliberately larger than the rest of the page:
           this is the one block a student must actually read, and it loses that
           job the moment it looks like the small print underneath it. */}
-      {instructionPoints.length > 0 ? (
-        <section
-          aria-label="Exam instructions"
-          className="mt-6 rounded-md border-2 border-navy-900/20 bg-surface p-5 sm:p-7"
-        >
-          <h2 className="text-[20px] font-semibold text-navy-900 sm:text-[24px]">
-            Read this before you begin
-          </h2>
-          <p className="mt-1.5 text-[14px] text-ink-soft">
-            These rules apply for the whole exam.
-          </p>
-
-          <ol className="mt-5 space-y-3.5">
-            {instructionPoints.map((point, i) => (
-              <li key={point} className="flex gap-3.5">
-                <span
-                  aria-hidden
-                  className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-sm border border-navy-200 bg-navy-50 text-[13px] font-bold text-navy-800"
-                >
-                  {i + 1}
-                </span>
-                <span className="text-[15.5px] leading-relaxed text-ink sm:text-[16.5px]">
-                  {point}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
+      {/* An assessment carrying its own briefing gets the bilingual start
+          panel: language choice, the instructions in that language, and the
+          begin button together. Everything else keeps the short rules list. */}
+      {instructionPoints.length > 0 && !studentView ? (
+        <ExamStartPanel
+          assessmentId={assessment.id}
+          instructions={instructionPoints}
+          instructionsAr={instructionPointsAr}
+          canStart={openable}
+          notReadyMessage={
+            questionCount !== assessment.required_question_count
+              ? 'This assessment is not ready yet. Your instructor is still preparing it.'
+              : 'This is not open yet. Your instructor will release it when the class is ready.'
+          }
+        />
       ) : null}
 
-      <Panel className="mt-6 p-5 sm:p-6">
-        <h2 className="text-[15px] font-semibold text-navy-900">
-          Before you begin
-        </h2>
+      <Panel
+        className={cx(
+          'mt-6 p-5 sm:p-6',
+          instructionPoints.length > 0 && !studentView && 'hidden'
+        )}
+      >
+        {/* Only shown when the assessment carries no briefing of its own.
+            Rendering both put the clock, the one-attempt rule and the integrity
+            policy on the same screen twice, in two different voices. */}
+        {instructionPoints.length === 0 ? (
+          <>
+            <h2 className="text-[15px] font-semibold text-navy-900">
+              Before you begin
+            </h2>
 
-        <ul className="mt-3 space-y-3 text-[14px] text-ink">
+            <ul className="mt-3 space-y-3 text-[14px] text-ink">
           <Rule icon={<ClockIcon width={16} height={16} />}>
             {studentView ? (
               <>
@@ -273,8 +276,9 @@ export default async function QuizPage({
           </Rule>
 
           <Rule icon={<AlertIcon width={16} height={16} />}>
-            One question at a time. You can skip, flag anything to come back to,
-            and move freely between them. {studentView ? 'Preview answers stay only in this browser until you exit.' : 'Every answer saves the moment you pick it, so a lost connection costs you nothing.'}
+            Every question needs an answer before you can go to the next one —
+            blanks are not allowed. Flag anything you want to review later, then
+            come back to it. {studentView ? 'Preview answers stay only in this browser until you exit.' : 'Every answer saves the moment you pick it, so a lost connection costs you nothing.'}
           </Rule>
 
           <Rule icon={<EyeOffIcon width={16} height={16} />}>
@@ -287,9 +291,11 @@ export default async function QuizPage({
                 ? `Leaving this page for another tab or app, leaving fullscreen, or trying to copy or paste is recorded as a warning. A large message explains every one. After ${assessment.integrity_warning_limit} warnings your exam freezes and only your instructor can reopen it — your clock pauses while you wait, so you lose no time. Right-clicking, double-clicking and resizing your window are fine and are never recorded.`
                 : 'Switching tab or window, copying and pasting are recorded per question. A large warning explains each recorded event. Three events while you are on the same question make only that question worth zero points. The assessment continues, and your other questions are unaffected. Right-clicking is never recorded.'}
           </Rule>
-        </ul>
+            </ul>
+          </>
+        ) : null}
 
-        <div className="mt-6 flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {studentView ? (
             <QuizPreview
               title={assessment.title}

@@ -71,6 +71,7 @@ export type Database = {
           option_id: string
           question_id: string
           rationale: string | null
+          rationale_ar: string | null
           updated_at: string
         }
         Insert: {
@@ -79,6 +80,7 @@ export type Database = {
           option_id: string
           question_id: string
           rationale?: string | null
+          rationale_ar?: string | null
           updated_at?: string
         }
         Update: {
@@ -87,6 +89,7 @@ export type Database = {
           option_id?: string
           question_id?: string
           rationale?: string | null
+          rationale_ar?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -254,6 +257,7 @@ export type Database = {
       assessment_options: {
         Row: {
           body: string
+          body_ar: string | null
           course_id: string
           created_at: string
           id: string
@@ -263,6 +267,7 @@ export type Database = {
         }
         Insert: {
           body: string
+          body_ar?: string | null
           course_id: string
           created_at?: string
           id?: string
@@ -272,6 +277,7 @@ export type Database = {
         }
         Update: {
           body?: string
+          body_ar?: string | null
           course_id?: string
           created_at?: string
           id?: string
@@ -307,6 +313,7 @@ export type Database = {
           position: number
           section: number
           stem: string
+          stem_ar: string | null
           topic: string | null
           updated_at: string
         }
@@ -320,6 +327,7 @@ export type Database = {
           position?: number
           section?: number
           stem: string
+          stem_ar?: string | null
           topic?: string | null
           updated_at?: string
         }
@@ -333,6 +341,7 @@ export type Database = {
           position?: number
           section?: number
           stem?: string
+          stem_ar?: string | null
           topic?: string | null
           updated_at?: string
         }
@@ -493,6 +502,7 @@ export type Database = {
           duration_minutes: number
           id: string
           instructions: string | null
+          instructions_ar: string | null
           integrity_warning_limit: number | null
           is_locked: boolean
           is_published: boolean
@@ -515,6 +525,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           instructions?: string | null
+          instructions_ar?: string | null
           integrity_warning_limit?: number | null
           is_locked?: boolean
           is_published?: boolean
@@ -537,6 +548,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           instructions?: string | null
+          instructions_ar?: string | null
           integrity_warning_limit?: number | null
           is_locked?: boolean
           is_published?: boolean

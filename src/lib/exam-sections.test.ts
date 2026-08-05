@@ -17,31 +17,25 @@ import {
  * away from the questions that depend on it.
  */
 
+const section = (
+  n: number,
+  code: string,
+  layout: ExamSection['layout']
+): ExamSection => ({
+  n,
+  code,
+  title: `Section ${code}`,
+  brief: null,
+  layout,
+  useCase: null,
+  titleAr: null,
+  briefAr: null,
+})
+
 const sections: ExamSection[] = [
-  {
-    n: 1,
-    code: 'A',
-    title: 'Section A',
-    brief: null,
-    layout: 'one_per_screen',
-    useCase: null,
-  },
-  {
-    n: 2,
-    code: 'B',
-    title: 'Section B',
-    brief: null,
-    layout: 'one_per_screen',
-    useCase: null,
-  },
-  {
-    n: 3,
-    code: 'C',
-    title: 'Section C',
-    brief: null,
-    layout: 'single_page',
-    useCase: null,
-  },
+  section(1, 'A', 'one_per_screen'),
+  section(2, 'B', 'one_per_screen'),
+  section(3, 'C', 'single_page'),
 ]
 
 /** A paper shaped like the real one: 20 + 5 + 5. */

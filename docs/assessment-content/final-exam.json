@@ -3,7 +3,7 @@
   "kind": "quiz",
   "title": "Final exam",
   "day": 5,
-  "duration_minutes": 30,
+  "duration_minutes": 50,
   "source": "final_exam/developing_generative_ai_solutions_final_approved_exam.md",
   "note": "Approved paper, transcribed verbatim. Stems, options and keys must match the source file exactly; final-exam-content.test.ts enforces this.",
   "sections": [
@@ -47,15 +47,15 @@
   "instructions": {
     "heading": "Read this before you begin",
     "points": [
-      "This exam has 30 questions in three sections: Section A has 20 multiple-choice questions, Section B has 5 true or false statements, and Section C has 5 questions about one shared use case.",
-      "You have 30 minutes for the whole exam. The clock runs on the server, so closing the page does not pause it.",
-      "This is one attempt. It cannot be reopened once submitted.",
-      "Select the single best answer for each question. Every answer saves the moment you pick it.",
-      "Question order and answer order are different for every student. Comparing with anyone near you will not help you.",
-      "The exam opens in fullscreen. If you leave fullscreen you get 10 seconds to return before it is recorded, so pressing Escape by accident costs you nothing.",
-      "Copying, pasting and selecting text are switched off. Right-clicking, double-clicking and resizing your window are fine and are never recorded.",
-      "You have 5 warnings. Leaving this page for another tab or app, staying out of fullscreen, or trying to copy or paste each record one warning, and a large message tells you where you stand.",
-      "After the 5th warning your exam freezes and you cannot answer anything until an instructor unlocks it. Your clock pauses while you wait, so you do not lose exam time. Raise your hand straight away.",
+      "This exam has 30 questions in three sections: Section A is 20 multiple-choice questions, Section B is 5 true or false statements, and Section C is 5 questions about one shared use case.",
+      "You have 50 minutes and one attempt. The clock runs on the server, so closing the page does not pause it, and the attempt cannot be reopened once submitted.",
+      "Answer every question by choosing one option. Your answers save the moment you pick them.",
+      "Use a laptop or desktop computer. The exam works on a phone but the questions are cramped and fullscreen is unavailable on iPhone.",
+      "The exam runs in fullscreen. If you leave fullscreen you have 10 seconds to return before it is recorded, so pressing Escape by accident costs you nothing.",
+      "You have 3 warnings. Leaving this page for another tab or app, staying out of fullscreen, or trying to copy or paste each record one warning.",
+      "After the 3rd warning the exam freezes and you cannot answer until an instructor unlocks it. Your clock pauses while you wait, so you lose no exam time. Raise your hand straight away.",
+      "Right-clicking, double-clicking, scrolling and resizing your window are all fine and are never recorded. Copying and selecting text are switched off.",
+      "Question order and answer order differ for every student, so comparing with anyone near you will not help.",
       "Your score is not shown when you submit. Your instructor releases marks and explanations after the exam."
     ]
   },
