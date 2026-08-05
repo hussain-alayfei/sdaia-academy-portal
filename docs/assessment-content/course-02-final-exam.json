@@ -1,0 +1,527 @@
+{
+  "schema": "sdaia-assessment/v1",
+  "kind": "quiz",
+  "title": "Final exam",
+  "day": 5,
+  "duration_minutes": 50,
+  "source": "FinalCourse-02.md",
+  "note": "Applied Generative AI (GENAI-02) theory exam. Stems and options transcribed verbatim from FinalCourse-02.md; CORRECT markers stripped. Drift guarded by course-02-final-exam-content.test.ts.",
+  "sections": [
+    {
+      "n": 1,
+      "code": "A",
+      "title": "Section A — Multiple choice",
+      "brief": "Twenty-five standalone questions. Select the single best answer for each one.",
+      "layout": "one_per_screen"
+    },
+    {
+      "n": 2,
+      "code": "B",
+      "title": "Section B — Shared scenario",
+      "brief": "Read the KFUPM registration scenario once, then answer all five questions on this page.",
+      "layout": "single_page",
+      "use_case": {
+        "title": "The scenario",
+        "intro": "A team at KFUPM is building an assistant to help students register for courses. It has three documents, all ordinary PDF files: the course catalogue, the list of prerequisites for every course, and the university registration rules. Students ask things like \"what do I need before taking ICS 202?\" and \"can I register for two labs in the same term?\". The team also wants the assistant to be able to register a student in a course once the student agrees.",
+        "requirements_title": "",
+        "requirements": [],
+        "closing": "Answer questions 26 to 30 from this scenario."
+      }
+    }
+  ],
+  "instructions": {
+    "heading": "Read this before you begin",
+    "points": [
+      "This exam has 30 questions in two sections: Section A is 25 multiple-choice questions, and Section B is 5 questions about one shared KFUPM registration scenario.",
+      "You have 50 minutes and one attempt. The clock runs on the server, so closing the page does not pause it, and the attempt cannot be reopened once submitted.",
+      "Answer every question by choosing one option. Your answers save the moment you pick them.",
+      "Use a laptop or desktop computer. The exam works on a phone but the questions are cramped and fullscreen is unavailable on iPhone.",
+      "The exam runs in fullscreen. If you leave fullscreen you have 10 seconds to return before it is recorded, so pressing Escape by accident costs you nothing.",
+      "You have 3 warnings. Leaving this page for another tab or app, staying out of fullscreen, or trying to copy or paste each record one warning.",
+      "After the 3rd warning the exam freezes and you cannot answer until an instructor unlocks it. Your clock pauses while you wait, so you lose no exam time. Raise your hand straight away.",
+      "Your score is not shown when you submit. Your instructor releases marks and explanations after the exam."
+    ]
+  },
+  "questions": [
+    {
+      "section": 1,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "The same sentence costs more in Arabic",
+      "stem": "A team tested their assistant in English and planned the budget from that. They now launch the same assistant in Arabic. What happens to the cost?",
+      "options": {
+        "A": "The cost stays the same, since token counts do not depend on language",
+        "B": "The cost rises, since Arabic needs more tokens for the same meaning",
+        "C": "The cost falls, since Arabic says the same thing in fewer words",
+        "D": "The cost cannot be known, since Arabic is billed by character"
+      },
+      "correct": "B",
+      "rationale": "Arabic typically uses more tokens than English for the same meaning, so cost rises when the same assistant is launched in Arabic."
+    },
+    {
+      "section": 1,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Temperature",
+      "stem": "You are pulling a customer name and an urgency level out of messages, and your code reads the result. Which temperature fits?",
+      "options": {
+        "A": "A high setting near 1.2, so the model considers more possible answers",
+        "B": "A middle setting near 0.7, so the output stays varied but sensible",
+        "C": "Any setting will do, since the schema already fixes the output shape",
+        "D": "A low setting near 0.0, so the same input gives the same output"
+      },
+      "correct": "D",
+      "rationale": "When code must read structured fields reliably, a low temperature near 0.0 keeps the same input producing the same output."
+    },
+    {
+      "section": 1,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "It is predicting the next token",
+      "stem": "An assistant invents a policy clause that does not exist, and states it confidently. Which explanation is correct?",
+      "options": {
+        "A": "It is choosing likely next words, and nothing in that checks for truth",
+        "B": "It found the clause in a document but reported the wrong page number",
+        "C": "It ran out of memory, so it filled the missing part with a guess",
+        "D": "It was trained on an old and incorrect copy of that same policy"
+      },
+      "correct": "A",
+      "rationale": "The model chooses likely next words; that process does not check whether a policy clause is true."
+    },
+    {
+      "section": 1,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Four ways to make a model useful",
+      "stem": "A department wants answers from their internal procedures manual. They propose fine-tuning a model on it. What is wrong with that plan?",
+      "options": {
+        "A": "Nothing is wrong, since fine-tuning is built exactly for this purpose",
+        "B": "Fine-tuning is too quick and cheap to give a trustworthy result",
+        "C": "Fine-tuning teaches style, not facts, so retrieval fits better here",
+        "D": "Fine-tuning only works on images, so a text manual cannot be used"
+      },
+      "correct": "C",
+      "rationale": "Fine-tuning mainly teaches style and behaviour, not a trustworthy fact store; retrieval fits an internal procedures manual better."
+    },
+    {
+      "section": 1,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Ask for JSON, and define the shape",
+      "stem": "Your prompt already asks for JSON with three named keys. What does adding a response schema give you on top of that?",
+      "options": {
+        "A": "It lowers the price of every call the application makes",
+        "B": "It makes the model return its answers noticeably more quickly",
+        "C": "It makes the facts inside the answer more likely to be true",
+        "D": "It fixes the output shape, so your code can rely on it"
+      },
+      "correct": "D",
+      "rationale": "A response schema constrains the output shape so application code can rely on named keys."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "What a blind split does",
+      "stem": "A chunk holds \"Grade 11 — 30 days\", but the heading \"Annual leave entitlement\" ended up in the chunk before it. Someone asks how much annual leave grade 11 gets. What is likely?",
+      "options": {
+        "A": "The chunk is found easily, because \"grade\" and \"11\" both appear in it",
+        "B": "The chunk may never be found, because the word \"leave\" is not in it",
+        "C": "The model works out the missing heading from the numbers around it",
+        "D": "The overlap setting always copies a heading into the following chunk"
+      },
+      "correct": "B",
+      "rationale": "If the heading that carries the query terms is missing from the chunk, meaning-based search may never find that chunk."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Meaning as coordinates",
+      "stem": "A user searches for \"annual leave\". The system returns a paragraph that only ever says \"vacation days\". Why did that paragraph come back?",
+      "options": {
+        "A": "The system keeps a synonym list that it built while reading the files",
+        "B": "Keyword search adds related words to every query before running it",
+        "C": "Embeddings place text with similar meaning close together in space",
+        "D": "The model quietly rewrote the query into several versions first"
+      },
+      "correct": "C",
+      "rationale": "Embeddings place text with similar meaning close together, so \"vacation days\" can match a query for \"annual leave\"."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Where meaning-based search falls over",
+      "stem": "Staff search using the exact document number SDAIA-F-CRS-201-01-V1. The system returns documents about training and courses, but never that one. Why?",
+      "options": {
+        "A": "A code like that has no meaning to compare, so meaning-based search misses it",
+        "B": "The chunks are too small, so the code was split across two of them",
+        "C": "The embedding model has not been trained on documents from this year",
+        "D": "The temperature is too high, so the search results change every time"
+      },
+      "correct": "A",
+      "rationale": "An opaque document code has little meaning to compare, so meaning-based search often misses the exact identifier."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Top-k: coverage against noise",
+      "stem": "Retrieval returns 3 chunks and the right one is not among them. The team changes it to return 20 chunks instead. What is the real effect?",
+      "options": {
+        "A": "The problem is solved, because the right chunk is now definitely included",
+        "B": "Nothing changes, because the model only reads the first chunk anyway",
+        "C": "Answers get faster, because more context means less work per call",
+        "D": "Every call costs more, and the model has more wrong text to read"
+      },
+      "correct": "D",
+      "rationale": "Raising top-k increases cost and noise: the model must read more text, much of which may be wrong."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Ingestion: boring, and decisive",
+      "stem": "Why must every chunk carry its file name and page number from the very first step?",
+      "options": {
+        "A": "Because the vector database refuses to store a chunk without them",
+        "B": "Because you cannot cite without them, and adding them later means starting again",
+        "C": "Because the embedding model uses the page number to improve accuracy",
+        "D": "Because chunks with no page number are always returned in the wrong order"
+      },
+      "correct": "B",
+      "rationale": "Citations need file name and page from the start; adding them later usually means re-ingesting everything."
+    },
+    {
+      "section": 1,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "The loop, in five steps",
+      "stem": "The model replies with a request to call get_leave_balance. What happens next?",
+      "options": {
+        "A": "The model runs the function itself and puts the result in its answer",
+        "B": "The provider runs the function for you and sends the result back",
+        "C": "Your own code runs the function, then passes the result to the model",
+        "D": "Nothing runs, because a request like this is only a suggestion"
+      },
+      "correct": "C",
+      "rationale": "A tool call request is executed by your application code, which then returns the result to the model."
+    },
+    {
+      "section": 1,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "A vague description is a broken tool",
+      "stem": "An agent has four tools and keeps choosing the wrong one. Where do you look first?",
+      "options": {
+        "A": "The step cap, which is probably stopping the loop far too early",
+        "B": "The temperature, which may be making its choices too random",
+        "C": "The tool descriptions, since that text is what it reads to decide",
+        "D": "The model size, since a bigger model would choose more carefully"
+      },
+      "correct": "C",
+      "rationale": "The model chooses tools from their descriptions, so wrong choices usually start with vague or misleading tool text."
+    },
+    {
+      "section": 1,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Take the cap off and watch",
+      "stem": "Why is step twenty of an agent loop more expensive than step one?",
+      "options": {
+        "A": "The provider raises its prices after several calls in a row",
+        "B": "The conversation grows each step, and all of it is sent again",
+        "C": "Later steps in the loop use a larger model than earlier ones",
+        "D": "It is not — every step in the loop costs exactly the same"
+      },
+      "correct": "B",
+      "rationale": "Each agent step resends the growing conversation, so later steps cost more than early ones."
+    },
+    {
+      "section": 1,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "What a tool returns when it fails",
+      "stem": "A tool is called with an employee number that does not exist. What should it return?",
+      "options": {
+        "A": "An error the model can read, saying what was wrong and what is valid",
+        "B": "An exception that stops the loop at once so the problem is noticed",
+        "C": "Nothing at all, so that the model tries another approach by itself",
+        "D": "The result of the last call that worked, so the loop can continue"
+      },
+      "correct": "A",
+      "rationale": "A tool should return a readable error that explains what was wrong and what values are valid."
+    },
+    {
+      "section": 1,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Retrieval as one tool among several",
+      "stem": "What does agentic RAG add compared with plain RAG?",
+      "options": {
+        "A": "The cost per question drops, because searching happens far less often",
+        "B": "The embeddings improve, because the model adjusts them for each query",
+        "C": "Every answer is guaranteed to arrive with a citation attached to it",
+        "D": "The model chooses whether to search, what to search for, and when to stop"
+      },
+      "correct": "D",
+      "rationale": "Agentic RAG lets the model decide whether to search, what to search for, and when to stop."
+    },
+    {
+      "section": 1,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Four ways to make it faster",
+      "stem": "Your assistant takes eight seconds to finish an answer. You switch on streaming. What changes?",
+      "options": {
+        "A": "The total time drops to about two seconds for the whole answer",
+        "B": "The total time stays similar, but the first words appear almost at once",
+        "C": "The cost falls, because streaming sends fewer tokens to the model",
+        "D": "The answers get better, because the model corrects itself as it writes"
+      },
+      "correct": "B",
+      "rationale": "Streaming does not usually shorten total generation time; it makes the first tokens appear sooner."
+    },
+    {
+      "section": 1,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "A cache that pays for itself",
+      "stem": "Forty staff ask the assistant the same question on the same morning. What removes most of that cost?",
+      "options": {
+        "A": "Storing the first answer and reusing it for the identical question",
+        "B": "Asking each of the forty people to reword their question slightly",
+        "C": "Raising the number of chunks retrieved so the answers arrive sooner",
+        "D": "Sending all forty questions to the model inside one single request"
+      },
+      "correct": "A",
+      "rationale": "Caching and reusing the first answer for an identical question removes most repeated cost."
+    },
+    {
+      "section": 1,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Those 429s were the lesson",
+      "stem": "Your code hits a rate limit error, and retries straight away in a tight loop. Why is that a bad idea?",
+      "options": {
+        "A": "The retry is free, so the only cost is a slightly slower reply",
+        "B": "Retrying changes the answer, so the user may get a different result",
+        "C": "Retrying at once keeps the limit triggered, turning a pause into an outage",
+        "D": "Retrying never helps, because a failed call will always fail again"
+      },
+      "correct": "C",
+      "rationale": "Immediate retries keep hitting the rate limit and can turn a short pause into an outage."
+    },
+    {
+      "section": 1,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Cost, live / Top-k discipline pays twice",
+      "stem": "An assistant costs more each month than the department planned. Which change cuts the bill most directly?",
+      "options": {
+        "A": "Putting fewer chunks into each prompt, since input tokens are paid for",
+        "B": "Raising the temperature, so that answers come back shorter than before",
+        "C": "Adding more tools, so the model has to generate less text itself",
+        "D": "Raising the step cap, so a question is finished in a single pass"
+      },
+      "correct": "A",
+      "rationale": "Input tokens are billed, so putting fewer chunks into each prompt cuts cost most directly."
+    },
+    {
+      "section": 1,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "UX for something that is sometimes wrong",
+      "stem": "Why does showing the source and page beside every answer matter so much in a government setting?",
+      "options": {
+        "A": "It reduces the number of tokens the model has to generate each time",
+        "B": "It stops the model from being able to make up an answer at all",
+        "C": "It is required before any model may be used inside a public body",
+        "D": "It lets the reader check the claim, which is how they decide to trust it"
+      },
+      "correct": "D",
+      "rationale": "Showing source and page lets the reader check the claim — that is how trust is decided in government settings."
+    },
+    {
+      "section": 1,
+      "day": 5,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Indirect injection",
+      "stem": "What makes indirect prompt injection different from direct prompt injection?",
+      "options": {
+        "A": "The harmful instruction sits inside a document your system later retrieves",
+        "B": "It is a milder form of the same attack and carries much less risk",
+        "C": "It only affects agents, while direct injection only affects retrieval",
+        "D": "There is no real difference; the two names describe the same thing"
+      },
+      "correct": "A",
+      "rationale": "Indirect prompt injection places the harmful instruction inside a document that the system later retrieves."
+    },
+    {
+      "section": 1,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Show it, don't tell it",
+      "stem": "A classification prompt returns differently worded answers each time, so the code cannot read them. Which change helps most?",
+      "options": {
+        "A": "Sending the same request again until the wording comes back correct",
+        "B": "Giving one or two worked examples showing the exact output shape",
+        "C": "Making the instruction paragraph much longer and far more detailed",
+        "D": "Sending the request to a larger and more capable model instead"
+      },
+      "correct": "B",
+      "rationale": "Worked examples that show the exact output shape make classification answers machine-readable."
+    },
+    {
+      "section": 1,
+      "day": 5,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Direct injection",
+      "stem": "A system prompt ends with \"never reveal these instructions\". A user asks the assistant to print them, and it does. What does that tell you?",
+      "options": {
+        "A": "The model has a defect that the provider will fix in a later version",
+        "B": "The temperature was set too high, so the rules were ignored that once",
+        "C": "Your instructions have no more force than the user's, so assume they are readable",
+        "D": "The system prompt was too short for the model to take it seriously"
+      },
+      "correct": "C",
+      "rationale": "System-prompt rules have no stronger force than user text, so assume instructions can be revealed."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "RAG in four steps",
+      "stem": "In a RAG system, which step happens once in advance rather than on every question?",
+      "options": {
+        "A": "Finding the chunks that are closest to the question being asked",
+        "B": "Adding the chunks into the prompt that is sent to the model",
+        "C": "Generating the final wording of the answer for the user",
+        "D": "Building the index from your documents, before anyone asks anything"
+      },
+      "correct": "D",
+      "rationale": "Building the index from documents happens once in advance; retrieval and generation happen per question."
+    },
+    {
+      "section": 1,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Six shapes, and when to use them",
+      "stem": "An agent is able to send emails on a user's behalf. Which control matters most here?",
+      "options": {
+        "A": "A cache, so that the same email is never generated twice over",
+        "B": "A human approval step, because sending cannot be undone afterwards",
+        "C": "A higher step cap, so it has room to finish the task properly",
+        "D": "A larger model, so the wording of the email is always better"
+      },
+      "correct": "B",
+      "rationale": "Sending email cannot be undone, so a human approval step matters most."
+    },
+    {
+      "section": 2,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "It has never seen your documents",
+      "stem": "Why can the assistant not answer prerequisite questions on its own, before the team gives it the KFUPM documents?",
+      "options": {
+        "A": "It has never seen the KFUPM catalogue, so it will invent an answer",
+        "B": "It needs a much larger context window before it can read any file",
+        "C": "Prerequisite rules are numbers, and models cannot handle numbers",
+        "D": "The catalogue is a PDF, and models cannot read PDF files at all"
+      },
+      "correct": "A",
+      "rationale": "Without the KFUPM documents, the model has not seen the catalogue and will invent prerequisites."
+    },
+    {
+      "section": 2,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Three things a model cannot do alone",
+      "stem": "A student types \"register me for ICS 202\". Should this be handled by retrieval or by a tool?",
+      "options": {
+        "A": "By retrieval, because the course details are written in the catalogue",
+        "B": "By retrieval, because the model can update records once it reads them",
+        "C": "By a tool, because registering is an action and not a question",
+        "D": "By a tool, because retrieval is too slow to be used for this job"
+      },
+      "correct": "C",
+      "rationale": "Registering a student is an action that changes state, so it belongs to a tool rather than retrieval alone."
+    },
+    {
+      "section": 2,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Six shapes — human-in-the-loop",
+      "stem": "Registering a student changes a real university record. Which control should be added?",
+      "options": {
+        "A": "A cache, so the same registration is never carried out twice over",
+        "B": "A confirmation step, so a person approves before the record changes",
+        "C": "A larger model, so that the request is understood more accurately",
+        "D": "A higher step cap, so the agent can finish the whole job properly"
+      },
+      "correct": "B",
+      "rationale": "Changing a real university record needs a confirmation or human approval step before it runs."
+    },
+    {
+      "section": 2,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Hybrid retrieval: run both",
+      "stem": "Searching for the exact course code \"ICS 202\" keeps returning general chunks about computer science. What fixes it?",
+      "options": {
+        "A": "Making the chunks much larger so a whole course page fits in one",
+        "B": "Lowering the temperature so the search behaves in a more exact way",
+        "C": "Removing the prerequisites file, which is confusing the search results",
+        "D": "Adding keyword search beside meaning search, so exact codes match"
+      },
+      "correct": "D",
+      "rationale": "Exact course codes need keyword search alongside meaning search so identifiers match."
+    },
+    {
+      "section": 2,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "UX — citations are how a user decides to believe you",
+      "stem": "The assistant tells a student that ICS 202 has no prerequisites. How should that answer be shown so the student can trust it?",
+      "options": {
+        "A": "With the catalogue page it came from, so the student can check it",
+        "B": "With a note explaining that the answer was produced by an assistant",
+        "C": "With a confidence score showing how sure the model was about it",
+        "D": "With a longer explanation of how prerequisites work at the university"
+      },
+      "correct": "A",
+      "rationale": "Trust comes from showing the catalogue page the claim came from so the student can check it."
+    }
+  ]
+}

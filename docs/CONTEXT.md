@@ -110,9 +110,10 @@ uses `required_question_count = 20`. `difficultyMixFor('post', 20)` returns
 
 ### Final exam (GENAI-01, Day 5) — current
 
-Assessment `4c23ed42-7287-49ef-9e85-02cff925bd92`. 30 questions, 30 minutes,
-**published + locked**, `results_released = false`. Full plan and exam-day
-runbook: [`FINAL-EXAM-PLAN.md`](FINAL-EXAM-PLAN.md).
+Assessment `4c23ed42-7287-49ef-9e85-02cff925bd92`. 30 questions, **50 minutes**,
+**published + locked**, `results_released = false`, `integrity_warning_limit = 3`.
+Full plan and exam-day runbook: [`FINAL-EXAM-PLAN.md`](FINAL-EXAM-PLAN.md);
+v2 notes: [`FINAL-EXAM-V2-PLAN.md`](FINAL-EXAM-V2-PLAN.md).
 
 Source of truth is the approved paper at
 `final_exam/developing_generative_ai_solutions_final_approved_exam.md` (sibling
@@ -122,6 +123,26 @@ of `portal/`). Transcribed verbatim into
 the approved paper deliberately breaks several house authoring rules.
 `src/lib/final-exam-content.test.ts` re-parses the approved `.md` and asserts
 every stem, option, answer key, difficulty and day still matches.
+
+### Final exam (GENAI-02, Day 5) — current
+
+Assessment `f3ec2af7-d5c8-4f4a-96b2-536be25bbf13` on course
+`b774a21a-53c4-4eee-b24e-1d82598ccce8`. Same exam engine as GENAI-01 (50 minutes,
+3 warnings, lockdown, hidden results, bilingual, published + locked).
+
+Source of truth is `FinalCourse-02.md` at the workspace root (**do not edit**).
+JSON: `docs/assessment-content/course-02-final-exam.json` +
+`course-02-final-exam-ar.json`. Seed:
+`scripts/seed-course-02-final-exam.mjs` then
+`scripts/seed-course-02-final-exam-arabic.mjs`. Drift guard:
+`src/lib/course-02-final-exam-content.test.ts`.
+
+| Section | Q | Format | Layout |
+| --- | --- | --- | --- |
+| A — Multiple choice | 25 | MCQ | one per screen |
+| B — Shared scenario (KFUPM) | 5 | MCQ | **single page**, scenario pinned above |
+
+### Final exam sections (GENAI-01)
 
 **Sections.** `assessment_questions.section` (1/2/3) and `assessments.sections`
 (jsonb: title, brief, layout, use case). `start_attempt` shuffles **within** a
@@ -160,8 +181,8 @@ the only step. Keep the assessment's **Results** page open during the exam: any
 frozen student appears in a red banner at the top with an Unlock button. Release
 marks from the same page afterwards.
 
-**Anti-cheat: 5 warnings, then freeze (final exam only).**
-`assessments.integrity_warning_limit = 5`. Day quizzes leave it null and keep the
+**Anti-cheat: 3 warnings, then freeze (final exam only).**
+`assessments.integrity_warning_limit = 3`. Day quizzes leave it null and keep the
 legacy per-question zeroing. Full detail in
 [`ASSESSMENTS.md`](ASSESSMENTS.md#anti-cheat).
 
@@ -326,7 +347,7 @@ a manager — not a student.
 - **5 days** (`MAX_COURSE_DAYS` in `src/lib/course.ts`)
 - Assessments: Day 1 pre + quiz; Days 2–4 quiz (targets vary —
   `required_question_count`); post currently on **Day 4** for GENAI-01 (20 Q);
-  Day 5 Final exam slot exists but is empty
+  Day 5 Final exam seeded for both cohorts (GENAI-01 and GENAI-02)
 - Assessment **cards live on the day page**; course overview chips name the kind
 - **One attempt** per assessment; scores come only from the quiz engine
 
