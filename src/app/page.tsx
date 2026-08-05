@@ -13,10 +13,10 @@ export default async function LandingPage() {
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex h-20 max-w-5xl items-center px-5 sm:px-6">
           <Image
-            src="/sdaia-academy.png"
-            alt="SDAIA Academy, Saudi Data &amp; AI Authority"
-            width={1046}
-            height={166}
+            src="/sdaia-academy-logo.jpg"
+            alt="SDAIA Academy"
+            width={900}
+            height={280}
             priority
             className="h-9 w-auto sm:h-12"
           />

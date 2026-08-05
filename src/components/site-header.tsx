@@ -1,70 +1,73 @@
-import Image from 'next/image'
-import Link from 'next/link'
+import { Suspense } from 'react'
 
-import { logout } from '@/app/actions/auth'
-import { LogoutIcon, UsersIcon } from '@/components/icons'
+import { AccountMenu } from '@/components/account-menu'
+import { BrandHomeLink } from '@/components/brand-home-link'
+import { HeaderExpandLink } from '@/components/header-expand-link'
+import { NotificationCenter } from '@/components/notifications/notification-center'
+import { BellIcon, HomeIcon, UsersIcon } from '@/components/icons'
 import { getProfile, isManager } from '@/lib/dal'
 
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '·'
-  return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase()
+function BellPlaceholder() {
+  return (
+    <span
+      aria-hidden
+      className="inline-flex h-9 items-center gap-0 rounded-sm px-2 text-navy-700"
+    >
+      <BellIcon width={18} height={18} strokeWidth={1.7} />
+    </span>
+  )
 }
 
 export async function SiteHeader() {
   const profile = await getProfile()
   const manager = isManager(profile)
+  // Instructors land on /admin; students on /home. Avoid /home → /admin
+  // redirect which stacked two different loading UIs.
+  const homeHref = manager ? '/admin' : '/home'
 
   return (
-    <header className="sticky top-0 z-30 border-b border-navy-800 bg-navy-900">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
-        <Link
-          href="/home"
-          className="flex shrink-0 items-center rounded-sm bg-white px-2.5 py-1.5"
-          aria-label="SDAIA Academy Portal, home"
-        >
-          <Image
-            src="/sdaia-academy.png"
-            alt="SDAIA Academy"
-            width={1046}
-            height={166}
-            priority
-            className="h-6 w-auto sm:h-8"
-          />
-        </Link>
-
-        <nav className="ms-auto flex items-center gap-2">
-          {manager ? (
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-1.5 rounded-sm border border-teal-500 bg-teal-600 px-3 py-1.5 text-[13px] font-medium text-white hover:bg-teal-700"
-            >
-              <UsersIcon width={15} height={15} />
-              Instructor area
-            </Link>
+    <header className="sticky top-0 z-30 border-b border-line bg-surface">
+      <div className="relative mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        {/* English LTR: Home → Profile → Notifications → Instructor */}
+        <nav aria-label="Account" className="flex min-w-0 items-center gap-2">
+          {profile ? (
+            <HeaderExpandLink
+              href={homeHref}
+              label="Home"
+              title={manager ? 'Instructor home' : 'My courses'}
+              icon={<HomeIcon width={18} height={18} strokeWidth={1.75} />}
+            />
           ) : null}
 
           {profile ? (
-            <>
-              <span
-                className="ms-1 grid size-8 shrink-0 place-items-center rounded-full bg-navy-700 text-[11px] font-semibold text-white"
-                title={profile.full_name || profile.email}
-              >
-                {initials(profile.full_name || profile.email)}
-              </span>
-              <form action={logout}>
-                <button
-                  type="submit"
-                  className="flex items-center gap-1.5 rounded-sm px-2 py-1.5 text-[13px] font-medium text-navy-200 hover:bg-navy-800 hover:text-white"
-                >
-                  <LogoutIcon width={16} height={16} />
-                  <span className="sr-only sm:not-sr-only">Sign out</span>
-                </button>
-              </form>
-            </>
+            <AccountMenu
+              fullName={profile.full_name || ''}
+              email={profile.email}
+            />
+          ) : null}
+
+          {profile ? (
+            <Suspense fallback={<BellPlaceholder />}>
+              <NotificationCenter />
+            </Suspense>
+          ) : null}
+
+          {manager ? (
+            <HeaderExpandLink
+              href="/admin"
+              label="Instructor"
+              title="Instructor area"
+              icon={<UsersIcon width={18} height={18} strokeWidth={1.75} />}
+            />
           ) : null}
         </nav>
+
+        <BrandHomeLink href={homeHref} />
       </div>
+      <div
+        aria-hidden
+        className="h-[3px] w-full bg-[linear-gradient(90deg,var(--brand-cyan),var(--brand-indigo),var(--brand-orange),var(--brand-red),var(--brand-lime))]"
+      />
     </header>
   )
 }

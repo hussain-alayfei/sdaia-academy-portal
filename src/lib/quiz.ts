@@ -112,6 +112,35 @@ export const getAttemptsForAssessment = cache(
   }
 )
 
+/**
+ * Correct answers per attempt, counted from the graded response rows.
+ *
+ * While an assessment's results are hidden, `submit_attempt` deliberately
+ * leaves `attempt.correct_count` null, because that is a column the student can
+ * read. `is_correct` on the responses is still written, and RLS keeps those
+ * rows manager-only once the attempt is over, so the instructor's view of the
+ * marks is rebuilt from there instead. Once results are released the stored
+ * `correct_count` is backfilled and this becomes a no-op fallback.
+ */
+export const getGradedCounts = cache(
+  async (assessmentId: string): Promise<Record<string, number>> => {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from('assessment_responses')
+      .select(
+        'attempt_id, attempt:assessment_attempts!inner(assessment_id)'
+      )
+      .eq('attempt.assessment_id', assessmentId)
+      .eq('is_correct', true)
+
+    const counts: Record<string, number> = {}
+    for (const row of data ?? []) {
+      counts[row.attempt_id] = (counts[row.attempt_id] ?? 0) + 1
+    }
+    return counts
+  }
+)
+
 /** Every attempt across a whole course, for the roster grid. */
 export const getCourseAttempts = cache(
   async (courseId: string): Promise<AssessmentAttempt[]> => {
@@ -245,6 +274,8 @@ export const getMyAttempts = cache(
 export type PaperQuestion = {
   id: string
   position: number
+  section: number
+  format: AssessmentQuestion['format']
   stem: string
   options: Array<{ id: string; body: string }>
   selectedOptionId: string | null
@@ -285,7 +316,7 @@ export async function getAttemptPaper(
     await Promise.all([
     supabase
       .from('assessment_questions')
-      .select('id, stem, options:assessment_options(id, body)')
+      .select('id, stem, section, format, options:assessment_options(id, body)')
       .in('id', questionIds),
     supabase
       .from('assessment_responses')
@@ -334,6 +365,8 @@ export async function getAttemptPaper(
       {
         id: question.id,
         position: index,
+        section: question.section ?? 1,
+        format: question.format ?? 'multiple_choice',
         stem: question.stem,
         options: ordered,
         selectedOptionId: answer?.selectedOptionId ?? null,

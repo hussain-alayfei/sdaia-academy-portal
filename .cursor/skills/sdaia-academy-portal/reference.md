@@ -6,33 +6,43 @@
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | client + server | Project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | client + server | Anon/publishable key |
-| `NEXT_PUBLIC_SITE_URL` | server | Canonical site for redirects |
+| `NEXT_PUBLIC_SITE_URL` | server | Canonical site for redirects / email logo URLs |
 | `SUPABASE_SECRET_KEY` | server only | Cache reader in `published.ts` |
+| Hook secrets | Edge Function | `GMAIL_*`, `SEND_EMAIL_HOOK_SECRET`, `PORTAL_SITE_URL` for auth-send-email |
 
 ## Important UI routes
 
 | Path | Who |
 | --- | --- |
 | `/` | Landing (signed-out) |
-| `/login`, `/signup` | Auth |
+| `/login`, `/signup`, `/forgot-password`, `/reset-password` | Auth (+ `BackLink`) |
 | `/home` | Student hub + join; managers → `/admin` |
-| `/c/[slug]` | Day tile schedule |
+| `/profile` | Edit info (opened from account menu, not direct avatar nav) |
+| `/notifications` | Full notification list |
+| `/c/[slug]` | Course schedule (+ back to My courses) |
 | `/c/[slug]/day/[n]` | Materials + assessment cards |
 | `/quiz/[id]` | Rules / runner / review |
-| `/admin/...` | Instructor console |
+| `/admin/...` | Instructor console (Assessments, Days, Students, Settings) |
 
-## Day tiles (current)
+## Header (current)
 
-- Columns: `repeat(auto-fill, minmax(190px, 220px))`
-- `min-h-[184px]`, height from content (not square)
-- Chip via `assessmentChipLabel` — kind name or `"N assessments"`
-- Hover: mosaic colour vars per day index
+- Light bar + mosaic gradient strip
+- LTR: actions left, `/sdaia-academy-logo.jpg` right
+- Order: Profile menu → Notifications → Instructor icon
+- Favicon: mosaic emblem (`src/app/icon.png`)
+
+## Day materials upload
+
+- Logic: `src/lib/course-files.ts`
+- Forms: `src/components/admin/resource-forms.tsx`
+- Bucket: `course-files` (200 MB; MIME allowlist + ZIP aliases)
+- Tests: `npm test`
 
 ## Motion
 
 | Class | Role |
 | --- | --- |
-| `animate-page` | Templates + landing + quiz shell |
+| `animate-page` | App/auth/quiz/student course templates — **not** admin course tabs |
 | `animate-rise` | Small panels (question editor) |
 | `animate-brand` | Hero “purpose” colour loop |
 | `animate-dot` | LoadingDots |
@@ -48,6 +58,8 @@ do not invalidate.
 2. Putting attempt/score data in `published.ts`.
 3. Correctness on options → mid-attempt key leak.
 4. Forgetting `revalidateCourseContent`.
-5. Deploy without `bom1`.
+5. Deploy without `bom1` or without aliasing `sdaia-genai-portal.vercel.app`.
 6. Login redirect with only `startsWith('/')` → open redirect.
-7. Assuming `vercel --prod` updated GitHub.
+7. Uploading with `contentType: file.type || 'application/octet-stream'` → Storage reject.
+8. Re-adding Assessments day-tab fade or count badges without being asked.
+9. Assuming `vercel --prod` updated GitHub.

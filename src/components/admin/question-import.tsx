@@ -78,35 +78,53 @@ export function QuestionImport({
           <input type="hidden" name="assessment_id" value={assessmentId} />
           <input type="hidden" name="mode" value={mode} />
 
-          <textarea
-            name="raw"
-            rows={8}
-            value={editorValue}
-            onChange={(e) => setText(e.target.value)}
-            spellCheck={false}
-            disabled={hasAttempts}
-            placeholder={'{\n  "schema": "sdaia-assessment/v1",\n  ...\n}'}
-            className={cx(
-              'block w-full rounded-sm border border-line-strong bg-surface px-3 py-2',
-              'font-mono text-[12.5px] text-ink placeholder:text-ink-faint',
-              'focus:border-teal-600 focus:outline-none disabled:bg-navy-50'
-            )}
-          />
-
-          <div className="flex flex-wrap items-center gap-3">
-            <input
-              ref={fileRef}
-              type="file"
-              name="file"
-              accept=".json,.md,.txt,application/json,text/markdown"
+          <div className="space-y-1.5">
+            <label
+              htmlFor={`import-raw-${assessmentId}`}
+              className="block text-[13px] font-medium text-navy-800"
+            >
+              Question bank JSON
+            </label>
+            <textarea
+              id={`import-raw-${assessmentId}`}
+              name="raw"
+              rows={8}
+              value={editorValue}
+              onChange={(e) => setText(e.target.value)}
+              spellCheck={false}
               disabled={hasAttempts}
+              placeholder={'{\n  "schema": "sdaia-assessment/v1",\n  ...\n}'}
               className={cx(
-                'text-[13px] text-ink-soft',
-                'file:mr-3 file:rounded-sm file:border file:border-line-strong',
-                'file:bg-surface file:px-3 file:py-1.5 file:text-[13px]',
-                'file:font-medium file:text-navy-800 hover:file:bg-navy-50'
+                'block w-full rounded-sm border border-line-strong bg-surface px-3 py-2',
+                'font-mono text-[12.5px] text-ink placeholder:text-ink-faint',
+                'focus:border-teal-600 focus:outline-none disabled:bg-navy-50'
               )}
             />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="space-y-1.5">
+              <label
+                htmlFor={`import-file-${assessmentId}`}
+                className="block text-[13px] font-medium text-navy-800"
+              >
+                Or upload a file
+              </label>
+              <input
+                id={`import-file-${assessmentId}`}
+                ref={fileRef}
+                type="file"
+                name="file"
+                accept=".json,.md,.txt,application/json,text/markdown"
+                disabled={hasAttempts}
+                className={cx(
+                  'text-[13px] text-ink-soft',
+                  'file:mr-3 file:rounded-sm file:border file:border-line-strong',
+                  'file:bg-surface file:px-3 file:py-1.5 file:text-[13px]',
+                  'file:font-medium file:text-navy-800 hover:file:bg-navy-50'
+                )}
+              />
+            </div>
 
             <div className="ml-auto flex items-center gap-2">
               <Button

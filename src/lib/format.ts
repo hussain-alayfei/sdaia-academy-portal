@@ -120,3 +120,45 @@ export function percent(score: number, max: number) {
   if (!max) return 0
   return Math.round((score / max) * 100)
 }
+
+const TITLE_CASE_SMALL = new Set([
+  'a',
+  'an',
+  'and',
+  'as',
+  'at',
+  'but',
+  'by',
+  'for',
+  'from',
+  'in',
+  'into',
+  'nor',
+  'of',
+  'on',
+  'or',
+  'per',
+  'the',
+  'to',
+  'via',
+  'vs',
+  'with',
+])
+
+/** Title-case English course names; leave acronyms and mixed-case tokens alone. */
+export function toTitleCaseEnglish(input: string) {
+  const trimmed = input.trim().replace(/\s+/g, ' ')
+  if (!trimmed) return trimmed
+
+  return trimmed
+    .split(' ')
+    .map((word, index) => {
+      if (!word) return word
+      // Keep ALL-CAPS or mixed tokens like "AI", "SDAIA", "GenAI"
+      if (/[A-Z].*[A-Z]/.test(word) || /^[A-Z0-9]+$/.test(word)) return word
+      const lower = word.toLowerCase()
+      if (index > 0 && TITLE_CASE_SMALL.has(lower)) return lower
+      return lower.charAt(0).toUpperCase() + lower.slice(1)
+    })
+    .join(' ')
+}

@@ -106,10 +106,10 @@ export function AddDayForm({
       <Field
         label="Summary"
         htmlFor="summary"
-        hint="Optional. A sentence describing what the day covers."
+        hint="Optional. Write a short formal module summary (for example: “This session examines…”)."
         error={state?.errors?.summary}
       >
-        <Textarea id="summary" name="summary" rows={2} defaultValue={val('summary')} />
+        <Textarea id="summary" name="summary" rows={3} defaultValue={val('summary')} />
       </Field>
 
       <Field

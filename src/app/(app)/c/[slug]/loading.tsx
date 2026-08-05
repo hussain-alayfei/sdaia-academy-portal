@@ -1,5 +1,5 @@
 import { LoadingPanel } from '@/components/ui'
 
-export default function CourseLoading() {
-  return <LoadingPanel label="Loading course" />
+export default function Loading() {
+  return <LoadingPanel />
 }

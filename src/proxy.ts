@@ -11,7 +11,16 @@ import { NextResponse, type NextRequest } from 'next/server'
  * `src/lib/dal.ts`.
  */
 
-const PUBLIC_PATHS = ['/', '/login', '/signup', '/auth']
+const PUBLIC_PATHS = [
+  '/',
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/auth',
+  // Bearer-token protected; must not require a browser session.
+  '/api/revalidate-course',
+]
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some(
@@ -19,7 +28,34 @@ function isPublic(pathname: string) {
   )
 }
 
+function isPasswordRecovery(claims: Record<string, unknown> | undefined) {
+  const amr = claims?.amr
+  if (!Array.isArray(amr)) return false
+  return amr.some((entry) => {
+    if (typeof entry === 'string') return entry === 'recovery'
+    if (entry && typeof entry === 'object' && 'method' in entry) {
+      return (entry as { method?: string }).method === 'recovery'
+    }
+    return false
+  })
+}
+
+const CANONICAL_HOST = 'sdaia-genai-portal.vercel.app'
+const LEGACY_HOSTS = new Set([
+  'sdaia-academy-portal.vercel.app',
+  'www.sdaia-academy-portal.vercel.app',
+])
+
 export async function proxy(request: NextRequest) {
+  const host = request.headers.get('host')?.split(':')[0]?.toLowerCase()
+  if (host && LEGACY_HOSTS.has(host)) {
+    const url = request.nextUrl.clone()
+    url.hostname = CANONICAL_HOST
+    url.protocol = 'https:'
+    url.port = ''
+    return NextResponse.redirect(url, 308)
+  }
+
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -51,9 +87,20 @@ export async function proxy(request: NextRequest) {
   // costing a round trip to the auth server on every single request. It still
   // reads the session first, so expired tokens are refreshed as before.
   const { data } = await supabase.auth.getClaims()
-  const signedIn = Boolean(data?.claims?.sub)
+  const claims = data?.claims as Record<string, unknown> | undefined
+  const signedIn = Boolean(claims?.sub)
+  const recovering = isPasswordRecovery(claims)
 
   const { pathname } = request.nextUrl
+
+  // Password-recovery sessions must finish on /reset-password. Sending them
+  // to /home (or bouncing /login → /home) is what made "Back" feel broken.
+  if (recovering && pathname !== '/reset-password' && !pathname.startsWith('/auth')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/reset-password'
+    url.search = ''
+    return NextResponse.redirect(url)
+  }
 
   if (!signedIn && !isPublic(pathname)) {
     const url = request.nextUrl.clone()
@@ -64,7 +111,7 @@ export async function proxy(request: NextRequest) {
 
   if (signedIn && (pathname === '/login' || pathname === '/signup')) {
     const url = request.nextUrl.clone()
-    url.pathname = '/home'
+    url.pathname = recovering ? '/reset-password' : '/home'
     url.search = ''
     return NextResponse.redirect(url)
   }

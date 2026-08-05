@@ -1,0 +1,251 @@
+{
+  "schema": "sdaia-assessment/v1",
+  "assessment": {
+    "kind": "post",
+    "day": 4,
+    "title": "Post-assessment",
+    "duration_minutes": 20
+  },
+  "questions": [
+    {
+      "difficulty": "easy",
+      "topic": "Token basics",
+      "stem": "What is a token in a large language model?",
+      "options": {
+        "A": "A unit of text the model counts, bills, and generates",
+        "B": "A password stored beside every approved user account",
+        "C": "A permanent memory record kept after each finished chat",
+        "D": "A certificate that proves the model completed training"
+      },
+      "correct": "A",
+      "rationale": "A token is the text unit the model reads and writes. Providers bill by tokens and context limits count tokens."
+    },
+    {
+      "format": "true_false",
+      "difficulty": "easy",
+      "topic": "Hallucination risk",
+      "stem": "A hallucination is a confident answer that is not supported by facts or evidence.",
+      "options": { "A": "True", "B": "False" },
+      "correct": "A",
+      "rationale": "Hallucination means the model produces fluent text that is untrue or unsupported."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Context window",
+      "stem": "What does the context window limit for one model call?",
+      "options": {
+        "A": "How many GPUs the provider keeps online overnight for training",
+        "B": "How many documents exist in the whole vector index store",
+        "C": "How many users may register for the product each year",
+        "D": "How many tokens of input and output fit in that call"
+      },
+      "correct": "D",
+      "rationale": "The context window caps how much text, measured in tokens, can be present in one call."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Model versus solution",
+      "stem": "How does a generative AI solution differ from the model alone?",
+      "options": {
+        "A": "The model alone already stores every company policy forever",
+        "B": "The solution adds application layers around the model",
+        "C": "The solution removes the need for any prompts or tool calls",
+        "D": "The model alone measures cost, privacy, and user permissions"
+      },
+      "correct": "B",
+      "rationale": "A solution wraps the model with retrieval, tools, policies, and product behaviour. The raw model is only one part."
+    },
+    {
+      "difficulty": "hard",
+      "topic": "Structured output",
+      "stem": "Why request structured output such as JSON from a model call?",
+      "options": {
+        "A": "So the model can skip the system role on every request made",
+        "B": "So embeddings are no longer needed for any retrieval step later",
+        "C": "So the application can validate fields before using results",
+        "D": "So the context window grows automatically without any hard limit"
+      },
+      "correct": "C",
+      "rationale": "Structured output gives a predictable shape the application can check and parse. It does not remove roles, retrieval, or context limits."
+    },
+    {
+      "difficulty": "easy",
+      "topic": "RAG purpose",
+      "stem": "What does retrieval-augmented generation provide at answer time?",
+      "options": {
+        "A": "Selected evidence from external knowledge sources",
+        "B": "Permanent retraining on every private company file",
+        "C": "Unrestricted write access to every connected database",
+        "D": "A guarantee that every generated claim is always correct"
+      },
+      "correct": "A",
+      "rationale": "RAG retrieves relevant passages and adds them to the prompt for the current answer. It does not retrain the model or guarantee correctness."
+    },
+    {
+      "format": "true_false",
+      "difficulty": "easy",
+      "topic": "RAG training",
+      "stem": "RAG updates the model weights each time a new document is indexed.",
+      "options": { "A": "True", "B": "False" },
+      "correct": "B",
+      "rationale": "RAG retrieves evidence at request time. Indexing documents does not retrain model weights."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Text embeddings",
+      "stem": "What is an embedding in a retrieval system?",
+      "options": {
+        "A": "A readable summary stored beside each source passage",
+        "B": "A permissions label that grants admin rights to users",
+        "C": "A generated answer returned for the latest user question",
+        "D": "A numerical vector that represents an item's meaning"
+      },
+      "correct": "D",
+      "rationale": "An embedding is a numerical vector used to compare meaning between queries and chunks."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Hybrid search",
+      "stem": "What does hybrid search combine in a retrieval pipeline?",
+      "options": {
+        "A": "Model fine-tuning and unlimited context windows for every call",
+        "B": "Keyword matching and vector similarity scoring together",
+        "C": "Password hashing and automatic GPU scaling rules overnight",
+        "D": "Streaming display and monthly invoice generation for billing"
+      },
+      "correct": "B",
+      "rationale": "Hybrid search uses both keyword and vector signals so exact terms and meaning both help retrieval."
+    },
+    {
+      "difficulty": "hard",
+      "topic": "RAG evaluation",
+      "stem": "Why evaluate retrieval quality separately from answer generation?",
+      "options": {
+        "A": "Because embeddings delete the original text after indexing finishes",
+        "B": "Because keyword search cannot run in the same system as vectors",
+        "C": "Because a wrong answer may come from weak retrieval or generation",
+        "D": "Because generation quality never depends on the retrieved passages"
+      },
+      "correct": "C",
+      "rationale": "Separate checks show whether the index returned useful evidence or the model mishandled good evidence."
+    },
+    {
+      "difficulty": "easy",
+      "topic": "Tool execution",
+      "stem": "Who runs a tool after the model returns a tool call?",
+      "options": {
+        "A": "The language model runs it during its own inference process",
+        "B": "Your application code runs it, or can refuse to run it",
+        "C": "The vector database runs it before any answer is written",
+        "D": "The embedding service runs it whenever text is retrieved"
+      },
+      "correct": "B",
+      "rationale": "The model only requests a tool. Application code decides whether to execute that request."
+    },
+    {
+      "format": "true_false",
+      "difficulty": "medium",
+      "topic": "Tool allow list",
+      "stem": "An agent should look up tools in an allow-list instead of running any name the model returns.",
+      "options": { "A": "True", "B": "False" },
+      "correct": "A",
+      "rationale": "Dictionary lookup on an allow-list keeps execution limited to approved functions."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Tool descriptions",
+      "stem": "Why is a vague tool description such as \"Gets leave data\" a problem?",
+      "options": {
+        "A": "The model lacks clear timing, scope, and call exclusions",
+        "B": "JSON Schema rejects descriptions shorter than one full page",
+        "C": "Vector stores cannot store tool text written in plain English",
+        "D": "Models can only call tools when their description field is empty"
+      },
+      "correct": "A",
+      "rationale": "The description tells the model when to call the tool. Vague text leads to guessing and over-calling."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Agent step caps",
+      "stem": "Why does every agent need a step cap?",
+      "options": {
+        "A": "GPUs reject more than one tool request by hardware design",
+        "B": "Free tiers always block long loops before any cost appears",
+        "C": "A failed goal can repeat paid calls while history grows",
+        "D": "Models forget earlier tool results after exactly five steps"
+      },
+      "correct": "C",
+      "rationale": "Without a cap, an unsatisfiable goal can keep requesting tools while cost and history grow."
+    },
+    {
+      "difficulty": "hard",
+      "topic": "Agentic retrieval",
+      "stem": "How does agentic RAG differ from plain RAG?",
+      "options": {
+        "A": "Plain RAG never retrieves; agentic RAG retrieves only one passage",
+        "B": "Agentic RAG deletes the retriever and trains a model each turn",
+        "C": "Agentic RAG removes citations so the final answer can stay short",
+        "D": "Plain RAG retrieves once; agentic RAG decides whether to search"
+      },
+      "correct": "D",
+      "rationale": "In agentic RAG, retrieval is a tool the model may choose to call, refine, or skip."
+    },
+    {
+      "format": "true_false",
+      "difficulty": "easy",
+      "topic": "Caching benefit",
+      "stem": "Caching is the cost method that can reduce both cost and delay.",
+      "options": { "A": "True", "B": "False" },
+      "correct": "A",
+      "rationale": "Day 4 lists caching first because it can cut both spend and latency."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Injection forms",
+      "stem": "Why is indirect prompt injection often more serious than direct injection?",
+      "options": {
+        "A": "Direct injection cannot appear inside any authenticated user session log",
+        "B": "The attacker may never use the system, and poisoned text can persist",
+        "C": "Indirect injection only works when streaming output has been disabled",
+        "D": "Direct injection always bypasses every log and audit trail in the product"
+      },
+      "correct": "B",
+      "rationale": "Indirect injection can be planted by someone who never logs in, and one poisoned passage can affect many later questions."
+    },
+    {
+      "format": "true_false",
+      "difficulty": "medium",
+      "topic": "Defence limits",
+      "stem": "A sentence telling the model to ignore instructions in retrieved text is enough on its own as a security control.",
+      "options": { "A": "True", "B": "False" },
+      "correct": "B",
+      "rationale": "A defensive instruction is only a preference in the same channel the attacker uses. It must not be the sole control."
+    },
+    {
+      "difficulty": "hard",
+      "topic": "Outside control",
+      "stem": "Where should irreversible tool permissions be enforced?",
+      "options": {
+        "A": "In application policy outside the model before tools run",
+        "B": "Only inside a longer system prompt with stronger wording",
+        "C": "Only in the vector index metadata for each document chunk",
+        "D": "Only by raising temperature so risky actions become rare"
+      },
+      "correct": "A",
+      "rationale": "The model can be influenced by injection. Fixed policy, sandboxing, and least privilege must sit in application code."
+    },
+    {
+      "difficulty": "hard",
+      "topic": "Data governance",
+      "stem": "What does governance require a team to be able to state after an incident?",
+      "options": {
+        "A": "Only the brand name of the largest model that was available that day",
+        "B": "Only the number of embeddings stored in the vector database index",
+        "C": "Who authorised the system, what it could do, and what it did",
+        "D": "Only the marketing slogan used on the product landing page copy"
+      },
+      "correct": "C",
+      "rationale": "Governance means you can account for authorisation, permitted actions, and actual behaviour after something goes wrong."
+    }
+  ]
+}

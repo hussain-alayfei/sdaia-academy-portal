@@ -1,7 +1,5 @@
-import Link from 'next/link'
-
 import { AlertIcon, CheckIcon, CrossIcon } from '@/components/icons'
-import { Alert, Badge, ButtonLink, Panel, cx } from '@/components/ui'
+import { Alert, BackLink, Badge, Panel, cx } from '@/components/ui'
 import { DIFFICULTY_LABELS, DIFFICULTY_TONES } from '@/lib/format'
 import type { ReviewQuestion } from '@/lib/quiz'
 import type { AssessmentAttempt } from '@/lib/types'
@@ -29,13 +27,33 @@ export function QuizReview({
   const total = attempt.question_count ?? questions.length
   const correct = attempt.correct_count ?? 0
   const percent = total > 0 ? Math.round((correct / total) * 100) : 0
+  const blankCount = questions.filter(
+    (question) => !question.selectedOptionId && !question.integrityInvalidated
+  ).length
+  const wrongCount = questions.filter(
+    (question) =>
+      question.selectedOptionId &&
+      !question.isCorrect &&
+      !question.integrityInvalidated
+  ).length
   const penalizedCount = questions.filter(
     (question) => question.integrityInvalidated
   ).length
+  const blankNumbers = questions
+    .map((question, index) =>
+      !question.selectedOptionId && !question.integrityInvalidated
+        ? index + 1
+        : null
+    )
+    .filter((n): n is number => n !== null)
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
       <div className="animate-page">
+        <div className="mb-5">
+          <BackLink href={backHref}>{backLabel}</BackLink>
+        </div>
+
         <p className="text-[12px] font-semibold tracking-wide text-ink-faint uppercase">
           {title}
         </p>
@@ -47,6 +65,65 @@ export function QuizReview({
           </p>
           <p className="pb-1 text-[15px] text-ink-soft">{percent}% correct</p>
         </div>
+
+        <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="rounded-sm border border-teal-200 bg-teal-50/50 px-3 py-2">
+            <dt className="text-[11px] font-medium tracking-wide text-teal-800 uppercase">
+              Correct
+            </dt>
+            <dd className="mt-0.5 text-[18px] font-semibold text-navy-900 tabular-nums">
+              {correct}
+            </dd>
+          </div>
+          <div className="rounded-sm border border-danger-500/25 bg-danger-50/40 px-3 py-2">
+            <dt className="text-[11px] font-medium tracking-wide text-danger-600 uppercase">
+              Wrong
+            </dt>
+            <dd className="mt-0.5 text-[18px] font-semibold text-navy-900 tabular-nums">
+              {wrongCount}
+            </dd>
+          </div>
+          <div className="rounded-sm border border-amber-200 bg-amber-50/60 px-3 py-2">
+            <dt className="text-[11px] font-medium tracking-wide text-amber-800 uppercase">
+              Left blank
+            </dt>
+            <dd className="mt-0.5 text-[18px] font-semibold text-navy-900 tabular-nums">
+              {blankCount}
+            </dd>
+          </div>
+          {penalizedCount > 0 ? (
+            <div className="rounded-sm border border-danger-500/25 bg-danger-50/40 px-3 py-2">
+              <dt className="text-[11px] font-medium tracking-wide text-danger-600 uppercase">
+                Integrity zero
+              </dt>
+              <dd className="mt-0.5 text-[18px] font-semibold text-navy-900 tabular-nums">
+                {penalizedCount}
+              </dd>
+            </div>
+          ) : (
+            <div className="rounded-sm border border-line bg-navy-50/50 px-3 py-2">
+              <dt className="text-[11px] font-medium tracking-wide text-ink-faint uppercase">
+                Total
+              </dt>
+              <dd className="mt-0.5 text-[18px] font-semibold text-navy-900 tabular-nums">
+                {total}
+              </dd>
+            </div>
+          )}
+        </dl>
+
+        {blankCount > 0 ? (
+          <Alert
+            tone="amber"
+            className="mt-4"
+            title={`${blankCount} question${blankCount === 1 ? '' : 's'} left blank`}
+          >
+            No answer was saved for question
+            {blankCount === 1 ? '' : 's'} {blankNumbers.join(', ')}. Blank
+            questions score 0. The green option below is the answer key, not a
+            mark you earned.
+          </Alert>
+        ) : null}
 
         {attempt.status === 'timed_out' ? (
           <Alert tone="amber" className="mt-4" title="Time ran out">
@@ -85,49 +162,55 @@ export function QuizReview({
         ) : null}
 
         <p className="mt-4 text-[14px] text-ink-soft">
-          Every question is below with what you chose and what was correct. This
+          Every question is below with what you chose and the answer key. This
           was your one attempt, so it stays as it is.
         </p>
-
-        <div className="mt-5">
-          <ButtonLink href={backHref} variant="secondary">
-            {backLabel}
-          </ButtonLink>
-        </div>
       </div>
 
       <ol className="mt-8 space-y-4">
-        {questions.map((question, index) => (
+        {questions.map((question, index) => {
+          const isBlank = !question.selectedOptionId
+          const outcome = question.integrityInvalidated
+            ? 'integrity'
+            : question.isCorrect
+              ? 'correct'
+              : isBlank
+                ? 'blank'
+                : 'wrong'
+
+          return (
           <li key={question.id}>
             <Panel
               className={cx(
                 'p-5 sm:p-6',
-                question.isCorrect
-                  ? 'border-teal-200'
-                  : 'border-danger-500/30'
+                outcome === 'correct' && 'border-teal-200',
+                outcome === 'blank' && 'border-amber-300',
+                (outcome === 'wrong' || outcome === 'integrity') &&
+                  'border-danger-500/30'
               )}
             >
               <div className="mb-2.5 flex flex-wrap items-center gap-2">
                 <span
                   className={cx(
                     'inline-flex items-center gap-1.5 rounded-xs px-2 py-0.5 text-[12px] font-medium',
-                    question.integrityInvalidated
-                      ? 'bg-danger-50 text-danger-600'
-                      : question.isCorrect
-                      ? 'bg-teal-50 text-teal-800'
-                      : 'bg-danger-50 text-danger-600'
+                    outcome === 'integrity' && 'bg-danger-50 text-danger-600',
+                    outcome === 'correct' && 'bg-teal-50 text-teal-800',
+                    outcome === 'blank' && 'bg-amber-50 text-amber-900',
+                    outcome === 'wrong' && 'bg-danger-50 text-danger-600'
                   )}
                 >
-                  {question.isCorrect && !question.integrityInvalidated ? (
+                  {outcome === 'correct' ? (
                     <CheckIcon width={13} height={13} />
                   ) : (
                     <CrossIcon width={13} height={13} />
                   )}
-                  {question.integrityInvalidated
+                  {outcome === 'integrity'
                     ? 'No point · integrity rule'
-                    : question.isCorrect
+                    : outcome === 'correct'
                       ? 'Correct'
-                      : 'Wrong'}
+                      : outcome === 'blank'
+                        ? 'Blank · no answer saved'
+                        : 'Wrong'}
                 </span>
                 <span className="text-[12px] text-ink-faint">
                   Question {index + 1}
@@ -144,10 +227,17 @@ export function QuizReview({
                 {question.stem}
               </p>
 
-              {question.integrityInvalidated ? (
+              {outcome === 'integrity' ? (
                 <p className="mt-2 text-[13px] font-medium text-danger-600">
                   {question.integrityWarningCount} events were recorded on this
                   question, so it could not earn a point.
+                </p>
+              ) : null}
+
+              {outcome === 'blank' ? (
+                <p className="mt-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] font-medium text-amber-950">
+                  You did not select an answer for this question, so it scored 0.
+                  The highlighted option is the answer key only.
                 </p>
               ) : null}
 
@@ -195,7 +285,7 @@ export function QuizReview({
                           {isKey && chosen
                             ? 'your answer'
                             : isKey
-                              ? 'correct'
+                              ? 'answer key'
                               : 'you chose'}
                         </span>
                       )}
@@ -203,12 +293,6 @@ export function QuizReview({
                   )
                 })}
               </ul>
-
-              {!question.selectedOptionId ? (
-                <p className="mt-3 text-[13px] text-ink-faint">
-                  You left this one blank.
-                </p>
-              ) : null}
 
               {question.rationale ? (
                 <p className="mt-3 flex gap-2 rounded-sm bg-navy-50 p-3 text-[13.5px] leading-relaxed text-ink-soft">
@@ -218,16 +302,12 @@ export function QuizReview({
               ) : null}
             </Panel>
           </li>
-        ))}
+          )
+        })}
       </ol>
 
       <div className="mt-8">
-        <Link
-          href={backHref}
-          className="text-[14px] font-medium text-teal-700 hover:text-teal-800"
-        >
-          {backLabel}
-        </Link>
+        <BackLink href={backHref}>{backLabel}</BackLink>
       </div>
     </div>
   )

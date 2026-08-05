@@ -55,7 +55,15 @@
   --color-line-strong: #c3ccdb;
   --color-ink: #12203a;
   --color-ink-soft: #4a5872;
-  --color-ink-faint: #6c7a94;
+  /* Darker than #6c7a94 so body/hint text clears WCAG AA 4.5:1 on white. */
+  --color-ink-faint: #556278;
+
+  /* Mosaic accents — drawn from the official Academy emblem */
+  --brand-cyan: #53a6d8;
+  --brand-indigo: #4a3b8d;
+  --brand-orange: #ee7d31;
+  --brand-red: #d94032;
+  --brand-lime: #8bc53f;
 
   --color-danger-50: #fdf0ef;
   --color-danger-500: #c0392b;
@@ -166,7 +174,7 @@
      days one after another, and any transform risks a half-pixel text shift
      mid-animation. Eased out so it settles rather than stopping dead. */
   .animate-page {
-    animation: fade 260ms cubic-bezier(0.33, 1, 0.68, 1) both;
+    animation: fade 120ms ease-out both;
   }
 
   /* Small in-place panels (a question opening, a review card) can still afford

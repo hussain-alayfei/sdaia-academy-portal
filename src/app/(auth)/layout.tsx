@@ -13,10 +13,10 @@ export default function AuthLayout({
       <aside className="flex flex-col justify-between bg-navy-900 px-6 py-6 text-navy-100 lg:px-10 lg:py-12">
         <Link href="/" className="inline-flex w-fit rounded-sm bg-white p-3">
           <Image
-            src="/sdaia-academy.png"
-            alt="SDAIA Academy, Saudi Data &amp; AI Authority"
-            width={1046}
-            height={166}
+            src="/sdaia-academy-logo.jpg"
+            alt="SDAIA Academy"
+            width={900}
+            height={280}
             priority
             className="h-8 w-auto lg:h-11"
           />

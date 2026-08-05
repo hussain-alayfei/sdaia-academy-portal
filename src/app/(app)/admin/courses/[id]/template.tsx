@@ -1,8 +1,8 @@
-/** Remounts beneath the persistent course header so every admin tab fades in. */
+/** Persistent course chrome; content swaps without an entrance fade. */
 export default function CourseAdminTemplate({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return <div className="animate-page">{children}</div>
+  return children
 }

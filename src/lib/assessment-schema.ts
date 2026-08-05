@@ -41,6 +41,10 @@ export function difficultyMixFor(
   kind: AssessmentKind,
   questionCount = QUESTION_COUNTS[kind]
 ): Record<QuestionDifficulty, number> | null {
+  // Explicit course override: some posts are configured as 20Q / 20 min.
+  if (kind === 'post' && questionCount === 20) {
+    return { easy: 6, medium: 9, hard: 5 }
+  }
   const standard = DIFFICULTY_MIX[kind]
   const standardCount = QUESTION_COUNTS[kind]
   if (questionCount < standardCount) return null
@@ -436,7 +440,14 @@ export function inspectQuestions(
   }
 
   const expectedDuration = DEFAULT_DURATIONS[file.assessment.kind]
-  if (file.assessment.duration_minutes !== expectedDuration) {
+  const allowedPostOverride =
+    file.assessment.kind === 'post' &&
+    questions.length === 20 &&
+    file.assessment.duration_minutes === 20
+  if (
+    file.assessment.duration_minutes !== expectedDuration &&
+    !allowedPostOverride
+  ) {
     errors.push(
       `A ${file.assessment.kind} assessment must use ${expectedDuration} minutes, not ${file.assessment.duration_minutes}.`
     )

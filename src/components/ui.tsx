@@ -100,28 +100,32 @@ export function PanelHeader({
 type Tone = 'neutral' | 'teal' | 'amber' | 'navy' | 'danger'
 
 const TONES: Record<Tone, string> = {
-  neutral: 'bg-navy-50 text-ink-soft border-line',
-  teal: 'bg-teal-50 text-teal-800 border-teal-200',
-  amber: 'bg-amber-50 text-amber-700 border-amber-200',
-  navy: 'bg-navy-800 text-white border-navy-800',
-  danger: 'bg-danger-50 text-danger-600 border-danger-500/30',
+  neutral: 'bg-navy-50 text-ink-soft',
+  teal: 'bg-teal-50 text-teal-800',
+  amber: 'bg-amber-50 text-amber-800',
+  navy: 'bg-navy-100 text-navy-800',
+  danger: 'bg-danger-50 text-danger-600',
 }
 
+/** Soft status chip — sentence case, no status-dot circle. */
 export function Badge({
   tone = 'neutral',
   className,
+  children,
   ...props
 }: ComponentProps<'span'> & { tone?: Tone }) {
   return (
     <span
       className={cx(
-        'inline-flex items-center gap-1 rounded-xs border px-1.5 py-0.5',
-        'text-[11px] font-medium tracking-wide uppercase',
+        'inline-flex items-center rounded-full px-2 py-0.5',
+        'text-[11px] font-medium leading-none',
         TONES[tone],
         className
       )}
       {...props}
-    />
+    >
+      {children}
+    </span>
   )
 }
 
@@ -302,11 +306,8 @@ export function PageHeader({
 /* --------------------------------------------------------------- loading -- */
 
 /**
- * Three dots in the colours of the SDAIA mosaic, pulsing in sequence.
- *
- * Preferred over a spinner: a spinner reads as "the system is busy", whereas a
- * short bounded row of dots reads as "this arrives in a moment", which is what
- * a page navigation actually is here.
+ * Three dots in Academy mosaic colours, pulsing in sequence.
+ * The only loading indicator used across the portal — no skeletons/spinners.
  */
 export function LoadingDots({
   className,
@@ -316,9 +317,9 @@ export function LoadingDots({
   label?: string
 }) {
   const dots = [
-    { color: '#12b5a5', delay: '0ms' },
-    { color: '#2f7dc4', delay: '140ms' },
-    { color: '#e08a1e', delay: '280ms' },
+    { color: 'var(--brand-cyan)', delay: '0ms' },
+    { color: 'var(--brand-indigo)', delay: '140ms' },
+    { color: 'var(--brand-orange)', delay: '280ms' },
   ]
 
   return (
@@ -329,7 +330,7 @@ export function LoadingDots({
     >
       {dots.map((dot) => (
         <span
-          key={dot.color}
+          key={dot.delay}
           aria-hidden
           className="animate-dot size-2 rounded-full"
           style={{ backgroundColor: dot.color, animationDelay: dot.delay }}
@@ -339,12 +340,14 @@ export function LoadingDots({
   )
 }
 
-/** Full-panel loading state for route-level `loading.tsx` files. */
+/** Full-panel loading — use this in every route `loading.tsx`. */
 export function LoadingPanel({ label = 'Loading' }: { label?: string }) {
   return (
-    <div className="flex min-h-[45vh] flex-col items-center justify-center gap-3">
+    <div
+      className="flex min-h-[45vh] flex-col items-center justify-center gap-3"
+      aria-busy
+    >
       <LoadingDots label={label} />
-      <p className="text-[13px] text-ink-faint">{label}</p>
     </div>
   )
 }
@@ -372,7 +375,10 @@ export function RowArrow({ className }: { className?: string }) {
   )
 }
 
-/** Back link styled as a real button so it is obviously tappable. */
+/**
+ * Soft back control — colour + underline on hover.
+ * Arrow stays put (no slide); that motion reads as decorative AI polish.
+ */
 export function BackLink({
   href,
   children,
@@ -383,14 +389,23 @@ export function BackLink({
   return (
     <Link
       href={href}
+      prefetch
       className={cx(
-        'inline-flex items-center gap-2 rounded-sm border border-line-strong',
-        'bg-surface px-3 py-1.5 text-[13px] font-medium text-navy-800',
-        'transition-colors hover:border-teal-600 hover:text-teal-800'
+        'group inline-flex items-center gap-2.5 text-[13px] font-medium text-ink-soft',
+        'transition-colors duration-200 ease-out hover:text-teal-800'
       )}
     >
-      <ArrowLeftIcon width={16} height={16} />
-      {children}
+      <span
+        aria-hidden
+        className={cx(
+          'grid size-8 place-items-center rounded-full bg-navy-50 text-navy-700',
+          'transition-colors duration-200 ease-out',
+          'group-hover:bg-teal-50 group-hover:text-teal-800'
+        )}
+      >
+        <ArrowLeftIcon width={15} height={15} strokeWidth={1.7} />
+      </span>
+      <span className="underline-offset-[3px] group-hover:underline">{children}</span>
     </Link>
   )
 }

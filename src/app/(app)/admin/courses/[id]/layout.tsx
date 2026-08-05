@@ -1,10 +1,9 @@
 import { notFound } from 'next/navigation'
 
 import { CourseTabs } from '@/components/admin/course-tabs'
-
-import { Arabic, BackLink, Badge, Button, ButtonLink } from '@/components/ui'
-import { toggleCoursePublished } from '@/app/actions/admin'
+import { Arabic, BackLink, Badge, ButtonLink } from '@/components/ui'
 import { canManageCourse, getCourseById, requireManager } from '@/lib/dal'
+import { toTitleCaseEnglish } from '@/lib/format'
 
 export default async function CourseAdminLayout({
   children,
@@ -22,31 +21,31 @@ export default async function CourseAdminLayout({
 
   return (
     <>
-      <div className="mb-5">
+      <div className="mb-4">
         <BackLink href="/admin">All courses</BackLink>
       </div>
 
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-[22px] font-semibold text-navy-900 sm:text-[26px]">
-              {course.title}
+      <header className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-line pb-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 sm:text-[24px]">
+              {toTitleCaseEnglish(course.title)}
             </h1>
             <Badge tone={course.is_published ? 'teal' : 'amber'}>
               {course.is_published ? 'Live' : 'Draft'}
             </Badge>
           </div>
           {course.title_ar ? (
-            <p className="mt-0.5 text-[14px] text-ink-soft">
+            <p className="mt-0.5 text-[13px] text-ink-soft">
               <Arabic>{course.title_ar}</Arabic>
             </p>
           ) : null}
-          <p className="mt-2 text-[12px] text-ink-faint">
-            Course code{' '}
-            <span className="rounded-xs border border-line bg-navy-50 px-1.5 py-0.5 font-mono tracking-wide text-navy-800">
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <span className="rounded-xs border border-line bg-navy-50 px-2 py-1 font-mono text-[12px] tracking-wide text-navy-800">
               {course.join_code}
             </span>
-          </p>
+            <span className="text-[12px] text-ink-faint">Student join code</span>
+          </div>
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -55,30 +54,14 @@ export default async function CourseAdminLayout({
             variant="secondary"
             size="sm"
           >
-            Student view
+            Preview
           </ButtonLink>
-
-          <form action={toggleCoursePublished}>
-            <input type="hidden" name="course_id" value={course.id} />
-            <input
-              type="hidden"
-              name="next"
-              value={course.is_published ? 'false' : 'true'}
-            />
-            <Button
-              type="submit"
-              variant={course.is_published ? 'secondary' : 'primary'}
-              size="sm"
-            >
-              {course.is_published ? 'Unpublish' : 'Publish course'}
-            </Button>
-          </form>
         </div>
-      </div>
+      </header>
 
       <CourseTabs courseId={course.id} />
 
-      <div className="pt-6">{children}</div>
+      <div className="pt-5">{children}</div>
     </>
   )
 }

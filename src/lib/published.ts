@@ -78,7 +78,10 @@ export const getPublishedCourseDays = (courseId: string) =>
 
       return data ?? []
     },
-    ['published-course-days'],
+    // Key suffix bumped when production DB is edited outside admin actions so
+    // Vercel's Data Cache cannot keep serving a pre-edit snapshot (it survives
+    // redeploys until tags expire or keys change).
+    ['published-course-days-v3'],
     { tags: [courseContentTag(courseId)], revalidate: ONE_HOUR }
   )(courseId)
 
@@ -97,7 +100,7 @@ export const getPublishedDayByNumber = (courseId: string, dayNumber: number) =>
 
       return data ?? null
     },
-    ['published-day-by-number'],
+    ['published-day-by-number-v3'],
     { tags: [courseContentTag(courseId)], revalidate: ONE_HOUR }
   )(courseId, dayNumber)
 
@@ -122,7 +125,7 @@ export const getPublishedResourcesForDay = (courseId: string, dayId: string) =>
 
       return data ?? []
     },
-    ['published-resources-for-day'],
+    ['published-resources-for-day-v3'],
     { tags: [courseContentTag(courseId)], revalidate: ONE_HOUR }
   )(courseId, dayId)
 
@@ -143,7 +146,7 @@ export const getPublishedResourceCounts = (courseId: string) =>
       }
       return counts
     },
-    ['published-resource-counts'],
+    ['published-resource-counts-v3'],
     { tags: [courseContentTag(courseId)], revalidate: ONE_HOUR }
   )(courseId)
 
@@ -166,7 +169,7 @@ export const getPublishedAssessments = (courseId: string) =>
 
       return data ?? []
     },
-    ['published-assessments'],
+    ['published-assessments-v3'],
     { tags: [courseContentTag(courseId)], revalidate: ONE_HOUR }
   )(courseId)
 
@@ -193,6 +196,6 @@ export const getPublishedQuestionCounts = (courseId: string) =>
       }
       return counts
     },
-    ['published-question-counts'],
+    ['published-question-counts-v3'],
     { tags: [courseContentTag(courseId)], revalidate: ONE_HOUR }
   )(courseId)

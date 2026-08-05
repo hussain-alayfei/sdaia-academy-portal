@@ -42,3 +42,15 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# One-off ops scripts that name real students by email, including one carrying a
+# note about a specific student's conduct. Same reasoning as the parent
+# _backups/ folder: real PII does not go to the remote. They stay on the
+# instructor's machine.
+/scripts/remove-fake-guest-and-warn-adel.mjs
+/scripts/remove-other-adel-and-update-notice.mjs
+/scripts/fix-user-email.mjs
+/scripts/send-recovery-link.mjs
+
+# Supabase CLI local state
+/supabase/.temp/

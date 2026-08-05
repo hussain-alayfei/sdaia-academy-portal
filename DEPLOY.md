@@ -1,6 +1,6 @@
 # Publish to GitHub + Vercel
 
-**Vercel is done and live:** <https://sdaia-academy-portal.vercel.app>
+**Vercel is done and live:** <https://sdaia-genai-portal.vercel.app>
 
 Supabase auth is configured (step 3). The only thing still needing you is the
 GitHub push (step 1), because `gh` requires an interactive browser login.
@@ -77,8 +77,15 @@ through the instructor UI.
 
 ## 2. Vercel — already done
 
-Project `hussain-alyafeis-projects/sdaia-academy-portal`, deployed to
-production and aliased to <https://sdaia-academy-portal.vercel.app>.
+Project `hussain-alyafeis-projects/sdaia-academy-portal` / `sdaia-genai-portal`,
+deployed to production and aliased to <https://sdaia-genai-portal.vercel.app>.
+
+When deploying from the CLI (`npx vercel --prod`), the CLI may only update the
+secondary hostname `sdaia-academy-portal.vercel.app`. Always confirm:
+
+```bash
+npx vercel alias set <deployment-url> sdaia-genai-portal.vercel.app
+```
 
 All three environment variables are set for Production, Preview and
 Development. Verified after deploy: `/` and `/login` return 200, `/admin` and
@@ -100,7 +107,7 @@ Applied through the Management API, not the dashboard:
 | Setting | Value | Why |
 | --- | --- | --- |
 | `mailer_autoconfirm` | `true` | No confirmation email is sent, so the mailer rate limit can never be hit. Signup returns a session immediately. |
-| `site_url` | `https://sdaia-academy-portal.vercel.app` | Was `http://localhost:3000`. |
+| `site_url` | `https://sdaia-genai-portal.vercel.app` | Was the old blocked short URL. |
 | `uri_allow_list` | production `/**` and `localhost:3000/**` | Was empty, which blocks every redirect target. |
 
 The project's `rate_limit_email_sent` is **2 per hour** — that was the cause of

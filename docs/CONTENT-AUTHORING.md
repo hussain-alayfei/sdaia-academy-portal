@@ -28,6 +28,34 @@ when current documentation, APIs, libraries, safety guidance, or real examples
 would materially improve accuracy. Prefer official documentation and original
 technical sources over blogs and summaries.
 
+## Resource naming (slides & labs)
+
+Use one uniform title style for every day on both courses. Match the topic to
+the day's content (usually the day title, shortened if needed).
+
+| Kind | Pattern | Example |
+| --- | --- | --- |
+| Slides | `Day {n} slides — {Topic}` | `Day 3 slides — Tool use and controlled agent patterns` |
+| Lab / notebook | `Day {n} lab — {Topic}` | `Day 3 lab — Tool use and controlled agent patterns` |
+
+Rules:
+
+- Spelling: `slides` and `lab` lowercase after the day number; em dash `—`
+  (not hyphen or `#` or `_`).
+- Same topic string for that day's slides and lab so the pair is obvious.
+- Short description may stay generic (`Lecture slides for Day N.` /
+  `Hands-on Colab notebook for Day N.`).
+- HTML slide decks that use fragment indices should open at the first slide:
+  `#1`, never a mid-deck index unless the instructor asks otherwise.
+- Capstone / certification items stay outside this pattern
+  (`Capstone Project Guide`, `Capstone group signup`, …).
+
+Current Day 1–3 topics in use:
+
+1. From language model to software solution  
+2. RAG versus agents  
+3. Tool use and controlled agent patterns  
+
 ## Required discovery sequence
 
 Before proposing content for a day:
@@ -108,6 +136,15 @@ For new quizzes and question expansions, follow `docs/ASSESSMENTS.md` and
 - New questions add coverage instead of paraphrasing existing questions.
 - Keep a reviewed JSON source under `docs/assessment-content/` before import.
 - Publish as locked first unless the instructor explicitly asks to unlock it.
+- For **Day 4 quiz / later post or final items** on production & security, use
+  the corrected deck scope in
+  [`docs/assessment-content/day-4-assessment-context.md`](assessment-content/day-4-assessment-context.md)
+  (full slide extract under `slides/_extracted/day-4-slides-full.md`).
+- **GENAI-01 shipped (5 Aug 2026):** Day 4 quiz
+  (`day-4-quiz.json`, 10 MCQ / 10 min) and Days 1–4 post
+  (`post-assessment-days-1-4.json`, 20 Q / 20 min, 15 MCQ + 5 T/F). Day 5 Final
+  exam remains empty until authored. Re-import only after Reset attempts if any
+  student has sat the paper.
 
 ## Creating and releasing future content
 

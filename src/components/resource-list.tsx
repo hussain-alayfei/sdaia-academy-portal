@@ -10,9 +10,11 @@ import type { Resource } from '@/lib/types'
 function ResourceRow({
   resource,
   showKind,
+  showDescription,
 }: {
   resource: Resource
   showKind: boolean
+  showDescription: boolean
 }) {
   const external = Boolean(resource.external_url)
   const href = external ? resource.external_url! : `/api/files/${resource.id}`
@@ -44,9 +46,11 @@ function ResourceRow({
             ) : null}
           </div>
 
-          {resource.description ? (
+          {resource.description && showDescription ? (
             <p className="mt-0.5 text-[13px] text-ink-soft">
-              {resource.description}
+              {resource.description
+                .replace(/^(certification-pass|capstone-project|theory-exam)\s*·\s*/i, '')
+                .trim()}
             </p>
           ) : null}
 
@@ -76,11 +80,13 @@ function ResourceRow({
 export function ResourceList({
   resources,
   showKind = true,
+  showDescription = true,
   emptyTitle = 'Nothing published yet',
   emptyDescription = 'Your instructor has not added materials for this day. Check back later.',
 }: {
   resources: Resource[]
   showKind?: boolean
+  showDescription?: boolean
   emptyTitle?: string
   emptyDescription?: string
 }) {
@@ -91,7 +97,12 @@ export function ResourceList({
   return (
     <ul className="divide-y divide-line">
       {resources.map((r) => (
-        <ResourceRow key={r.id} resource={r} showKind={showKind} />
+        <ResourceRow
+          key={r.id}
+          resource={r}
+          showKind={showKind}
+          showDescription={showDescription}
+        />
       ))}
     </ul>
   )

@@ -3,14 +3,14 @@ import { notFound } from 'next/navigation'
 
 import { clearCurrentDay, setCurrentDay, toggleDayPublished } from '@/app/actions/admin'
 import { AddDayForm } from '@/components/admin/day-form'
+import { AdminSectionHeader } from '@/components/admin/section-header'
 import {
   Arabic,
-  Badge,
   Button,
+  ButtonLink,
   EmptyState,
   Panel,
-  PanelHeader,
-  RowArrow,
+  cx,
 } from '@/components/ui'
 import { canManageCourse, getCourseById } from '@/lib/dal'
 import { formatDate } from '@/lib/format'
@@ -31,15 +31,17 @@ export default async function CourseSchedulePage({
   ])
 
   const takenDays = days.map((d) => d.day_number)
+  const publishedCount = days.filter((d) => d.is_published).length
 
   return (
-    <div className="space-y-6">
-      <Panel>
-        <PanelHeader
-          title="Schedule"
-          description="Students only see days you have published. Use Current day to fill that day's circle on the student journey."
-        />
+    <div className="space-y-4">
+      <AdminSectionHeader
+        title="Days"
+        meta={`${days.length} total · ${publishedCount} live`}
+        description="Open a day to manage materials. Publish when students should see it."
+      />
 
+      <Panel>
         {days.length === 0 ? (
           <EmptyState
             title="No days yet"
@@ -47,115 +49,127 @@ export default async function CourseSchedulePage({
           />
         ) : (
           <ul className="divide-y divide-line">
-            {days.map((day) => (
-              <li
-                key={day.id}
-                className="flex flex-wrap items-center gap-3 px-4 py-3.5 sm:px-5"
-              >
-                <Link
-                  href={`/admin/courses/${course.id}/days/${day.id}`}
-                  className="group flex min-w-0 flex-1 items-center gap-4"
+            {days.map((day) => {
+              const href = `/admin/courses/${course.id}/days/${day.id}`
+              const materialCount = counts[day.id] ?? 0
+              const scheduled = formatDate(day.scheduled_date)
+
+              return (
+                <li
+                  key={day.id}
+                  className={cx(
+                    'flex flex-wrap items-center gap-3 px-3.5 py-3 sm:px-4',
+                    day.is_current && 'bg-teal-50/40'
+                  )}
                 >
-                  <span
-                    className={
-                      day.is_current
-                        ? 'grid size-11 shrink-0 place-items-center rounded-full border-2 border-teal-600 bg-teal-600 text-center text-white'
-                        : 'grid size-11 shrink-0 place-items-center rounded-sm border border-line bg-navy-50 text-center'
-                    }
+                  <Link
+                    href={href}
+                    className="group flex min-w-0 flex-1 items-center gap-3"
                   >
                     <span
-                      className={
+                      className={cx(
+                        'grid size-8 shrink-0 place-items-center text-[13px] font-semibold tabular-nums',
                         day.is_current
-                          ? 'text-[10px] leading-none font-medium tracking-wide text-teal-50 uppercase'
-                          : 'text-[10px] leading-none font-medium tracking-wide text-ink-faint uppercase'
-                      }
-                    >
-                      Day
-                    </span>
-                    <span
-                      className={
-                        day.is_current
-                          ? 'text-[15px] leading-tight font-semibold text-white'
-                          : 'text-[15px] leading-tight font-semibold text-navy-800'
-                      }
+                          ? 'rounded-full bg-teal-600 text-white'
+                          : 'rounded-sm border border-line bg-navy-50 text-navy-800'
+                      )}
                     >
                       {day.day_number}
                     </span>
-                  </span>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <p className="font-medium text-navy-900 group-hover:text-teal-800">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-medium text-navy-900 group-hover:text-teal-800">
                         {day.title}
                       </p>
-                      <Badge tone={day.is_published ? 'teal' : 'amber'}>
-                        {day.is_published ? 'Published' : 'Draft'}
-                      </Badge>
-                      {day.is_current ? (
-                        <Badge tone="teal">Current day</Badge>
-                      ) : null}
-                    </div>
-                    {day.title_ar ? (
-                      <p className="truncate text-[13px] text-ink-soft">
-                        <Arabic>{day.title_ar}</Arabic>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12px] text-ink-faint">
+                        <span
+                          className={cx(
+                            'font-medium',
+                            day.is_published ? 'text-teal-700' : 'text-amber-700'
+                          )}
+                        >
+                          {day.is_published ? 'Live' : 'Hidden'}
+                        </span>
+                        {day.is_current ? (
+                          <>
+                            <span aria-hidden>·</span>
+                            <span className="font-medium text-teal-700">
+                              Current
+                            </span>
+                          </>
+                        ) : null}
+                        {scheduled ? (
+                          <>
+                            <span aria-hidden>·</span>
+                            <span>{scheduled}</span>
+                          </>
+                        ) : null}
+                        <span aria-hidden>·</span>
+                        <span>
+                          {materialCount} material
+                          {materialCount === 1 ? '' : 's'}
+                        </span>
+                        {day.title_ar ? (
+                          <>
+                            <span aria-hidden className="hidden sm:inline">
+                              ·
+                            </span>
+                            <span className="hidden truncate sm:inline">
+                              <Arabic>{day.title_ar}</Arabic>
+                            </span>
+                          </>
+                        ) : null}
                       </p>
-                    ) : null}
-                    <p className="mt-1 text-[12px] text-ink-faint">
-                      {[
-                        formatDate(day.scheduled_date),
-                        `${counts[day.id] ?? 0} items`,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
-                  </div>
-                </Link>
-
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <form
-                    action={day.is_current ? clearCurrentDay : setCurrentDay}
-                  >
-                    <input type="hidden" name="course_id" value={course.id} />
-                    <input type="hidden" name="day_id" value={day.id} />
-                    <Button type="submit" variant="secondary" size="sm">
-                      {day.is_current ? 'Clear current' : 'Set as current day'}
-                    </Button>
-                  </form>
-
-                  <form action={toggleDayPublished}>
-                    <input type="hidden" name="course_id" value={course.id} />
-                    <input type="hidden" name="day_id" value={day.id} />
-                    <input
-                      type="hidden"
-                      name="next"
-                      value={day.is_published ? 'false' : 'true'}
-                    />
-                    <Button type="submit" variant="secondary" size="sm">
-                      {day.is_published ? 'Unpublish' : 'Publish'}
-                    </Button>
-                  </form>
-
-                  <Link
-                    href={`/admin/courses/${course.id}/days/${day.id}`}
-                    className="group"
-                    aria-label={`Manage day ${day.day_number}`}
-                  >
-                    <RowArrow />
+                    </div>
                   </Link>
-                </div>
-              </li>
-            ))}
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    <form action={toggleDayPublished}>
+                      <input type="hidden" name="course_id" value={course.id} />
+                      <input type="hidden" name="day_id" value={day.id} />
+                      <input
+                        type="hidden"
+                        name="next"
+                        value={day.is_published ? 'false' : 'true'}
+                      />
+                      <Button type="submit" variant="ghost" size="sm">
+                        {day.is_published ? 'Hide' : 'Publish'}
+                      </Button>
+                    </form>
+
+                    <form
+                      action={day.is_current ? clearCurrentDay : setCurrentDay}
+                    >
+                      <input type="hidden" name="course_id" value={course.id} />
+                      <input type="hidden" name="day_id" value={day.id} />
+                      <Button type="submit" variant="ghost" size="sm">
+                        {day.is_current ? 'Clear' : 'Set current'}
+                      </Button>
+                    </form>
+
+                    <ButtonLink href={href} size="sm">
+                      Open
+                    </ButtonLink>
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         )}
       </Panel>
 
       {takenDays.length < 5 ? (
-        <Panel className="p-5 sm:p-6">
-          <h2 className="mb-4 text-[15px] font-semibold text-navy-900">
-            Add a day
-          </h2>
-          <AddDayForm courseId={course.id} takenDays={takenDays} />
-        </Panel>
+        <details className="group rounded-md border border-dashed border-line-strong">
+          <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-navy-900 sm:px-5 [&::-webkit-details-marker]:hidden">
+            Add another day
+            <span className="ms-2 text-[12px] font-normal text-ink-faint">
+              Optional once Days 1–5 exist
+            </span>
+          </summary>
+          <div className="border-t border-line px-4 py-4 sm:px-5">
+            <AddDayForm courseId={course.id} takenDays={takenDays} />
+          </div>
+        </details>
       ) : null}
     </div>
   )

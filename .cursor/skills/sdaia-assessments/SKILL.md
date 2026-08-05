@@ -33,6 +33,7 @@ description: >-
 | Student paper / review | `src/lib/quiz.ts` |
 | Runner / anti-cheat / review UI | `quiz-runner.tsx`, `integrity-guard.tsx`, `quiz-review.tsx` |
 | Day page cards | `assessment-cards.tsx` |
+| Instructor Assessments list | `assessments-by-day.tsx`, `local-tabs.tsx` (plain `Day N`, no fade) |
 | Course overview chip | `c/[slug]/page.tsx` → `assessmentChipLabel` |
 | SQL | `supabase/migrations/20260802000*.sql` |
 | Authoring brief | `public/assessment-authoring-prompt.md` |

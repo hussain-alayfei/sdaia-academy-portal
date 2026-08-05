@@ -10,6 +10,7 @@ import {
 } from '@/components/icons'
 import {
   Arabic,
+  BackLink,
   Badge,
   EmptyState,
   PageHeader,
@@ -22,17 +23,16 @@ import {
   formatDate,
   formatDateRange,
   formatWeekday,
+  toTitleCaseEnglish,
 } from '@/lib/format'
 import type { AssessmentKind } from '@/lib/types'
 import {
   getPublishedAssessments,
   getPublishedCourseDays,
-  getPublishedResourceCounts,
 } from '@/lib/published'
 import {
   getAssessments,
   getCourseDays,
-  getResourceCounts,
 } from '@/lib/queries'
 
 // Fixed per day so the connected journey is easy to scan and each day keeps
@@ -88,16 +88,20 @@ export default async function CoursePage({
 
   // Students share one cached, published-only copy of the schedule — a whole
   // cohort opening this page costs the database one read rather than thirty.
-  // Instructors read live, because they need to see their own drafts.
+  // Instructors always read live (including Student view), so out-of-band DB
+  // edits show up immediately when previewing as a student.
   const manager = isManager(profile)
   const studentView = manager && query.view === 'student'
-  const live = manager && !studentView
 
-  const [days, counts, assessments] = await Promise.all([
-    live ? getCourseDays(course.id) : getPublishedCourseDays(course.id),
-    live ? getResourceCounts(course.id) : getPublishedResourceCounts(course.id),
-    live ? getAssessments(course.id) : getPublishedAssessments(course.id),
+  const [rawDays, rawAssessments] = await Promise.all([
+    manager ? getCourseDays(course.id) : getPublishedCourseDays(course.id),
+    manager ? getAssessments(course.id) : getPublishedAssessments(course.id),
   ])
+
+  const days = studentView ? rawDays.filter((d) => d.is_published) : rawDays
+  const assessments = studentView
+    ? rawAssessments.filter((a) => a.is_published)
+    : rawAssessments
 
   // Assessments live on their day, so all this page needs is a hint that there
   // is something to sit there. Track the kinds rather than a bare count: a day
@@ -119,10 +123,13 @@ export default async function CoursePage({
         <StudentViewBanner exitHref={`/admin/courses/${course.id}`} />
       ) : null}
 
+      <div className="mb-5">
+        <BackLink href="/home">My courses</BackLink>
+      </div>
+
       <PageHeader
         eyebrow="Course"
         title={course.title}
-        description={course.description ?? undefined}
       />
 
       {(course.title_ar || range) && (
@@ -145,10 +152,6 @@ export default async function CoursePage({
         <h2 className="text-[17px] font-semibold text-navy-900">
           Your five-day journey
         </h2>
-        <p className="mt-1 text-[13px] text-ink-soft">
-          Follow the days in order for each day&apos;s slides, labs and assessment.
-          The filled circle marks today&apos;s day.
-        </p>
       </div>
 
       {days.length === 0 ? (
@@ -163,16 +166,9 @@ export default async function CoursePage({
           {days.map((day, index) => {
             const brand = DAY_HOVER_COLORS[index % DAY_HOVER_COLORS.length]
             const current = day.is_current
-            const count = counts[day.id] ?? 0
             const chip = assessmentChipLabel(assessmentsPerDay.get(day.id) ?? [])
             const weekday = formatWeekday(day.scheduled_date)
             const date = formatDate(day.scheduled_date)
-            const meta = [
-              date ? (weekday ? `${weekday}, ${date}` : date) : null,
-              count === 1 ? '1 item' : `${count} items`,
-            ]
-              .filter(Boolean)
-              .join(' · ')
 
             return (
               <li
@@ -199,6 +195,7 @@ export default async function CoursePage({
                   href={`/c/${course.slug}/day/${day.day_number}${
                     studentView ? '?view=student' : ''
                   }`}
+                  prefetch
                   style={
                     {
                       '--brand': brand.border,
@@ -208,8 +205,8 @@ export default async function CoursePage({
                   }
                   className={
                     current
-                      ? 'group relative flex h-full min-h-[170px] flex-col rounded-md border-2 border-[var(--brand)] bg-[var(--brand-soft)] p-4 transition-colors duration-200 md:min-h-[226px]'
-                      : 'group relative flex h-full min-h-[170px] flex-col rounded-md border border-line-strong bg-surface p-4 transition-colors duration-200 hover:border-[var(--brand)] hover:bg-[var(--brand-soft)] md:min-h-[226px]'
+                      ? 'group relative flex h-full min-h-[140px] flex-col rounded-md border-2 border-[var(--brand)] bg-[var(--brand-soft)] p-4 transition-colors duration-200 md:min-h-[168px]'
+                      : 'group relative flex h-full min-h-[140px] flex-col rounded-md border border-line-strong bg-surface p-4 transition-colors duration-200 hover:border-[var(--brand)] hover:bg-[var(--brand-soft)] md:min-h-[168px]'
                   }
                 >
                   <div className="flex min-h-6 items-start justify-between gap-2">
@@ -224,26 +221,20 @@ export default async function CoursePage({
                     </div>
                   </div>
 
-                  <p className="mt-2 line-clamp-3 text-[14px] leading-snug font-semibold text-navy-900 transition-colors duration-200 group-hover:text-[var(--brand-text)]">
-                    {day.title}
+                  <p className="mt-2 line-clamp-2 text-[14px] leading-snug font-semibold text-navy-900 transition-colors duration-200 group-hover:text-[var(--brand-text)]">
+                    {toTitleCaseEnglish(day.title)}
                   </p>
 
                   {day.title_ar ? (
-                    <p className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed text-ink-soft">
+                    <p className="mt-1 line-clamp-1 text-[11px] leading-relaxed text-ink-soft">
                       <Arabic>{day.title_ar}</Arabic>
                     </p>
                   ) : null}
 
-                  {day.summary ? (
-                    <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-ink-soft md:hidden xl:block">
-                      {day.summary}
-                    </p>
-                  ) : null}
-
                   <div className="mt-auto space-y-2 pt-3">
-                    {meta ? (
+                    {date ? (
                       <p className="truncate text-[10px] text-ink-faint">
-                        {meta}
+                        {weekday ? `${weekday}, ${date}` : date}
                       </p>
                     ) : null}
 

@@ -1,29 +1,21 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-import { removeStudent } from '@/app/actions/admin'
+import { AdminSectionHeader } from '@/components/admin/section-header'
 import {
-  AlertIcon,
-  CheckIcon,
-  ClockIcon,
-  TrashIcon,
-  UsersIcon,
-} from '@/components/icons'
-import {
-  Badge,
-  Button,
-  EmptyState,
-  Panel,
-  PanelHeader,
-  cx,
-} from '@/components/ui'
+  StudentsScoreMatrix,
+  type AssessmentCol,
+  type CellScore,
+  type MatrixStudent,
+} from '@/components/admin/students-score-matrix'
+import { EmptyState } from '@/components/ui'
 import { canManageCourse, getCourseById } from '@/lib/dal'
-import { ASSESSMENT_LABELS, formatDate } from '@/lib/format'
 import { getAssessments, getCourseDays, getRoster } from '@/lib/queries'
-import { ATTEMPT_STATUS_LABELS, getCourseAttempts } from '@/lib/quiz'
+import { getCourseAttempts } from '@/lib/quiz'
 import type { Assessment, AssessmentAttempt } from '@/lib/types'
 
-type AssessmentWithDay = Assessment & { dayNumber: number | null }
+function isFinalAssessment(assessment: Assessment) {
+  return assessment.title.toLowerCase().includes('final')
+}
 
 function isFinished(attempt: AssessmentAttempt | undefined) {
   return Boolean(attempt && attempt.status !== 'in_progress')
@@ -34,23 +26,24 @@ function scorePercent(attempt: AssessmentAttempt | undefined) {
   return Math.round((attempt.correct_count / attempt.question_count) * 100)
 }
 
-function elapsedLabel(attempt: AssessmentAttempt) {
-  if (!attempt.submitted_at) return null
-  const elapsed =
-    new Date(attempt.submitted_at).getTime() -
-    new Date(attempt.started_at).getTime()
-  if (!Number.isFinite(elapsed) || elapsed < 0) return null
-  const minutes = Math.max(1, Math.round(elapsed / 60_000))
-  return `${minutes} min`
+function shortLabel(assessment: Assessment, dayNumber: number | null) {
+  if (assessment.kind === 'pre') return 'Pre'
+  if (assessment.kind === 'post') return 'Post'
+  if (isFinalAssessment(assessment)) return 'Final'
+  if (dayNumber != null) return `D${dayNumber}`
+  return assessment.title.slice(0, 10)
 }
 
-function statusTone(
-  attempt: AssessmentAttempt | undefined
-): 'neutral' | 'teal' | 'amber' | 'danger' {
-  if (!attempt) return 'neutral'
-  if (attempt.status === 'submitted') return 'teal'
-  if (attempt.status === 'in_progress') return 'amber'
-  return 'danger'
+function toCellScore(attempt: AssessmentAttempt | undefined): CellScore {
+  if (!attempt) {
+    return { status: 'none', percent: null, correct: null, total: null }
+  }
+  return {
+    status: attempt.status,
+    percent: scorePercent(attempt),
+    correct: attempt.correct_count,
+    total: attempt.question_count,
+  }
 }
 
 export default async function StudentsPage({
@@ -70,339 +63,115 @@ export default async function StudentsPage({
   ])
 
   const dayNumbers = new Map(days.map((day) => [day.id, day.day_number]))
-  const assessments: AssessmentWithDay[] = rawAssessments
-    .map((assessment) => ({
-      ...assessment,
-      dayNumber: assessment.day_id
+  const assessments: AssessmentCol[] = rawAssessments
+    .map((assessment) => {
+      const dayNumber = assessment.day_id
         ? (dayNumbers.get(assessment.day_id) ?? null)
-        : null,
-    }))
-    .sort(
-      (a, b) =>
-        (a.dayNumber ?? 999) - (b.dayNumber ?? 999) || a.position - b.position
-    )
+        : null
+      return {
+        id: assessment.id,
+        shortLabel: shortLabel(assessment, dayNumber),
+        dayNumber,
+        title: assessment.title,
+        kind: assessment.kind,
+        isFinal: isFinalAssessment(assessment),
+        position: assessment.position,
+      }
+    })
+    .sort((a, b) => {
+      // Final always last among columns; others by day then position.
+      if (a.isFinal !== b.isFinal) return a.isFinal ? 1 : -1
+      return (a.dayNumber ?? 999) - (b.dayNumber ?? 999) || a.position - b.position
+    })
 
-  const byStudent = new Map<string, AssessmentAttempt[]>()
+  const regularAssessments = assessments.filter((a) => !a.isFinal)
+  const finalAssessment = assessments.find((a) => a.isFinal) ?? null
+
+  const byStudent = new Map<string, Map<string, AssessmentAttempt>>()
   for (const attempt of attempts) {
-    const list = byStudent.get(attempt.student_id) ?? []
-    list.push(attempt)
-    byStudent.set(attempt.student_id, list)
+    let map = byStudent.get(attempt.student_id)
+    if (!map) {
+      map = new Map()
+      byStudent.set(attempt.student_id, map)
+    }
+    map.set(attempt.assessment_id, attempt)
   }
 
-  const finishedAttempts = attempts.filter((attempt) =>
-    isFinished(attempt)
-  ).length
-  const completeStudents = roster.filter((student) => {
-    const own = byStudent.get(student.id) ?? []
-    return (
-      assessments.length > 0 &&
-      assessments.every((assessment) =>
-        isFinished(own.find((attempt) => attempt.assessment_id === assessment.id))
-      )
-    )
-  }).length
-  const integrityEvents = attempts.reduce(
-    (total, attempt) => total + attempt.warning_count,
-    0
-  )
+  const students: MatrixStudent[] = roster.map((student) => {
+    const own = byStudent.get(student.id) ?? new Map()
+    const scores: Record<string, CellScore> = {}
+    for (const assessment of assessments) {
+      scores[assessment.id] = toCellScore(own.get(assessment.id))
+    }
+
+    const avgPercents: number[] = []
+    for (const assessment of regularAssessments) {
+      const attempt = own.get(assessment.id)
+      if (!isFinished(attempt)) continue
+      const pct = scorePercent(attempt)
+      if (pct !== null) avgPercents.push(pct)
+    }
+
+    const avg =
+      avgPercents.length > 0
+        ? Math.round(
+            avgPercents.reduce((sum, n) => sum + n, 0) / avgPercents.length
+          )
+        : null
+
+    const done = regularAssessments.filter((a) =>
+      isFinished(own.get(a.id))
+    ).length
+
+    const finalAttempt = finalAssessment
+      ? own.get(finalAssessment.id)
+      : undefined
+    const finalPercent = isFinished(finalAttempt)
+      ? scorePercent(finalAttempt)
+      : null
+
+    return {
+      id: student.id,
+      fullName: student.full_name,
+      email: student.email,
+      done,
+      total: regularAssessments.length,
+      avg,
+      finalPercent,
+      scores,
+    }
+  })
 
   return (
     <div className="space-y-4">
-      <section
-        aria-label="Roster summary"
-        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        <SummaryStat
-          label="Enrolled students"
-          value={roster.length}
-          detail={`${completeStudents} completed every assessment`}
-          icon={<UsersIcon width={17} height={17} />}
+      <AdminSectionHeader
+        title="Students"
+        meta={
+          roster.length > 0
+            ? `${roster.length} enrolled · ${assessments.length} assessments`
+            : undefined
+        }
+        description="Avg excludes Final. Sort, search, or export the roster."
+      />
+
+      {roster.length === 0 ? (
+        <EmptyState
+          title="No students yet"
+          description={`Share course code ${course.join_code} so they can join.`}
         />
-        <SummaryStat
-          label="Assessments"
-          value={assessments.length}
-          detail="Across all published and draft days"
-          icon={<CheckIcon width={17} height={17} />}
+      ) : assessments.length === 0 ? (
+        <EmptyState
+          title="No assessments yet"
+          description="Add assessments on the Assessments tab. Scores will appear here."
         />
-        <SummaryStat
-          label="Finished attempts"
-          value={finishedAttempts}
-          detail={`${attempts.filter((a) => a.status === 'in_progress').length} currently in progress`}
-          icon={<ClockIcon width={17} height={17} />}
+      ) : (
+        <StudentsScoreMatrix
+          courseId={course.id}
+          courseSlug={course.slug}
+          assessments={assessments}
+          students={students}
         />
-        <SummaryStat
-          label="Integrity events"
-          value={integrityEvents}
-          detail="Open a student for assessment-level detail"
-          icon={<AlertIcon width={17} height={17} />}
-          attention={integrityEvents > 0}
-        />
-      </section>
-
-      <Panel>
-        <PanelHeader
-          title="Students"
-          description={
-            roster.length === 0
-              ? undefined
-              : 'Progress, average score, integrity activity, and full assessment history for every enrolled student.'
-          }
-        />
-
-        {roster.length === 0 ? (
-          <EmptyState
-            title="No students yet"
-            description={`Share the course code ${course.join_code} so they can sign up and join.`}
-          />
-        ) : (
-          <div className="scroll-x">
-            <table className="w-full min-w-[920px] border-collapse text-left">
-              <thead>
-                <tr className="border-b border-line bg-navy-50/60">
-                  {['Student', 'Progress', 'Average', 'Integrity', 'Assessment details'].map(
-                    (label) => (
-                      <th
-                        key={label}
-                        scope="col"
-                        className="px-4 py-2.5 text-[11px] font-semibold tracking-wide text-ink-soft uppercase first:sm:px-5"
-                      >
-                        {label}
-                      </th>
-                    )
-                  )}
-                  <th scope="col" className="px-3 py-2.5">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-line">
-                {roster.map((student) => {
-                  const ownAttempts = byStudent.get(student.id) ?? []
-                  const attemptByAssessment = new Map(
-                    ownAttempts.map((attempt) => [attempt.assessment_id, attempt])
-                  )
-                  const finished = ownAttempts.filter((attempt) =>
-                    isFinished(attempt)
-                  )
-                  const scored = finished
-                    .map(scorePercent)
-                    .filter((score): score is number => score !== null)
-                  const average =
-                    scored.length > 0
-                      ? Math.round(
-                          scored.reduce((sum, score) => sum + score, 0) /
-                            scored.length
-                        )
-                      : null
-                  const warnings = ownAttempts.reduce(
-                    (sum, attempt) => sum + attempt.warning_count,
-                    0
-                  )
-                  const missing = Math.max(0, assessments.length - finished.length)
-
-                  return (
-                    <tr
-                      key={student.id}
-                      className="align-top transition-colors hover:bg-navy-50/40"
-                    >
-                      <th
-                        scope="row"
-                        className="w-[230px] px-4 py-4 text-left font-normal sm:px-5"
-                      >
-                        <span className="block text-[14px] font-semibold text-navy-900">
-                          {student.full_name || '—'}
-                        </span>
-                        <span className="mt-0.5 block text-[12px] text-ink-soft">
-                          {student.email}
-                        </span>
-                        <span className="mt-1 block text-[11px] text-ink-faint">
-                          Enrolled {formatDate(student.enrolled_at)}
-                        </span>
-                      </th>
-
-                      <td className="w-[120px] px-4 py-4">
-                        <p className="text-[14px] font-semibold tabular-nums text-navy-900">
-                          {finished.length}/{assessments.length}
-                        </p>
-                        <p
-                          className={cx(
-                            'mt-1 text-[11px]',
-                            missing > 0 ? 'text-amber-700' : 'text-teal-700'
-                          )}
-                        >
-                          {missing > 0
-                            ? `${missing} still due`
-                            : 'All completed'}
-                        </p>
-                      </td>
-
-                      <td className="w-[100px] px-4 py-4">
-                        {average === null ? (
-                          <span className="text-[13px] text-ink-faint">—</span>
-                        ) : (
-                          <>
-                            <p className="text-[14px] font-semibold tabular-nums text-navy-900">
-                              {average}%
-                            </p>
-                            <p className="mt-1 text-[11px] text-ink-faint">
-                              {scored.length} scored
-                            </p>
-                          </>
-                        )}
-                      </td>
-
-                      <td className="w-[110px] px-4 py-4">
-                        <Badge tone={warnings > 0 ? 'amber' : 'neutral'}>
-                          {warnings} event{warnings === 1 ? '' : 's'}
-                        </Badge>
-                      </td>
-
-                      <td className="min-w-[360px] px-4 py-3">
-                        <details className="group rounded-sm border border-line bg-surface">
-                          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-[13px] font-medium text-navy-800 hover:bg-navy-50">
-                            <span>
-                              View {assessments.length} assessment
-                              {assessments.length === 1 ? '' : 's'}
-                            </span>
-                            <span className="text-[11px] font-normal text-ink-faint group-open:hidden">
-                              Scores, status, time, warnings
-                            </span>
-                            <span className="hidden text-[11px] font-normal text-ink-faint group-open:inline">
-                              Hide details
-                            </span>
-                          </summary>
-                          <div className="grid gap-2 border-t border-line p-2 lg:grid-cols-2">
-                            {assessments.map((assessment) => (
-                              <AssessmentDetail
-                                key={assessment.id}
-                                courseId={course.id}
-                                assessment={assessment}
-                                attempt={attemptByAssessment.get(assessment.id)}
-                              />
-                            ))}
-                          </div>
-                        </details>
-                      </td>
-
-                      <td className="px-3 py-4 text-right">
-                        <form action={removeStudent}>
-                          <input type="hidden" name="course_id" value={course.id} />
-                          <input type="hidden" name="student_id" value={student.id} />
-                          <Button
-                            type="submit"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Remove ${student.full_name} from this course`}
-                            className="text-danger-600"
-                          >
-                            <TrashIcon width={14} height={14} />
-                            Remove
-                          </Button>
-                        </form>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {roster.length > 0 && assessments.length === 0 ? (
-          <p className="border-t border-line px-4 py-3 text-[13px] text-ink-soft sm:px-5">
-            Add assessments on the Assessments tab. Scores appear here as students
-            sit them.
-          </p>
-        ) : null}
-      </Panel>
+      )}
     </div>
-  )
-}
-
-function SummaryStat({
-  label,
-  value,
-  detail,
-  icon,
-  attention = false,
-}: {
-  label: string
-  value: number
-  detail: string
-  icon: React.ReactNode
-  attention?: boolean
-}) {
-  return (
-    <div className="rounded-md border border-line bg-surface p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[12px] font-medium tracking-wide text-ink-soft uppercase">
-          {label}
-        </p>
-        <span className={attention ? 'text-amber-600' : 'text-teal-700'}>
-          {icon}
-        </span>
-      </div>
-      <p className="mt-2 text-[24px] font-semibold tabular-nums text-navy-900">
-        {value}
-      </p>
-      <p className="mt-1 text-[11px] text-ink-faint">{detail}</p>
-    </div>
-  )
-}
-
-function AssessmentDetail({
-  courseId,
-  assessment,
-  attempt,
-}: {
-  courseId: string
-  assessment: AssessmentWithDay
-  attempt?: AssessmentAttempt
-}) {
-  const percent = scorePercent(attempt)
-  const elapsed = attempt ? elapsedLabel(attempt) : null
-  const status = attempt ? ATTEMPT_STATUS_LABELS[attempt.status] : 'Not started'
-
-  return (
-    <Link
-      href={`/admin/courses/${courseId}/assessments/${assessment.id}/results`}
-      className="rounded-sm border border-line bg-navy-50/40 p-3 transition-colors hover:border-teal-500 hover:bg-teal-50/50"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-[12px] font-semibold text-navy-900">
-            {assessment.title}
-          </p>
-          <p className="mt-0.5 text-[10px] text-ink-faint">
-            {assessment.dayNumber ? `Day ${assessment.dayNumber} · ` : ''}
-            {ASSESSMENT_LABELS[assessment.kind]}
-          </p>
-        </div>
-        <Badge tone={statusTone(attempt)}>{status}</Badge>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-end justify-between gap-2">
-        <div>
-          {percent === null || !attempt ? (
-            <p className="text-[13px] text-ink-faint">No score yet</p>
-          ) : (
-            <p className="text-[16px] font-semibold tabular-nums text-navy-900">
-              {attempt.correct_count}/{attempt.question_count}
-              <span className="ml-1.5 text-[11px] font-normal text-ink-soft">
-                {percent}%
-              </span>
-            </p>
-          )}
-        </div>
-        {attempt ? (
-          <p className="text-[10px] text-ink-faint">
-            {[elapsed, `${attempt.warning_count} integrity`]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-        ) : null}
-      </div>
-    </Link>
   )
 }

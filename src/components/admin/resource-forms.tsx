@@ -7,18 +7,45 @@ import {
   registerUploadedResource,
   type FormState,
 } from '@/app/actions/admin'
-import { Alert, Button, Field, Input, Select, Textarea } from '@/components/ui'
+import { Alert, Button, Field, Input, Select, Textarea, cx } from '@/components/ui'
+import {
+  FILE_ACCEPT,
+  UPLOAD_HINT,
+  formatUploadBytes,
+  isAllowedUpload,
+  resolveUploadMime,
+  suggestResourceKind,
+} from '@/lib/course-files'
 import { createClient } from '@/lib/supabase/client'
 
-const KINDS = [
+const UPLOAD_KINDS = [
   { value: 'slides', label: 'Slides' },
   { value: 'pdf', label: 'PDF' },
   { value: 'notebook', label: 'Notebook' },
   { value: 'lab', label: 'Lab' },
   { value: 'dataset', label: 'Dataset' },
-  { value: 'link', label: 'Link' },
   { value: 'file', label: 'Other file' },
 ]
+
+const LINK_KINDS = [
+  { value: 'lab', label: 'Lab' },
+  { value: 'notebook', label: 'Notebook' },
+  { value: 'link', label: 'Link' },
+  { value: 'slides', label: 'Slides' },
+  { value: 'pdf', label: 'PDF' },
+  { value: 'dataset', label: 'Dataset' },
+  { value: 'file', label: 'Other' },
+]
+
+function safeFileName(name: string) {
+  return (
+    name
+      .normalize('NFKD')
+      .replace(/[^\w.\-]+/g, '_')
+      .replace(/_+/g, '_')
+      .slice(-120) || 'file'
+  )
+}
 
 /* ------------------------------------------------------------ link form -- */
 
@@ -51,14 +78,14 @@ export function AddLinkForm({
           id="link_title"
           name="title"
           required
-          placeholder="Lab 1: first model call"
+          placeholder="Lab notebook or external resource"
         />
       </Field>
 
       <Field
         label="URL"
         htmlFor="external_url"
-        hint="Google Colab, GitHub, Drive, or anything with a link."
+        hint="Colab, GitHub, Drive, or any https link."
         error={state?.errors?.external_url}
       >
         <Input
@@ -67,14 +94,14 @@ export function AddLinkForm({
           type="url"
           required
           inputMode="url"
-          placeholder="https://colab.research.google.com/drive/…"
+          placeholder="https://"
         />
       </Field>
 
-      <div className="grid gap-4 sm:grid-cols-[180px_minmax(0,1fr)]">
+      <div className="grid gap-4 sm:grid-cols-[160px_minmax(0,1fr)]">
         <Field label="Type" htmlFor="link_kind" error={state?.errors?.kind}>
           <Select id="link_kind" name="kind" defaultValue="notebook">
-            {KINDS.map((k) => (
+            {LINK_KINDS.map((k) => (
               <option key={k.value} value={k.value}>
                 {k.label}
               </option>
@@ -87,7 +114,11 @@ export function AddLinkForm({
           htmlFor="link_description"
           error={state?.errors?.description}
         >
-          <Input id="link_description" name="description" />
+          <Input
+            id="link_description"
+            name="description"
+            placeholder="Optional"
+          />
         </Field>
       </div>
 
@@ -100,18 +131,6 @@ export function AddLinkForm({
 
 /* ---------------------------------------------------------- upload form -- */
 
-function safeFileName(name: string) {
-  return (
-    name
-      .normalize('NFKD')
-      .replace(/[^\w.\-]+/g, '_')
-      .replace(/_+/g, '_')
-      .slice(-120) || 'file'
-  )
-}
-
-const MAX_UPLOAD = 200 * 1024 * 1024
-
 export function UploadFileForm({
   courseId,
   dayId,
@@ -120,9 +139,33 @@ export function UploadFileForm({
   dayId: string
 }) {
   const formRef = useRef<HTMLFormElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  const [picked, setPicked] = useState<File | null>(null)
+  const [kind, setKind] = useState('slides')
+  const [title, setTitle] = useState('')
+
+  function onFileChange(file: File | null) {
+    setError(null)
+    setDone(false)
+    setPicked(file)
+    if (!file) return
+
+    const check = isAllowedUpload(file)
+    if (!check.ok) {
+      setError(check.reason)
+      setPicked(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
+    const suggested = suggestResourceKind(file)
+    setKind(suggested)
+    const base = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim()
+    if (!title.trim() && base.length >= 2) setTitle(base)
+  }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -131,33 +174,35 @@ export function UploadFileForm({
 
     const form = event.currentTarget
     const data = new FormData(form)
-    const file = data.get('file')
-    const title = String(data.get('title') ?? '').trim()
+    const file = picked ?? data.get('file')
+    const nextTitle = String(data.get('title') ?? '').trim()
 
     if (!(file instanceof File) || file.size === 0) {
       setError('Choose a file to upload.')
       return
     }
-    if (file.size > MAX_UPLOAD) {
-      setError('Files must be 200 MB or smaller.')
+
+    const check = isAllowedUpload(file)
+    if (!check.ok) {
+      setError(check.reason)
       return
     }
-    if (title.length < 2) {
+    if (nextTitle.length < 2) {
       setError('Give the item a title.')
       return
     }
 
+    const mime = resolveUploadMime(file) ?? check.mime
+
     setBusy(true)
     try {
-      // Straight to Storage. The bucket's RLS policy checks that this user
-      // manages the course named in the first path segment.
       const path = `${courseId}/${dayId}/${crypto.randomUUID()}-${safeFileName(file.name)}`
       const supabase = createClient()
 
       const { error: uploadError } = await supabase.storage
         .from('course-files')
         .upload(path, file, {
-          contentType: file.type || 'application/octet-stream',
+          contentType: mime,
           upsert: false,
         })
 
@@ -170,11 +215,11 @@ export function UploadFileForm({
         courseId,
         dayId,
         path,
-        title,
+        title: nextTitle,
         description: String(data.get('description') ?? ''),
         kind: String(data.get('kind') ?? 'file'),
         size: file.size,
-        mimeType: file.type || null,
+        mimeType: mime,
       })
 
       if (result?.message) {
@@ -187,6 +232,9 @@ export function UploadFileForm({
       }
 
       form.reset()
+      setPicked(null)
+      setTitle('')
+      setKind('slides')
       setDone(true)
     } catch {
       setError('Something went wrong during the upload. Please try again.')
@@ -198,35 +246,60 @@ export function UploadFileForm({
   return (
     <form ref={formRef} onSubmit={onSubmit} className="space-y-4" noValidate>
       {error ? <Alert>{error}</Alert> : null}
-      {done ? <Alert tone="teal">File added.</Alert> : null}
+      {done ? <Alert tone="teal">File added. It is a draft until you show it.</Alert> : null}
+
+      <div>
+        <label
+          htmlFor="file"
+          className={cx(
+            'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed border-line-strong bg-navy-50/40 px-4 py-8 text-center transition',
+            'hover:border-teal-600 hover:bg-teal-50/40'
+          )}
+        >
+          <span className="text-[14px] font-medium text-navy-900">
+            {picked ? 'Replace file' : 'Choose a file'}
+          </span>
+          <span className="max-w-md text-[12px] leading-snug text-ink-soft">
+            {UPLOAD_HINT}
+          </span>
+          {picked ? (
+            <span className="mt-2 text-[13px] font-medium text-teal-800">
+              {picked.name} · {formatUploadBytes(picked.size)}
+            </span>
+          ) : null}
+        </label>
+        <input
+          ref={fileInputRef}
+          id="file"
+          name="file"
+          type="file"
+          accept={FILE_ACCEPT}
+          required={!picked}
+          className="sr-only"
+          onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
+        />
+      </div>
 
       <Field label="Title" htmlFor="upload_title">
         <Input
           id="upload_title"
           name="title"
           required
-          placeholder="Day 1 slides"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="Short title students will see"
         />
       </Field>
 
-      <Field
-        label="File"
-        htmlFor="file"
-        hint="PDF, PowerPoint, notebook, dataset or archive. Up to 200 MB."
-      >
-        <Input
-          id="file"
-          name="file"
-          type="file"
-          required
-          className="file:me-3 file:rounded-xs file:border-0 file:bg-navy-100 file:px-2.5 file:py-1 file:text-[13px] file:font-medium file:text-navy-800"
-        />
-      </Field>
-
-      <div className="grid gap-4 sm:grid-cols-[180px_minmax(0,1fr)]">
+      <div className="grid gap-4 sm:grid-cols-[160px_minmax(0,1fr)]">
         <Field label="Type" htmlFor="upload_kind">
-          <Select id="upload_kind" name="kind" defaultValue="slides">
-            {KINDS.map((k) => (
+          <Select
+            id="upload_kind"
+            name="kind"
+            value={kind}
+            onChange={(event) => setKind(event.target.value)}
+          >
+            {UPLOAD_KINDS.map((k) => (
               <option key={k.value} value={k.value}>
                 {k.label}
               </option>
@@ -235,11 +308,16 @@ export function UploadFileForm({
         </Field>
 
         <Field label="Description" htmlFor="upload_description">
-          <Textarea id="upload_description" name="description" rows={1} />
+          <Textarea
+            id="upload_description"
+            name="description"
+            rows={1}
+            placeholder="Optional"
+          />
         </Field>
       </div>
 
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" disabled={busy || !picked}>
         {busy ? 'Uploading…' : 'Upload file'}
       </Button>
     </form>

@@ -1,0 +1,517 @@
+{
+  "schema": "sdaia-assessment/v1",
+  "kind": "quiz",
+  "title": "Final exam",
+  "day": 5,
+  "duration_minutes": 30,
+  "source": "final_exam/developing_generative_ai_solutions_final_approved_exam.md",
+  "note": "Approved paper, transcribed verbatim. Stems, options and keys must match the source file exactly; final-exam-content.test.ts enforces this.",
+  "sections": [
+    {
+      "n": 1,
+      "code": "A",
+      "title": "Section A — Multiple choice",
+      "brief": "Twenty standalone questions. Select the single best answer for each one.",
+      "layout": "one_per_screen"
+    },
+    {
+      "n": 2,
+      "code": "B",
+      "title": "Section B — True or false",
+      "brief": "Five statements. Decide whether each statement is true or false.",
+      "layout": "one_per_screen"
+    },
+    {
+      "n": 3,
+      "code": "C",
+      "title": "Section C — Shared use case",
+      "brief": "Read the scenario once, then answer all five questions on this page.",
+      "layout": "single_page",
+      "use_case": {
+        "title": "The use case",
+        "intro": "An organisation has 200 policy documents. Employees use an AI assistant to ask questions about leave and travel policies.",
+        "requirements_title": "The system must:",
+        "requirements": [
+          "Answer from current approved documents",
+          "Show the document name and page",
+          "State clearly when no approved evidence is available",
+          "Allow an employee to submit an objection",
+          "Ask for confirmation before submitting the objection",
+          "Protect documents that are private to specific departments",
+          "Continue working when many employees use it at the same time"
+        ],
+        "closing": "The questions begin with basic decisions and become gradually more challenging."
+      }
+    }
+  ],
+  "instructions": {
+    "heading": "Read this before you begin",
+    "points": [
+      "This exam has 30 questions in three sections: Section A has 20 multiple-choice questions, Section B has 5 true or false statements, and Section C has 5 questions about one shared use case.",
+      "You have 30 minutes for the whole exam. The clock runs on the server, so closing the page does not pause it.",
+      "This is one attempt. It cannot be reopened once submitted.",
+      "Select the single best answer for each question. Every answer saves the moment you pick it.",
+      "Question order and answer order are different for every student. Comparing with anyone near you will not help you.",
+      "Copying, pasting, selecting text and right-clicking are switched off for the whole exam.",
+      "Switching to another tab or window is recorded against the question you are on. Three recorded events on the same question make only that question worth zero points; the rest of your exam continues normally.",
+      "Your score is not shown when you submit. Your instructor releases marks and explanations after the exam."
+    ]
+  },
+  "questions": [
+    {
+      "section": 1,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "LLM generation",
+      "stem": "What does a large language model mainly do when it generates text?",
+      "options": {
+        "A": "Searches a trusted database for the correct sentence",
+        "B": "Predicts the next token from the available context",
+        "C": "Checks whether every statement is factually correct",
+        "D": "Stores the complete conversation permanently"
+      },
+      "correct": "B",
+      "rationale": "An LLM generates text by predicting the next token from the context already available. A model does not automatically search a trusted database, the generation loop does not verify truth, and a model does not automatically store conversations permanently."
+    },
+    {
+      "section": 1,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Context window",
+      "stem": "Which statement best describes the context window?",
+      "options": {
+        "A": "It is the model’s permanent memory of previous users.",
+        "B": "It is the collection of documents used during model training.",
+        "C": "It is the database where application records are stored.",
+        "D": "It is the maximum text available during one model request."
+      },
+      "correct": "D",
+      "rationale": "The context window is the maximum amount of text the model can use in one request, including instructions, history, retrieved text, the question, and the answer. Permanent memory is stored outside the model, training data is not the same as the current context, and application records belong in external storage."
+    },
+    {
+      "section": 1,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "API-key security",
+      "stem": "Where should an application store an API key?",
+      "options": {
+        "A": "In an environment variable or secrets manager",
+        "B": "In the system prompt sent to the model",
+        "C": "In the application’s public user interface",
+        "D": "In a source-code repository for easy access"
+      },
+      "correct": "A",
+      "rationale": "API keys are credentials and should be stored in environment variables or a dedicated secrets manager. The system prompt is not a secure location, a public interface would expose the key, and a key committed to a repository should be treated as compromised."
+    },
+    {
+      "section": 1,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Structured output",
+      "stem": "An application needs the model to return a task title, owner, and due date so that the result can be processed by code. Which approach is most appropriate?",
+      "options": {
+        "A": "Ask for a detailed paragraph and extract the fields manually.",
+        "B": "Increase the temperature to produce more varied responses.",
+        "C": "Require a structured schema and validate the returned data.",
+        "D": "Send a longer conversation history with every request."
+      },
+      "correct": "C",
+      "rationale": "A structured schema gives the output a defined shape, and validation checks that the response is safe for application code to use. Free text is harder to process, higher temperature increases variation rather than structural reliability, and more history does not guarantee a valid structure."
+    },
+    {
+      "section": 1,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Production readiness",
+      "stem": "A notebook can summarize meeting notes, but it has no authentication, error handling, logging, or monitoring. Why is it not yet a production solution?",
+      "options": {
+        "A": "It does not use the largest available language model.",
+        "B": "It is missing the application and operational controls around the model.",
+        "C": "It needs to fine-tune the model before other users can access it.",
+        "D": "It must store all meeting notes inside the model’s context window."
+      },
+      "correct": "B",
+      "rationale": "A production solution includes authentication, business rules, error handling, logging, monitoring, security, and other controls around the model. Model size does not create production readiness, fine-tuning is not required for deployment, and long-term data should not be stored in the context window."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Purpose of RAG",
+      "stem": "What is the main purpose of Retrieval-Augmented Generation (RAG)?",
+      "options": {
+        "A": "To provide the model with relevant external evidence at answer time",
+        "B": "To allow the model to execute actions in external systems",
+        "C": "To change the model’s behavior through additional training",
+        "D": "To store user sessions permanently inside the model"
+      },
+      "correct": "A",
+      "rationale": "RAG retrieves relevant evidence from an external knowledge source and supplies it to the model when it answers. Tools and agents support external actions, fine-tuning changes model behavior through training, and sessions are managed by the application."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Embeddings",
+      "stem": "What is an embedding?",
+      "options": {
+        "A": "A readable summary generated for each document",
+        "B": "A permanent instruction stored inside the language model",
+        "C": "A list of keywords copied from the user’s question",
+        "D": "A numerical representation used to compare meaning"
+      },
+      "correct": "D",
+      "rationale": "An embedding is a numerical vector used to compare semantic meaning between text passages and queries. It is not a readable summary, not a model instruction, and not simply a keyword list."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Keyword search",
+      "stem": "Which search method is normally strongest for an exact reference such as HR-204?",
+      "options": {
+        "A": "Semantic reranking only",
+        "B": "Random sampling from the index",
+        "C": "Keyword search",
+        "D": "Answer generation"
+      },
+      "correct": "C",
+      "rationale": "Keyword search is strong for exact codes, identifiers, names, and precise phrases. Reranking can improve candidate ordering but does not replace exact-term retrieval, random sampling is not a retrieval method, and generation happens after retrieval."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Metadata filtering",
+      "stem": "A RAG system retrieves an archived policy instead of the current approved version. What is the best first improvement?",
+      "options": {
+        "A": "Increase the context-window size.",
+        "B": "Filter documents using version and status metadata.",
+        "C": "Increase the model’s temperature.",
+        "D": "Replace the retriever with an autonomous agent."
+      },
+      "correct": "B",
+      "rationale": "Version, approval status, and date metadata allow the retriever to exclude archived documents. A larger context can include more wrong information, temperature does not control document versions, and an agent does not solve incorrect filtering by itself."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Groundedness failure",
+      "stem": "The correct passage reaches the model, but the answer adds a condition that is not present in the passage. Which area should be investigated first?",
+      "options": {
+        "A": "Document ingestion and file upload",
+        "B": "Embedding dimensions and index configuration",
+        "C": "Metadata storage and document identifiers",
+        "D": "Generation instructions and groundedness"
+      },
+      "correct": "D",
+      "rationale": "The correct evidence was retrieved, but the model did not remain faithful to it, so this is mainly a generation or groundedness problem. The source was already ingested, the correct passage was already found, and metadata did not cause the unsupported condition."
+    },
+    {
+      "section": 1,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Indexing pipeline",
+      "stem": "An organisation approves a new policy document. What should happen before employees can retrieve it through the RAG system?",
+      "options": {
+        "A": "Clean, chunk, embed, and add the document to the index",
+        "B": "Send the full document with every employee question",
+        "C": "Ask the model to remember the document permanently",
+        "D": "Create an objection tool for the new policy"
+      },
+      "correct": "A",
+      "rationale": "A new document must pass through the offline preparation pipeline before users can retrieve it: it is cleaned, divided into chunks, embedded, and added to the index. Sending the full document every time wastes context and cost, the model does not permanently remember documents from a request, and an objection tool is unrelated."
+    },
+    {
+      "section": 1,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Tool execution",
+      "stem": "A model returns a request to call a function. Who actually executes the function?",
+      "options": {
+        "A": "The vector database",
+        "B": "The system prompt",
+        "C": "The application code",
+        "D": "The language model itself"
+      },
+      "correct": "C",
+      "rationale": "The model returns a structured request. Application code checks it and decides whether to execute the function. A vector database searches representations, a system prompt provides instructions, and the model does not directly execute code."
+    },
+    {
+      "section": 1,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Tool descriptions",
+      "stem": "What is the main purpose of a clear tool description?",
+      "options": {
+        "A": "To increase the model’s context-window size",
+        "B": "To explain when and how the tool should be used",
+        "C": "To give the tool permanent access to all systems",
+        "D": "To remove the need for argument validation"
+      },
+      "correct": "B",
+      "rationale": "A tool description tells the model what the tool does, when to call it, and what its limits are. It does not change context capacity, tool permissions must remain limited, and arguments still require validation."
+    },
+    {
+      "section": 1,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Agent step limit",
+      "stem": "Why should every agent have a step limit?",
+      "options": {
+        "A": "To make every answer more creative",
+        "B": "To increase the number of available tools",
+        "C": "To replace monitoring and logging",
+        "D": "To stop uncontrolled loops and repeated model calls"
+      },
+      "correct": "D",
+      "rationale": "A step limit bounds the agent loop and prevents uncontrolled cost, repeated calls, and failure to stop. It is not a creativity setting, it does not add tools, and monitoring is still required."
+    },
+    {
+      "section": 1,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Tool-error recovery",
+      "stem": "A tool cannot find employee ID E-99999. Which response is most useful for agent recovery?",
+      "options": {
+        "A": "{\"error\": \"Employee not found. Valid IDs look like E-10482. Ask the user to confirm.\"}",
+        "B": "An empty result with no explanation",
+        "C": "A successful response containing an estimated employee record",
+        "D": "A hidden exception that the model cannot read"
+      },
+      "correct": "A",
+      "rationale": "A clear structured error gives the model enough information to correct the request or ask the user for help. An empty result gives no recovery guidance, estimating a record would be unsafe and incorrect, and a hidden exception cannot help the agent recover."
+    },
+    {
+      "section": 1,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Workflow and approval",
+      "stem": "A process always checks a form, verifies a record, asks for user approval, and then submits the request. The order never changes. Which design is most appropriate?",
+      "options": {
+        "A": "An autonomous agent that chooses a different path each time",
+        "B": "A direct model call with no application workflow",
+        "C": "A fixed workflow with an approval step before submission",
+        "D": "A multi-agent system with a manager and several workers"
+      },
+      "correct": "C",
+      "rationale": "The sequence is stable and known in advance, so a fixed workflow is more predictable and testable. Because submission changes an external system, the approval step should remain explicit. An autonomous agent adds unnecessary variability, a direct model call cannot manage the controlled process, and a multi-agent design adds complexity without solving a real requirement."
+    },
+    {
+      "section": 1,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Rate limiting",
+      "stem": "What is the main purpose of rate limiting?",
+      "options": {
+        "A": "To make the model’s writing more consistent",
+        "B": "To control how much service one user can consume",
+        "C": "To improve the semantic quality of embeddings",
+        "D": "To convert synchronous work into a queue"
+      },
+      "correct": "B",
+      "rationale": "Rate limiting restricts the amount of service one user may consume during a defined period. It does not control writing style, it does not improve embeddings, and a queue is used for asynchronous work."
+    },
+    {
+      "section": 1,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Observability",
+      "stem": "A production request is slow. Engineers need to know what happened, where the time was spent, and whether the problem is increasing over time. Which information should the system record?",
+      "options": {
+        "A": "Logs, traces, and metrics",
+        "B": "Prompts, temperature, and answer style",
+        "C": "Chunks, embeddings, and document titles",
+        "D": "Fine-tuning data, model weights, and training loss"
+      },
+      "correct": "A",
+      "rationale": "The team needs three kinds of operational information: logs for what happened, traces for where time was spent, and metrics for behavior over time. Prompt settings do not provide operational visibility, retrieval data is not production observability, and training information does not explain an individual production request."
+    },
+    {
+      "section": 1,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Retry and recovery",
+      "stem": "A model provider returns a temporary timeout. Which response is most appropriate?",
+      "options": {
+        "A": "Rebuild the complete vector index.",
+        "B": "Fine-tune the model on timeout examples.",
+        "C": "Repeat the request forever until it succeeds.",
+        "D": "Use a limited retry with increasing delay."
+      },
+      "correct": "D",
+      "rationale": "A temporary failure may be retried a limited number of times with increasing and slightly randomized delay. Rebuilding the index is unrelated, fine-tuning cannot repair a temporary timeout, and unlimited retry can create a loop and increase load."
+    },
+    {
+      "section": 1,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Circuit breaker",
+      "stem": "A model provider starts returning temporary errors to many users. Repeated requests are increasing the load. Which response is most appropriate?",
+      "options": {
+        "A": "Retry immediately without a limit and keep users waiting for the provider.",
+        "B": "Increase every request timeout and continue sending calls during the failure.",
+        "C": "Use limited backoff retries, then open a circuit breaker and return a clear fallback.",
+        "D": "Queue all failed requests and replay them together when the provider returns."
+      },
+      "correct": "C",
+      "rationale": "The provider failure is temporary, but repeated calls are worsening the problem. Backoff retries, a circuit breaker, and a fallback address different stages of the failure. Unlimited immediate retries increase load, a longer timeout does not prevent repeated calls, and replaying all queued requests together can create another capacity spike."
+    },
+    {
+      "section": 2,
+      "day": 1,
+      "format": "true_false",
+      "difficulty": "easy",
+      "topic": "Hallucination",
+      "stem": "A fluent and confident answer can still be unsupported by a real source.",
+      "options": { "A": "True", "B": "False" },
+      "correct": "A",
+      "rationale": "True. A language model can produce fluent and confident text without factual support. Clear writing is not evidence that an answer is correct."
+    },
+    {
+      "section": 2,
+      "day": 2,
+      "format": "true_false",
+      "difficulty": "medium",
+      "topic": "Similarity vs relevance",
+      "stem": "A high vector-similarity score proves that a retrieved passage contains the answer to the user’s question.",
+      "options": { "A": "True", "B": "False" },
+      "correct": "B",
+      "rationale": "False. A high vector-similarity score shows related meaning, but it does not prove that the passage answers the question. This tests the distinction between semantic similarity and answer relevance."
+    },
+    {
+      "section": 2,
+      "day": 3,
+      "format": "true_false",
+      "difficulty": "easy",
+      "topic": "Agentic RAG",
+      "stem": "In agentic RAG, the model may decide whether another retrieval step is needed.",
+      "options": { "A": "True", "B": "False" },
+      "correct": "A",
+      "rationale": "True. In agentic RAG, retrieval is available as a tool. The model may decide whether to search, what to search for, and whether another search is required."
+    },
+    {
+      "section": 2,
+      "day": 4,
+      "format": "true_false",
+      "difficulty": "easy",
+      "topic": "Streaming",
+      "stem": "Streaming can make a response feel faster even when the total generation time remains unchanged.",
+      "options": { "A": "True", "B": "False" },
+      "correct": "A",
+      "rationale": "True. Streaming shows the output as it is generated. This improves perceived responsiveness, although the time required to finish the complete answer may remain unchanged."
+    },
+    {
+      "section": 2,
+      "day": 4,
+      "format": "true_false",
+      "difficulty": "medium",
+      "topic": "Multilingual security",
+      "stem": "Security testing performed only in English is sufficient for a system that also serves Arabic users.",
+      "options": { "A": "True", "B": "False" },
+      "correct": "B",
+      "rationale": "False. Security testing must be performed in every language the system serves, including Arabic. A control that works in English may fail when prompts, retrieved content, or attacks are written in another language."
+    },
+    {
+      "section": 3,
+      "day": 1,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Application responsibility",
+      "stem": "Before an employee’s question is sent to the model, which component should verify the employee’s identity and permissions?",
+      "options": {
+        "A": "The embedding model",
+        "B": "The application or API",
+        "C": "The language model",
+        "D": "The vector index"
+      },
+      "correct": "B",
+      "rationale": "Identity, authorization, and business rules belong to the application layer, not to the language model. The embedding model represents text for semantic search, the model must not determine authenticated identity or permission, and the vector index stores searchable representations without authenticating users."
+    },
+    {
+      "section": 3,
+      "day": 2,
+      "format": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "RAG and citations",
+      "stem": "Which architecture best supports answers from current policies with the document name and page?",
+      "options": {
+        "A": "A direct model call",
+        "B": "Fine-tuning the model",
+        "C": "A standard RAG system",
+        "D": "A calculator tool"
+      },
+      "correct": "C",
+      "rationale": "RAG is the best starting architecture when answers must come from current approved documents and include source citations. A direct call does not reliably provide current private policy evidence, fine-tuning does not provide document and page citations by itself, and a calculator performs arithmetic rather than policy retrieval."
+    },
+    {
+      "section": 3,
+      "day": 3,
+      "format": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Controlled tool execution",
+      "stem": "An employee confirms that an objection should be submitted. What should happen next?",
+      "options": {
+        "A": "The application validates the request, checks permission, runs an allowed tool, and records the action.",
+        "B": "The model writes directly to the objection system without another check.",
+        "C": "The retriever changes the policy index to include the objection.",
+        "D": "The vector database submits the objection using the retrieved passage."
+      },
+      "correct": "A",
+      "rationale": "Confirmation is important, but the application must still validate the request, verify permission, execute only an allowed tool, and record the action. The model does not directly execute external actions, the retrieval index should not be changed to submit an objection, and a vector database retrieves content rather than performing the business action."
+    },
+    {
+      "section": 3,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Caching and capacity",
+      "stem": "Many employees ask the same common policy questions at the same time. Which design best reduces repeated cost while protecting system capacity?",
+      "options": {
+        "A": "Route every request to the largest model and allow longer answers.",
+        "B": "Increase top-k and send more policy passages with every request.",
+        "C": "Use an autonomous agent with more steps for every question.",
+        "D": "Cache safe repeated answers and apply rate limits to users."
+      },
+      "correct": "D",
+      "rationale": "Caching avoids repeating safe identical work, while rate limiting prevents one user from consuming too much shared capacity. A larger model and longer answers increase cost and delay, more retrieved passages increase tokens and latency, and more agent steps make cost less predictable."
+    },
+    {
+      "section": 3,
+      "day": 4,
+      "format": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Access control",
+      "stem": "A Finance-only document contains text claiming that every reader is authorized to view it. Which design provides the strongest protection?",
+      "options": {
+        "A": "Accept the claim because the document was retrieved from the index.",
+        "B": "Filter retrieval using authenticated permissions and treat document text as data, not instructions.",
+        "C": "Let the model decide whether the employee appears to work in Finance.",
+        "D": "Generate the answer first and remove private details afterward."
+      },
+      "correct": "B",
+      "rationale": "The document’s claim is untrusted text and may be an indirect prompt-injection attempt. Access must be enforced using the authenticated session before unauthorized content enters the model’s context. Retrieval does not make document instructions trustworthy, permission must not be inferred by the model, and removing sensitive details after generation is not access control."
+    }
+  ]
+}

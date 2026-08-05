@@ -8,9 +8,11 @@ import { QuizExpired } from '@/components/quiz-expired'
 import { QuizReview } from '@/components/quiz-review'
 import { QuizRunner } from '@/components/quiz-runner'
 import { QuizPreview } from '@/components/quiz-preview'
+import { QuizSubmitted } from '@/components/quiz-submitted'
 import { StudentViewBanner } from '@/components/student-view-banner'
-import { Alert, Button, Panel } from '@/components/ui'
+import { Alert, BackLink, Button, Panel } from '@/components/ui'
 import { isManager, requireProfile } from '@/lib/dal'
+import { readExamSections } from '@/lib/exam-sections'
 import { ASSESSMENT_LABELS, formatDuration } from '@/lib/format'
 import { getPublishedQuestionCounts } from '@/lib/published'
 import {
@@ -46,7 +48,7 @@ export default async function QuizPage({
   const { data: assessment } = await supabase
     .from('assessments')
     .select(
-      'id, course_id, kind, title, description, duration_minutes, required_question_count, is_locked, is_published, day:course_days(day_number), course:courses(slug, title)'
+      'id, course_id, kind, title, description, duration_minutes, required_question_count, is_locked, is_published, sections, instructions, results_released, day:course_days(day_number), course:courses(slug, title)'
     )
     .eq('id', assessmentId)
     .maybeSingle()
@@ -111,8 +113,11 @@ export default async function QuizPage({
         attemptId={attempt.id}
         title={assessment.title}
         questions={paper}
+        sections={readExamSections(assessment.sections)}
         expiresAt={attempt.expires_at}
         initialWarnings={attempt.warning_count}
+        lockdown
+        resultsHidden={!assessment.results_released}
       />
     )
   }
@@ -120,6 +125,20 @@ export default async function QuizPage({
   /* ---- finished ---- */
 
   if (attempt) {
+    // Held-back results are held back everywhere. There is no score on the
+    // attempt and RLS refuses the keys, so building the review would produce an
+    // empty screen rather than a hidden one.
+    if (!assessment.results_released) {
+      return (
+        <QuizSubmitted
+          attempt={attempt}
+          title={assessment.title}
+          backHref={backHref}
+          backLabel={backLabel}
+        />
+      )
+    }
+
     const questions = await getAttemptReview(attempt)
     return (
       <QuizReview
@@ -143,6 +162,12 @@ export default async function QuizPage({
     !assessment.is_locked &&
     questionCount === assessment.required_question_count
 
+  // Stored as one point per line, so authoring stays plain text.
+  const instructionPoints = (assessment.instructions ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+
   return (
     <Shell>
       {studentView ? (
@@ -152,6 +177,9 @@ export default async function QuizPage({
       ) : null}
 
       <div className="animate-page">
+        <div className="mb-5">
+          <BackLink href={backHref}>{backLabel}</BackLink>
+        </div>
         <p className="text-[12px] font-semibold tracking-wide text-teal-700 uppercase">
           {ASSESSMENT_LABELS[assessment.kind]}
           {dayNumber ? ` · Day ${dayNumber}` : ''}
@@ -170,6 +198,39 @@ export default async function QuizPage({
         <Alert className="mt-5" title="Could not start">
           {error}
         </Alert>
+      ) : null}
+
+      {/* The exam briefing. Set deliberately larger than the rest of the page:
+          this is the one block a student must actually read, and it loses that
+          job the moment it looks like the small print underneath it. */}
+      {instructionPoints.length > 0 ? (
+        <section
+          aria-label="Exam instructions"
+          className="mt-6 rounded-md border-2 border-navy-900/20 bg-surface p-5 sm:p-7"
+        >
+          <h2 className="text-[20px] font-semibold text-navy-900 sm:text-[24px]">
+            Read this before you begin
+          </h2>
+          <p className="mt-1.5 text-[14px] text-ink-soft">
+            These rules apply for the whole exam.
+          </p>
+
+          <ol className="mt-5 space-y-3.5">
+            {instructionPoints.map((point, i) => (
+              <li key={point} className="flex gap-3.5">
+                <span
+                  aria-hidden
+                  className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-sm border border-navy-200 bg-navy-50 text-[13px] font-bold text-navy-800"
+                >
+                  {i + 1}
+                </span>
+                <span className="text-[15.5px] leading-relaxed text-ink sm:text-[16.5px]">
+                  {point}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
       ) : null}
 
       <Panel className="mt-6 p-5 sm:p-6">
@@ -250,13 +311,6 @@ export default async function QuizPage({
                 : 'This is not open yet. Your instructor will release it when the class is ready.'}
             </p>
           )}
-
-          <Link
-            href={backHref}
-            className="text-[13px] font-medium text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-navy-900"
-          >
-            {backLabel}
-          </Link>
         </div>
       </Panel>
     </Shell>

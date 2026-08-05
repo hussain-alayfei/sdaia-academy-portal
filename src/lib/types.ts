@@ -299,6 +299,7 @@ export type Database = {
           format: Database['public']['Enums']['question_format']
           id: string
           position: number
+          section: number
           stem: string
           topic: string | null
           updated_at: string
@@ -311,6 +312,7 @@ export type Database = {
           format?: Database['public']['Enums']['question_format']
           id?: string
           position?: number
+          section?: number
           stem: string
           topic?: string | null
           updated_at?: string
@@ -323,6 +325,7 @@ export type Database = {
           format?: Database['public']['Enums']['question_format']
           id?: string
           position?: number
+          section?: number
           stem?: string
           topic?: string | null
           updated_at?: string
@@ -483,12 +486,15 @@ export type Database = {
           description: string | null
           duration_minutes: number
           id: string
+          instructions: string | null
           is_locked: boolean
           is_published: boolean
           kind: Database['public']['Enums']['assessment_kind']
           opens_at: string | null
           position: number
           required_question_count: number
+          results_released: boolean
+          sections: Json | null
           shuffle: boolean
           title: string
           updated_at: string
@@ -501,12 +507,15 @@ export type Database = {
           description?: string | null
           duration_minutes?: number
           id?: string
+          instructions?: string | null
           is_locked?: boolean
           is_published?: boolean
           kind: Database['public']['Enums']['assessment_kind']
           opens_at?: string | null
           position?: number
           required_question_count?: number
+          results_released?: boolean
+          sections?: Json | null
           shuffle?: boolean
           title: string
           updated_at?: string
@@ -519,12 +528,15 @@ export type Database = {
           description?: string | null
           duration_minutes?: number
           id?: string
+          instructions?: string | null
           is_locked?: boolean
           is_published?: boolean
           kind?: Database['public']['Enums']['assessment_kind']
           opens_at?: string | null
           position?: number
           required_question_count?: number
+          results_released?: boolean
+          sections?: Json | null
           shuffle?: boolean
           title?: string
           updated_at?: string
@@ -649,6 +661,103 @@ export type Database = {
           },
         ]
       }
+      notification_events: {
+        Row: {
+          actor_id: string | null
+          body: string
+          course_id: string
+          created_at: string
+          day_id: string | null
+          entity_id: string
+          entity_type: string
+          href: string
+          id: string
+          kind: Database['public']['Enums']['notification_event_kind']
+          title: string
+        }
+        Insert: {
+          actor_id?: string | null
+          body: string
+          course_id: string
+          created_at?: string
+          day_id?: string | null
+          entity_id: string
+          entity_type: string
+          href: string
+          id?: string
+          kind: Database['public']['Enums']['notification_event_kind']
+          title: string
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string
+          course_id?: string
+          created_at?: string
+          day_id?: string | null
+          entity_id?: string
+          entity_type?: string
+          href?: string
+          id?: string
+          kind?: Database['public']['Enums']['notification_event_kind']
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notification_events_actor_id_fkey'
+            columns: ['actor_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_events_course_id_fkey'
+            columns: ['course_id']
+            isOneToOne: false
+            referencedRelation: 'courses'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_events_day_id_fkey'
+            columns: ['day_id']
+            isOneToOne: false
+            referencedRelation: 'course_days'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      notification_reads: {
+        Row: {
+          event_id: string
+          read_at: string
+          student_id: string
+        }
+        Insert: {
+          event_id: string
+          read_at?: string
+          student_id: string
+        }
+        Update: {
+          event_id?: string
+          read_at?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notification_reads_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'notification_events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_reads_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       enrollments: {
         Row: {
           course_id: string
@@ -687,26 +796,44 @@ export type Database = {
       }
       profiles: {
         Row: {
+          bio: string | null
+          city: string | null
           created_at: string
+          education: string | null
           email: string
           full_name: string
           id: string
+          job_title: string | null
+          linkedin_url: string | null
+          organization: string | null
           role: Database['public']['Enums']['app_role']
           updated_at: string
         }
         Insert: {
+          bio?: string | null
+          city?: string | null
           created_at?: string
+          education?: string | null
           email?: string
           full_name?: string
           id: string
+          job_title?: string | null
+          linkedin_url?: string | null
+          organization?: string | null
           role?: Database['public']['Enums']['app_role']
           updated_at?: string
         }
         Update: {
+          bio?: string | null
+          city?: string | null
           created_at?: string
+          education?: string | null
           email?: string
           full_name?: string
           id?: string
+          job_title?: string | null
+          linkedin_url?: string | null
+          organization?: string | null
           role?: Database['public']['Enums']['app_role']
           updated_at?: string
         }
@@ -808,6 +935,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_assessment_results_released: {
+        Args: { p_assessment: string; p_released: boolean }
+        Returns: number
+      }
       start_attempt: { Args: { p_assessment: string }; Returns: string }
       submit_attempt: {
         Args: { p_attempt: string; p_reason?: string }
@@ -828,6 +959,11 @@ export type Database = {
         | 'copy'
         | 'paste'
         | 'context_menu'
+      notification_event_kind:
+        | 'resource_added'
+        | 'day_published'
+        | 'assessment_published'
+        | 'assessment_unlocked'
       question_difficulty: 'easy' | 'medium' | 'hard'
       question_format: 'multiple_choice' | 'true_false'
       resource_kind:
@@ -862,6 +998,7 @@ export type QuestionDifficulty = Enums<'question_difficulty'>
 export type QuestionFormat = Enums<'question_format'>
 export type AttemptStatus = Enums<'attempt_status'>
 export type IntegrityEventKind = Enums<'integrity_event_kind'>
+export type NotificationEventKind = Enums<'notification_event_kind'>
 
 export type Profile = Tables<'profiles'>
 export type Course = Tables<'courses'>
@@ -870,6 +1007,8 @@ export type Resource = Tables<'resources'>
 export type Assessment = Tables<'assessments'>
 export type AssessmentScore = Tables<'assessment_scores'>
 export type Enrollment = Tables<'enrollments'>
+export type NotificationEvent = Tables<'notification_events'>
+export type NotificationRead = Tables<'notification_reads'>
 
 export type AssessmentQuestion = Tables<'assessment_questions'>
 export type AssessmentOption = Tables<'assessment_options'>

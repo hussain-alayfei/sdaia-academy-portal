@@ -10,15 +10,21 @@ import {
   ClockIcon,
   FlagIcon,
 } from '@/components/icons'
+import { ExamLockdown } from '@/components/exam-lockdown'
 import { IntegrityGuard } from '@/components/integrity-guard'
 import { Alert, Button, cx } from '@/components/ui'
 import { formatClock } from '@/lib/format'
+import {
+  buildExamPages,
+  pageOfQuestion,
+  type ExamSection,
+} from '@/lib/exam-sections'
 import type { PaperQuestion } from '@/lib/quiz'
 
 /**
  * The live attempt.
  *
- * Three things here are load-bearing:
+ * Four things here are load-bearing:
  *
  * 1. **The clock is the server's.** `expiresAt` was stamped by `start_attempt`
  *    and every tick recomputes against it, so the countdown survives a throttled
@@ -31,28 +37,49 @@ import type { PaperQuestion } from '@/lib/quiz'
  *    actually done rather than losing all of it.
  *
  * 3. **Nothing here knows the right answer.** The paper arrives without a key —
- *    RLS refuses it until the attempt is submitted — so there is nothing to find
- *    in the page source.
+ *    RLS refuses it until the attempt is submitted, and for a paper whose
+ *    results are still hidden it refuses it then too — so there is nothing to
+ *    find in the page source.
+ *
+ * 4. **Sections are paged, not merged.** A section marked `single_page` puts its
+ *    whole run on one screen, which is what lets the shared use case sit above
+ *    its five questions instead of being repeated in front of each one.
  */
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+
+/** Red for the last five minutes, as agreed with the instructor. */
+const RED_FROM_SECONDS = 300
 
 export function QuizRunner({
   attemptId,
   title,
   questions,
+  sections = [],
   expiresAt,
   initialWarnings,
+  lockdown = false,
+  resultsHidden = false,
 }: {
   attemptId: string
   title: string
   questions: PaperQuestion[]
+  sections?: ExamSection[]
   expiresAt: string
   initialWarnings: number
+  /** Blocks selection, right-click, cut, drag and copy/save/print shortcuts. */
+  lockdown?: boolean
+  /** True when submitting will not reveal a score. Changes the closing copy. */
+  resultsHidden?: boolean
 }) {
   const router = useRouter()
 
-  const [index, setIndex] = useState(0)
+  const pages = useMemo(
+    () => buildExamPages(questions, sections),
+    [questions, sections]
+  )
+
+  const [pageIndex, setPageIndex] = useState(0)
   const [direction, setDirection] = useState<'next' | 'prev'>('next')
   const [answers, setAnswers] = useState<Record<string, string | null>>(() =>
     Object.fromEntries(questions.map((q) => [q.id, q.selectedOptionId]))
@@ -78,6 +105,25 @@ export function QuizRunner({
   )
   const [confirming, setConfirming] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+
+  const page = pages[pageIndex]
+
+  /**
+   * Which question an integrity event belongs to.
+   *
+   * On a one-question screen this is simply that question. On a `single_page`
+   * section it follows the last option the student touched, so a penalty lands
+   * on the question they were actually working through rather than always on
+   * the first one of the group.
+   */
+  const [activeQuestionId, setActiveQuestionId] = useState<string>(
+    () => questions[0]?.id ?? ''
+  )
+
+  useEffect(() => {
+    const first = page ? questions[page.questions[0]] : undefined
+    if (first) setActiveQuestionId(first.id)
+  }, [page, questions])
 
   const [secondsLeft, setSecondsLeft] = useState(() =>
     Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000))
@@ -160,20 +206,27 @@ export function QuizRunner({
   )
 
   const choose = (questionId: string, optionId: string) => {
+    setActiveQuestionId(questionId)
     setAnswers((prev) => ({ ...prev, [questionId]: optionId }))
     void persist(questionId, optionId, flags[questionId] ?? false)
   }
 
   const toggleFlag = (questionId: string) => {
     const next = !flags[questionId]
+    setActiveQuestionId(questionId)
     setFlags((prev) => ({ ...prev, [questionId]: next }))
     void persist(questionId, answers[questionId] ?? null, next)
   }
 
-  const go = (target: number) => {
-    if (target < 0 || target >= questions.length) return
-    setDirection(target > index ? 'next' : 'prev')
-    setIndex(target)
+  const goToPage = (target: number) => {
+    if (target < 0 || target >= pages.length) return
+    setDirection(target > pageIndex ? 'next' : 'prev')
+    setPageIndex(target)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const goToQuestion = (questionIndex: number) => {
+    goToPage(pageOfQuestion(pages, questionIndex))
   }
 
   const unanswered = useMemo(
@@ -185,24 +238,47 @@ export function QuizRunner({
     [questions, flags]
   )
 
-  const question = questions[index]
   const answeredCount = questions.length - unanswered.length
 
-  const urgency =
-    secondsLeft <= 60 ? 'danger' : secondsLeft <= 300 ? 'amber' : 'calm'
+  /** Runs of the same section, for the grouped navigator. */
+  const navGroups = useMemo(() => {
+    const groups: Array<{ section: ExamSection | null; items: number[] }> = []
+    for (const [i, question] of questions.entries()) {
+      const last = groups[groups.length - 1]
+      if (last && questions[last.items[0]].section === question.section) {
+        last.items.push(i)
+      } else {
+        groups.push({
+          section: sections.find((s) => s.n === question.section) ?? null,
+          items: [i],
+        })
+      }
+    }
+    return groups
+  }, [questions, sections])
+
+  const urgent = secondsLeft <= RED_FROM_SECONDS
+  const critical = secondsLeft <= 60
+  const isLastPage = pageIndex === pages.length - 1
+
+  if (!page) return null
 
   return (
-    <div className="min-h-dvh bg-canvas">
+    <div className={cx('min-h-dvh bg-canvas', lockdown && 'select-none')}>
+      <ExamLockdown active={lockdown && !finished} />
+
       <IntegrityGuard
         attemptId={attemptId}
-        questionId={question.id}
-        questionNumber={index + 1}
+        questionId={activeQuestionId}
+        questionNumber={
+          questions.findIndex((q) => q.id === activeQuestionId) + 1
+        }
         active={!finished}
         onWarning={(totalCount, questionCount, invalidated) => {
           setWarnings(totalCount)
           setIntegrityByQuestion((prev) => ({
             ...prev,
-            [question.id]: { count: questionCount, invalidated },
+            [activeQuestionId]: { count: questionCount, invalidated },
           }))
         }}
       />
@@ -226,187 +302,293 @@ export function QuizRunner({
               title="Integrity events recorded during this attempt"
             >
               <AlertIcon width={13} height={13} />
-              {warnings} integrity event{warnings === 1 ? '' : 's'}
+              {warnings}
             </span>
           ) : null}
 
-          <span
+          {/* Deliberately large. A student glancing up mid-question should read
+              the remaining time without hunting for it, and the last five
+              minutes should be impossible to miss. */}
+          <div
             role="timer"
             aria-live="off"
             className={cx(
-              'inline-flex items-center gap-1.5 rounded-xs border px-2.5 py-1 font-mono text-[14px] font-medium tabular-nums',
-              urgency === 'danger' &&
-                'border-danger-500/30 bg-danger-50 text-danger-600',
-              urgency === 'amber' && 'border-amber-200 bg-amber-50 text-amber-800',
-              urgency === 'calm' && 'border-line bg-navy-50 text-navy-800'
+              'inline-flex items-center gap-2 rounded-sm border-2 px-3 py-1.5 sm:px-4 sm:py-2',
+              urgent
+                ? 'border-danger-500 bg-danger-50'
+                : 'border-line-strong bg-navy-50'
             )}
           >
-            <ClockIcon width={14} height={14} />
-            {formatClock(secondsLeft)}
-          </span>
+            <ClockIcon
+              width={20}
+              height={20}
+              className={urgent ? 'text-danger-600' : 'text-navy-600'}
+            />
+            <span
+              className={cx(
+                'font-mono text-[22px] leading-none font-bold tabular-nums sm:text-[28px]',
+                urgent ? 'text-danger-600' : 'text-navy-900',
+                critical && 'animate-pulse'
+              )}
+            >
+              {formatClock(secondsLeft)}
+            </span>
+          </div>
         </div>
+
+        {urgent ? (
+          <p className="border-t border-danger-500/30 bg-danger-50 px-4 py-1.5 text-center text-[13px] font-semibold text-danger-600 sm:px-6">
+            {critical
+              ? 'Less than one minute left. Your answers are already saved.'
+              : 'Less than five minutes left.'}
+          </p>
+        ) : null}
       </header>
 
       <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
         {/* --------------------------------------------------------- navigator */}
-        <nav aria-label="Questions" className="mb-6">
-          <ol className="flex flex-wrap gap-1.5">
-            {questions.map((q, i) => {
-              const isAnswered = Boolean(answers[q.id])
-              const isFlagged = flags[q.id]
-              const isCurrent = i === index
-              const invalidated = integrityByQuestion[q.id]?.invalidated
+        <nav aria-label="Questions" className="mb-6 space-y-3">
+          {navGroups.map((group, groupIndex) => (
+            <div key={group.section?.n ?? `g${groupIndex}`}>
+              {group.section ? (
+                <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-ink-faint uppercase">
+                  {group.section.title}
+                </p>
+              ) : null}
+              <ol className="flex flex-wrap gap-1.5">
+                {group.items.map((i) => {
+                  const q = questions[i]
+                  const isAnswered = Boolean(answers[q.id])
+                  const isFlagged = flags[q.id]
+                  const isCurrent = page.questions.includes(i)
+                  const invalidated = integrityByQuestion[q.id]?.invalidated
 
-              return (
-                <li key={q.id}>
-                  <button
-                    type="button"
-                    onClick={() => go(i)}
-                    aria-current={isCurrent ? 'true' : undefined}
-                    aria-label={`Question ${i + 1}${
-                      isAnswered ? ', answered' : ', not answered'
-                    }${isFlagged ? ', flagged' : ''}${
-                      invalidated ? ', worth zero points due to integrity events' : ''
-                    }`}
-                    className={cx(
-                      'relative grid size-9 place-items-center rounded-sm border text-[13px] font-medium transition-colors',
-                      isCurrent
-                        ? 'border-navy-900 bg-navy-900 text-white'
-                        : invalidated
-                          ? 'border-danger-500/40 bg-danger-50 text-danger-600'
-                        : isAnswered
-                          ? 'border-teal-300 bg-teal-50 text-teal-800 hover:border-teal-500'
-                          : 'border-line-strong bg-surface text-ink-soft hover:border-navy-400 hover:text-navy-800'
-                    )}
-                  >
-                    {i + 1}
-                    {isFlagged ? (
-                      <span
-                        aria-hidden
-                        className="absolute -top-1 -right-1 size-2.5 rounded-full border border-surface bg-amber-500"
-                      />
-                    ) : null}
-                    {invalidated ? (
-                      <span
-                        aria-hidden
-                        className="absolute -bottom-1 -left-1 grid size-3.5 place-items-center rounded-full border border-surface bg-danger-500 text-[8px] font-bold text-white"
-                      >
-                        0
-                      </span>
-                    ) : null}
-                  </button>
-                </li>
-              )
-            })}
-          </ol>
-        </nav>
-
-        {/* ---------------------------------------------------------- question */}
-        {question ? (
-          <article
-            key={question.id}
-            className={cx(
-              'rounded-md border border-line bg-surface p-5 sm:p-7',
-              direction === 'next' ? 'animate-slide-next' : 'animate-slide-prev'
-            )}
-          >
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <p className="text-[12px] font-semibold tracking-wide text-ink-faint uppercase">
-                Question {index + 1} of {questions.length}
-              </p>
-
-              <button
-                type="button"
-                onClick={() => toggleFlag(question.id)}
-                className={cx(
-                  'inline-flex shrink-0 items-center gap-1.5 rounded-xs border px-2 py-1 text-[12px] font-medium transition-colors',
-                  flags[question.id]
-                    ? 'border-amber-300 bg-amber-50 text-amber-800'
-                    : 'border-line-strong bg-surface text-ink-soft hover:border-amber-300 hover:text-amber-800'
-                )}
-              >
-                <FlagIcon width={13} height={13} />
-                {flags[question.id] ? 'Flagged for later' : 'Flag for later'}
-              </button>
-            </div>
-
-            {integrityByQuestion[question.id]?.invalidated ? (
-              <Alert
-                tone="danger"
-                className="mb-5 px-4 py-3.5 text-[14px]"
-                title="This question is worth zero points"
-              >
-                Three integrity events were recorded while you were on this
-                question. Continue with the rest of the assessment; your other
-                questions are unaffected.
-              </Alert>
-            ) : integrityByQuestion[question.id]?.count ? (
-              <Alert tone="amber" className="mb-5" title="Integrity warning">
-                {integrityByQuestion[question.id].count} of 3 events recorded on
-                this question. Three events make only this question worth zero
-                points.
-              </Alert>
-            ) : null}
-
-            <h1 className="text-[17px] leading-relaxed font-medium text-navy-900 sm:text-[18px]">
-              {question.stem}
-            </h1>
-
-            <ul className="mt-5 space-y-2.5">
-              {question.options.map((option, i) => {
-                const selected = answers[question.id] === option.id
-
-                return (
-                  <li key={option.id}>
-                    <label
-                      className={cx(
-                        'flex cursor-pointer items-start gap-3 rounded-sm border p-3.5 transition-colors sm:p-4',
-                        selected
-                          ? 'border-teal-500 bg-teal-50/70 ring-1 ring-teal-500/30'
-                          : 'border-line-strong bg-surface hover:border-navy-400 hover:bg-navy-50/60'
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name={`q-${question.id}`}
-                        checked={selected}
-                        onChange={() => choose(question.id, option.id)}
-                        className="sr-only"
-                      />
-                      <span
-                        aria-hidden
+                  return (
+                    <li key={q.id}>
+                      <button
+                        type="button"
+                        onClick={() => goToQuestion(i)}
+                        aria-current={isCurrent ? 'true' : undefined}
+                        aria-label={`Question ${i + 1}${
+                          isAnswered ? ', answered' : ', not answered'
+                        }${isFlagged ? ', flagged' : ''}${
+                          invalidated
+                            ? ', worth zero points due to integrity events'
+                            : ''
+                        }`}
                         className={cx(
-                          'grid size-6 shrink-0 place-items-center rounded-full border text-[12px] font-semibold',
-                          selected
-                            ? 'border-teal-600 bg-teal-600 text-white'
-                            : 'border-line-strong bg-surface text-ink-soft'
+                          'relative grid size-9 place-items-center rounded-sm border text-[13px] font-medium transition-colors',
+                          isCurrent
+                            ? 'border-navy-900 bg-navy-900 text-white'
+                            : invalidated
+                              ? 'border-danger-500/40 bg-danger-50 text-danger-600'
+                              : isAnswered
+                                ? 'border-teal-300 bg-teal-50 text-teal-800 hover:border-teal-500'
+                                : 'border-line-strong bg-surface text-ink-soft hover:border-navy-400 hover:text-navy-800'
                         )}
                       >
-                        {String.fromCharCode(65 + i)}
-                      </span>
-                      <span className="text-[14.5px] leading-relaxed text-ink">
-                        {option.body}
-                      </span>
-                    </label>
-                  </li>
-                )
-              })}
-            </ul>
-          </article>
-        ) : null}
+                        {i + 1}
+                        {isFlagged ? (
+                          <span
+                            aria-hidden
+                            className="absolute -top-1 -right-1 size-2.5 rounded-full border border-surface bg-amber-500"
+                          />
+                        ) : null}
+                        {invalidated ? (
+                          <span
+                            aria-hidden
+                            className="absolute -bottom-1 -left-1 grid size-3.5 place-items-center rounded-full border border-surface bg-danger-500 text-[8px] font-bold text-white"
+                          >
+                            0
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ol>
+            </div>
+          ))}
+        </nav>
+
+        {/* ----------------------------------------------------- section head */}
+        <div
+          key={page.key}
+          className={cx(
+            direction === 'next' ? 'animate-slide-next' : 'animate-slide-prev'
+          )}
+        >
+          {page.section && page.opensSection ? (
+            <div className="mb-5 rounded-md border border-line bg-navy-50/60 p-4 sm:p-5">
+              <h2 className="text-[16px] font-semibold text-navy-900 sm:text-[18px]">
+                {page.section.title}
+              </h2>
+              {page.section.brief ? (
+                <p className="mt-1.5 text-[14px] leading-relaxed text-ink-soft">
+                  {page.section.brief}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* -------------------------------------------------------- use case */}
+          {page.section?.useCase ? (
+            <section
+              aria-label={page.section.useCase.title}
+              className="mb-6 rounded-md border-2 border-navy-900/15 bg-surface p-5 sm:p-7"
+            >
+              <h3 className="text-[12px] font-semibold tracking-wide text-teal-700 uppercase">
+                {page.section.useCase.title}
+              </h3>
+
+              <p className="mt-3 text-[15.5px] leading-relaxed text-ink sm:text-[16.5px]">
+                {page.section.useCase.intro}
+              </p>
+
+              {page.section.useCase.requirements.length > 0 ? (
+                <>
+                  {page.section.useCase.requirementsTitle ? (
+                    <p className="mt-5 text-[14px] font-semibold text-navy-900">
+                      {page.section.useCase.requirementsTitle}
+                    </p>
+                  ) : null}
+                  <ul className="mt-2.5 space-y-2">
+                    {page.section.useCase.requirements.map((item) => (
+                      <li
+                        key={item}
+                        className="flex gap-2.5 text-[14.5px] leading-relaxed text-ink"
+                      >
+                        <span
+                          aria-hidden
+                          className="mt-2 size-1.5 shrink-0 rounded-full bg-teal-600"
+                        />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+
+              {page.section.useCase.closing ? (
+                <p className="mt-5 border-t border-line pt-4 text-[14px] text-ink-soft">
+                  {page.section.useCase.closing}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+
+          {/* ------------------------------------------------------- questions */}
+          <div className="space-y-5">
+            {page.questions.map((questionIndex) => {
+              const question = questions[questionIndex]
+              const integrity = integrityByQuestion[question.id]
+
+              return (
+                <article
+                  key={question.id}
+                  className="rounded-md border border-line bg-surface p-5 sm:p-7"
+                >
+                  <div className="mb-4 flex items-start justify-between gap-4">
+                    <p className="text-[12px] font-semibold tracking-wide text-ink-faint uppercase">
+                      Question {questionIndex + 1} of {questions.length}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleFlag(question.id)}
+                      className={cx(
+                        'inline-flex shrink-0 items-center gap-1.5 rounded-xs border px-2 py-1 text-[12px] font-medium transition-colors',
+                        flags[question.id]
+                          ? 'border-amber-300 bg-amber-50 text-amber-800'
+                          : 'border-line-strong bg-surface text-ink-soft hover:border-amber-300 hover:text-amber-800'
+                      )}
+                    >
+                      <FlagIcon width={13} height={13} />
+                      {flags[question.id] ? 'Flagged for later' : 'Flag for later'}
+                    </button>
+                  </div>
+
+                  {integrity?.invalidated ? (
+                    <Alert
+                      tone="danger"
+                      className="mb-5 px-4 py-3.5 text-[14px]"
+                      title="This question is worth zero points"
+                    >
+                      Three integrity events were recorded while you were on this
+                      question. Continue with the rest of the assessment; your
+                      other questions are unaffected.
+                    </Alert>
+                  ) : integrity?.count ? (
+                    <Alert tone="amber" className="mb-5" title="Integrity warning">
+                      {integrity.count} of 3 events recorded on this question.
+                      Three events make only this question worth zero points.
+                    </Alert>
+                  ) : null}
+
+                  <h1 className="text-[17px] leading-relaxed font-medium text-navy-900 sm:text-[18px]">
+                    {question.stem}
+                  </h1>
+
+                  <ul className="mt-5 space-y-2.5">
+                    {question.options.map((option, i) => {
+                      const selected = answers[question.id] === option.id
+
+                      return (
+                        <li key={option.id}>
+                          <label
+                            className={cx(
+                              'flex cursor-pointer items-start gap-3 rounded-sm border p-3.5 transition-colors sm:p-4',
+                              selected
+                                ? 'border-teal-500 bg-teal-50/70 ring-1 ring-teal-500/30'
+                                : 'border-line-strong bg-surface hover:border-navy-400 hover:bg-navy-50/60'
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              name={`q-${question.id}`}
+                              checked={selected}
+                              onChange={() => choose(question.id, option.id)}
+                              className="sr-only"
+                            />
+                            <span
+                              aria-hidden
+                              className={cx(
+                                'grid size-6 shrink-0 place-items-center rounded-full border text-[12px] font-semibold',
+                                selected
+                                  ? 'border-teal-600 bg-teal-600 text-white'
+                                  : 'border-line-strong bg-surface text-ink-soft'
+                              )}
+                            >
+                              {String.fromCharCode(65 + i)}
+                            </span>
+                            <span className="text-[14.5px] leading-relaxed text-ink">
+                              {option.body}
+                            </span>
+                          </label>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </article>
+              )
+            })}
+          </div>
+        </div>
 
         {/* ------------------------------------------------------------ moves */}
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <Button
             variant="secondary"
-            onClick={() => go(index - 1)}
-            disabled={index === 0}
+            onClick={() => goToPage(pageIndex - 1)}
+            disabled={pageIndex === 0}
           >
             Previous
           </Button>
 
-          {index < questions.length - 1 ? (
-            <Button onClick={() => go(index + 1)}>Next question</Button>
+          {!isLastPage ? (
+            <Button onClick={() => goToPage(pageIndex + 1)}>
+              {page.questions.length > 1 ? 'Next' : 'Next question'}
+            </Button>
           ) : (
             <Button onClick={() => setConfirming(true)}>Review and submit</Button>
           )}
@@ -422,7 +604,7 @@ export function QuizRunner({
           </span>
         </div>
 
-        {questions.length > 1 && index < questions.length - 1 ? (
+        {!isLastPage ? (
           <div className="mt-4">
             <button
               type="button"
@@ -481,6 +663,9 @@ export function QuizRunner({
                 ? 'Blank answers count as wrong. You can go back and fill them in.'
                 : 'You have answered everything.'}{' '}
               This is your one attempt, so it cannot be reopened.
+              {resultsHidden
+                ? ' Your score is not shown when you submit; your instructor releases marks after the exam.'
+                : ''}
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -499,7 +684,7 @@ export function QuizRunner({
                   variant="ghost"
                   onClick={() => {
                     setConfirming(false)
-                    go(unanswered[0].position)
+                    goToQuestion(unanswered[0].position)
                   }}
                   disabled={submitting}
                 >

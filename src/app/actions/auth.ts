@@ -1,5 +1,6 @@
 'use server'
 
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
@@ -45,12 +46,61 @@ const LoginSchema = z.object({
   password: z.string().min(1, 'Enter your password.'),
 })
 
+const ForgotSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Enter a valid email address.'),
+})
+
+const ResetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, 'Use at least 8 characters.')
+      .max(72, 'Passwords are limited to 72 characters.'),
+    confirm: z.string().min(1, 'Confirm your new password.'),
+  })
+  .refine((value) => value.password === value.confirm, {
+    message: 'Passwords do not match.',
+    path: ['confirm'],
+  })
+
 const JoinSchema = z.object({
   join_code: z
     .string()
     .trim()
     .regex(JOIN_CODE, 'Course codes look like SDAIA-GENAI-01.'),
 })
+
+async function siteOrigin() {
+  // Prefer the live request host so reset links never bake in localhost from
+  // a local .env that was copied into a production build.
+  try {
+    const h = await headers()
+    const host = (h.get('x-forwarded-host') || h.get('host') || '')
+      .split(',')[0]
+      ?.trim()
+      .toLowerCase()
+    const proto = (
+      h.get('x-forwarded-proto') ||
+      (host.includes('localhost') ? 'http' : 'https')
+    )
+      .split(',')[0]
+      ?.trim()
+    if (host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1')) {
+      return `${proto}://${host}`
+    }
+  } catch {
+    // headers() unavailable outside a request — fall through.
+  }
+
+  if (process.env.VERCEL_ENV === 'production') {
+    return 'https://sdaia-genai-portal.vercel.app'
+  }
+
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
+    'https://sdaia-genai-portal.vercel.app'
+  )
+}
 
 /**
  * Where to send someone after a successful sign in.
@@ -99,7 +149,7 @@ function friendlyAuthError(code: string | undefined, fallback: string): string {
       return 'Supabase rejected that address. Use a real inbox you can open — made-up test addresses are refused.'
     case 'over_email_send_rate_limit':
     case 'over_request_rate_limit':
-      return 'Too many sign-up emails have been sent from this project in the last hour. Ask your instructor to switch off "Confirm email" in Supabase, then try again.'
+      return 'Email sending is temporarily rate-limited on this project (Free plan allows only a few Auth emails per hour). Wait about an hour, or ask an admin to connect a verified custom email domain.'
     case 'user_already_exists':
     case 'email_exists':
       return 'An account already exists for this email. Sign in instead.'
@@ -251,4 +301,94 @@ export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect('/login')
+}
+
+/** Leave a password-recovery session without changing the password. */
+export async function cancelPasswordReset() {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  redirect('/login')
+}
+
+/** Send a password-reset email. Always returns a calm success message. */
+export async function requestPasswordReset(
+  _prev: AuthState,
+  formData: FormData
+): Promise<AuthState> {
+  const raw = { email: String(formData.get('email') ?? '') }
+  const parsed = ForgotSchema.safeParse(raw)
+
+  if (!parsed.success) {
+    return { errors: z.flattenError(parsed.error).fieldErrors, values: raw }
+  }
+
+  const supabase = await createClient()
+  // redirectTo is advisory for our email hook; the hook builds a portal
+  // /auth/callback?token_hash=…&type=recovery&next=/reset-password link.
+  const redirectTo = `${await siteOrigin()}/reset-password`
+
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    redirectTo,
+  })
+
+  if (error) {
+    return {
+      message: friendlyAuthError(
+        error.code,
+        'Could not send a reset email right now. Please try again shortly.'
+      ),
+      values: raw,
+    }
+  }
+
+  return {
+    notice:
+      'If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.',
+    values: raw,
+  }
+}
+
+/** Set a new password after the recovery link established a session. */
+export async function updatePassword(
+  _prev: AuthState,
+  formData: FormData
+): Promise<AuthState> {
+  const parsed = ResetPasswordSchema.safeParse({
+    password: formData.get('password'),
+    confirm: formData.get('confirm'),
+  })
+
+  if (!parsed.success) {
+    return { errors: z.flattenError(parsed.error).fieldErrors }
+  }
+
+  const supabase = await createClient()
+  const { data: claims } = await supabase.auth.getClaims()
+  if (!claims?.claims?.sub) {
+    return {
+      message:
+        'Your reset session has expired. Request a new password reset email.',
+    }
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  })
+
+  if (error) {
+    return {
+      message: friendlyAuthError(
+        error.code,
+        'Could not update your password. Request a new reset link and try again.'
+      ),
+    }
+  }
+
+  // End the recovery session cleanly, then send them to sign in with the new
+  // password. Avoids landing on /home still tagged as a recovery login.
+  await supabase.auth.signOut()
+  redirect(
+    '/login?notice=' +
+      encodeURIComponent('Password updated. Sign in with your new password.')
+  )
 }

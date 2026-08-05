@@ -7,7 +7,7 @@ instructor's course.
 Built for the **تطوير حلول الذكاء الاصطناعي** (Developing Generative AI
 Solutions) programme, but multi-course from the ground up.
 
-**Live:** https://sdaia-academy-portal.vercel.app
+**Live:** https://sdaia-genai-portal.vercel.app
 
 Full agent/human context: **[`docs/`](docs/README.md)** — start with
 [`docs/CONTEXT.md`](docs/CONTEXT.md).
@@ -216,8 +216,12 @@ RLS enforces access; the secret key must never be `NEXT_PUBLIC_*`.
 npm run dev     # dev server
 npm run build   # production build
 npm run lint    # eslint
+npm test        # course-files MIME / kind unit tests
 npx tsc --noEmit
 ```
+
+Production: `npx vercel --prod`, then alias `sdaia-genai-portal.vercel.app` if
+needed. Agent context: [`docs/CONTEXT.md`](docs/CONTEXT.md) (updated 5 Aug 2026).
 
 ---
 
@@ -229,8 +233,9 @@ with the live codebase). Index: [`docs/README.md`](docs/README.md).
 | Doc | Audience |
 | --- | --- |
 | [`docs/CONTEXT.md`](docs/CONTEXT.md) | New chats / onboarding (read first) |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Routes, caching, auth, loading |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Routes, chrome, caching, auth, uploads |
 | [`docs/ASSESSMENTS.md`](docs/ASSESSMENTS.md) | Quiz engine |
+| [`docs/CONTENT-AUTHORING.md`](docs/CONTENT-AUTHORING.md) | Slides / labs / assessment content |
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Schema + RPCs |
 | [`DEPLOY.md`](DEPLOY.md) | Vercel / GitHub / region |
 | `.cursor/rules/` + `.cursor/skills/` | Cursor agent guidance |

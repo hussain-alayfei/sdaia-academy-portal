@@ -72,33 +72,33 @@ begin
     (course_id, day_number, title, title_ar, summary, scheduled_date, is_published)
   values
     (v_course, 1,
-     'From language model to software solution',
+     'From Language Model to Software Solution',
      'مدخل إلى هندسة حلول الذكاء الاصطناعي التوليدي',
-     'What generative AI and LLMs actually are; tokens, context window and hallucination; the gap between a model and a complete solution; the six layers of a GenAI system; the development lifecycle; and your first hands-on API call.',
+     'This session introduces generative artificial intelligence and large language models as components of complete software solutions. It covers tokens, context windows, and hallucination; distinguishes a model from an end-to-end system; presents the principal layers of a generative AI architecture and the development lifecycle; and concludes with a first practical API call.',
      date '2026-08-02', true),
 
     (v_course, 2,
-     'Architecture design: RAG versus agents',
+     'Architecture Design: RAG Versus Agents',
      'تصميم البنية (RAG مقابل Agents) وتنفيذ خط استرجاع البيانات',
-     'Telling RAG and agent architectures apart and choosing between them; how RAG works step by step; and building the retrieval pipeline end to end — ingestion, chunking, embedding, vector storage and retrieval.',
+     'This session distinguishes retrieval-augmented generation from agent architectures and develops criteria for selecting between them. Learners examine the retrieval pipeline end to end, including ingestion, chunking, embedding, vector storage, and retrieval.',
      date '2026-08-03', true),
 
     (v_course, 3,
-     'Tool use and controlled agent patterns',
+     'Tool Use and Controlled Agent Patterns',
      'استخدام الأدوات (Function Calling) وأنماط الوكلاء الموجهة',
-     'Why and how models call functions; defining tools and wiring external APIs; the tool-call cycle step by step; core agent patterns such as ReAct; and the guardrails that keep an agent predictable.',
+     'This session examines how language models invoke external capabilities through function calling, and how the surrounding application retains control. Topics include tool definition and API integration, the tool-calling lifecycle, core agent patterns such as ReAct, and the guardrails that keep agent behaviour predictable.',
      date '2026-08-04', true),
 
     (v_course, 4,
-     'Building production-ready applications',
-     'بناء تطبيقات مستقرة وقابلة للتوسّع وجاهزة للإنتاج',
-     'The real gap between a prototype and production; designing for scale; cutting latency and cost; user experience in generative applications; and setting up observability.',
+     'Production Systems, Then Security and Governance',
+     'أنظمة الإنتاج ثم الأمان والحوكمة',
+     'This session addresses the requirements of production generative AI systems and the governance controls that accompany them. The morning focuses on scale, latency, cost, user experience, and observability. The afternoon covers security, reliability, and compliance, including threat models, prompt injection, and privacy. The day concludes with the post-assessment.',
      date '2026-08-05', true),
 
     (v_course, 5,
-     'Security, reliability, governance and the capstone',
-     'مبادئ الأمان والموثوقية والحوكمة والمشروع الختامي',
-     'The threat landscape for GenAI solutions; defending against prompt injection; grounding outputs and protecting privacy; governance and compliance; and delivering the integrated capstone project.',
+     'Certification Day: Capstone Presentation and Final Exam',
+     'يوم الشهادة: عرض المشروع الختامي والاختبار النهائي',
+     'This session is devoted to certification. Learners submit and present the group capstone project and sit the final theory examination. The overall pass mark is 60 percent. No new lecture content is introduced.',
      date '2026-08-06', true)
   on conflict (course_id, day_number) do nothing;
 

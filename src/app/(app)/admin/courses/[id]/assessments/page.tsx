@@ -5,20 +5,50 @@ import {
   toggleAssessmentLocked,
   toggleAssessmentPublished,
 } from '@/app/actions/admin'
-import { AssessmentForm } from '@/components/admin/assessment-form'
-import { ClipboardIcon, PlusIcon } from '@/components/icons'
 import {
-  Badge,
-  Button,
-  EmptyState,
-  Panel,
-  PanelHeader,
-  RowArrow,
-} from '@/components/ui'
+  AssessmentDayPanel,
+  AssessmentsByDay,
+} from '@/components/admin/assessments-by-day'
+import { AssessmentForm } from '@/components/admin/assessment-form'
+import { AdminSectionHeader } from '@/components/admin/section-header'
+import { PlusIcon } from '@/components/icons'
+import { Badge, Button, ButtonLink, Panel } from '@/components/ui'
 import { canManageCourse, getCourseById } from '@/lib/dal'
-import { ASSESSMENT_LABELS, formatDuration } from '@/lib/format'
 import { getQuestionCounts } from '@/lib/quiz'
 import { getAssessments, getCourseDays } from '@/lib/queries'
+
+function studentFacingStatus(input: {
+  published: boolean
+  locked: boolean
+  ready: boolean
+}): { label: string; tone: 'teal' | 'amber' | 'neutral'; hint: string } {
+  if (!input.ready) {
+    return {
+      label: 'Needs questions',
+      tone: 'amber',
+      hint: 'Open it and import or add questions first.',
+    }
+  }
+  if (!input.published) {
+    return {
+      label: 'Draft',
+      tone: 'neutral',
+      hint: 'Questions are in. Publish when students should see the card.',
+    }
+  }
+  if (input.locked) {
+    return {
+      label: 'Locked',
+      tone: 'amber',
+      hint: 'Students see it but cannot start until you unlock.',
+    }
+  }
+  return {
+    label: 'Open',
+    tone: 'teal',
+    hint: 'Students can start this assessment now.',
+  }
+}
 
 export default async function AssessmentsPage({
   params,
@@ -37,8 +67,6 @@ export default async function AssessmentsPage({
 
   const dayById = new Map(days.map((d) => [d.id, d]))
 
-  // Group by day so the tab mirrors what a student sees: everything sits on the
-  // day it belongs to. Anything without a day is stranded and called out.
   const grouped = days.map((day) => ({
     day,
     items: assessments
@@ -50,187 +78,166 @@ export default async function AssessmentsPage({
     (a) => !a.day_id || !dayById.has(a.day_id)
   )
 
+  const dayTabs = grouped.map(({ day, items }) => ({
+    id: day.id,
+    label: `Day ${day.day_number}`,
+    count: items.length,
+    panel: (
+      <AssessmentDayPanel
+        courseId={course.id}
+        dayId={day.id}
+        dayTitle={day.title}
+        empty={items.length === 0}
+      >
+        {items.map((assessment) => {
+          const count = counts[assessment.id] ?? 0
+          const ready = count === assessment.required_question_count
+          const status = studentFacingStatus({
+            published: assessment.is_published,
+            locked: assessment.is_locked,
+            ready,
+          })
+          const href = `/admin/courses/${course.id}/assessments/${assessment.id}`
+
+          return (
+            <li
+              key={assessment.id}
+              className="flex flex-col gap-2.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={href}
+                    className="text-[14px] font-semibold text-navy-900 hover:text-teal-800"
+                  >
+                    {assessment.title}
+                  </Link>
+                  <Badge tone={status.tone}>{status.label}</Badge>
+                </div>
+                <p className="mt-0.5 text-[12px] text-ink-faint" title={status.hint}>
+                  {ready
+                    ? `${count} q`
+                    : `${count}/${assessment.required_question_count} q`}
+                  {' · '}
+                  {assessment.duration_minutes} min
+                </p>
+              </div>
+
+              <div className="flex shrink-0 flex-wrap items-center gap-1">
+                <form action={toggleAssessmentPublished}>
+                  <input type="hidden" name="course_id" value={course.id} />
+                  <input
+                    type="hidden"
+                    name="assessment_id"
+                    value={assessment.id}
+                  />
+                  <input
+                    type="hidden"
+                    name="next"
+                    value={assessment.is_published ? 'false' : 'true'}
+                  />
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    size="sm"
+                    disabled={!ready && !assessment.is_published}
+                    title={
+                      !ready ? 'Add questions before publishing' : status.hint
+                    }
+                  >
+                    {assessment.is_published ? 'Unpublish' : 'Publish'}
+                  </Button>
+                </form>
+
+                {assessment.is_published ? (
+                  <form action={toggleAssessmentLocked}>
+                    <input type="hidden" name="course_id" value={course.id} />
+                    <input
+                      type="hidden"
+                      name="assessment_id"
+                      value={assessment.id}
+                    />
+                    <input
+                      type="hidden"
+                      name="next"
+                      value={assessment.is_locked ? 'false' : 'true'}
+                    />
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      size="sm"
+                      title={status.hint}
+                    >
+                      {assessment.is_locked ? 'Unlock' : 'Lock'}
+                    </Button>
+                  </form>
+                ) : null}
+
+                <ButtonLink href={href} size="sm">
+                  Open
+                </ButtonLink>
+              </div>
+            </li>
+          )
+        })}
+      </AssessmentDayPanel>
+    ),
+  }))
+
   return (
-    <div className="space-y-6">
-      {days.length === 0 ? (
-        <EmptyState
-          title="Add the days first"
-          description="An assessment lives on a day, so the schedule has to exist before you can place one."
-        />
-      ) : null}
+    <div className="space-y-4">
+      <AdminSectionHeader
+        title="Assessments"
+        description="Open a paper to edit, then publish and unlock."
+      />
 
-      {stranded.length > 0 ? (
-        <Panel className="border-amber-200">
-          <PanelHeader
-            title="Not attached to a day"
-            description="Students cannot see these. Open one and choose a day."
-          />
-          <ul className="divide-y divide-line">
-            {stranded.map((a) => (
-              <li key={a.id} className="px-4 py-3 sm:px-5">
-                <Link
-                  href={`/admin/courses/${course.id}/assessments/${a.id}`}
-                  className="text-[14px] font-medium text-navy-900 hover:text-teal-800"
-                >
-                  {a.title}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      ) : null}
-
-      {grouped.map(({ day, items }) => (
-        <Panel key={day.id}>
-          <PanelHeader
-            title={`Day ${day.day_number} · ${day.title}`}
-            description={
-              items.length === 0
-                ? 'Nothing scheduled on this day yet.'
-                : undefined
-            }
-          />
-
-          {items.length > 0 ? (
-            <ul className="divide-y divide-line">
-              {items.map((assessment) => {
-                const count = counts[assessment.id] ?? 0
-                const ready = count === assessment.required_question_count
-
-                return (
-                  <li key={assessment.id}>
-                    <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-5">
-                      <Link
-                        href={`/admin/courses/${course.id}/assessments/${assessment.id}`}
-                        className="group flex min-w-0 flex-1 items-center gap-3.5"
-                      >
-                        <span className="grid size-10 shrink-0 place-items-center rounded-sm border border-line bg-navy-50 text-navy-600 transition-colors group-hover:border-teal-200 group-hover:bg-teal-50 group-hover:text-teal-700">
-                          <ClipboardIcon width={18} height={18} />
-                        </span>
-
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <p className="font-medium text-navy-900 group-hover:text-teal-800">
-                              {assessment.title}
-                            </p>
-                            <Badge tone="neutral">
-                              {ASSESSMENT_LABELS[assessment.kind]}
-                            </Badge>
-                            <Badge
-                              tone={assessment.is_published ? 'teal' : 'amber'}
-                            >
-                              {assessment.is_published ? 'Published' : 'Draft'}
-                            </Badge>
-                            {assessment.is_published ? (
-                              <Badge
-                                tone={assessment.is_locked ? 'amber' : 'teal'}
-                              >
-                                {assessment.is_locked ? 'Locked' : 'Open'}
-                              </Badge>
-                            ) : null}
-                          </div>
-
-                          <p className="mt-1 text-[12px] text-ink-faint">
-                            {ready
-                              ? `${count} question${count === 1 ? '' : 's'}`
-                              : 'No questions yet'}
-                            {' · '}
-                            {formatDuration(assessment.duration_minutes)}
-                          </p>
-                        </div>
-                      </Link>
-
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        <form action={toggleAssessmentPublished}>
-                          <input
-                            type="hidden"
-                            name="course_id"
-                            value={course.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="assessment_id"
-                            value={assessment.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="next"
-                            value={assessment.is_published ? 'false' : 'true'}
-                          />
-                          <Button
-                            type="submit"
-                            variant="secondary"
-                            size="sm"
-                            disabled={!ready && !assessment.is_published}
-                            title={
-                              !ready
-                                ? 'Add questions before publishing'
-                                : undefined
-                            }
-                          >
-                            {assessment.is_published ? 'Unpublish' : 'Publish'}
-                          </Button>
-                        </form>
-
-                        {assessment.is_published ? (
-                          <form action={toggleAssessmentLocked}>
-                            <input
-                              type="hidden"
-                              name="course_id"
-                              value={course.id}
-                            />
-                            <input
-                              type="hidden"
-                              name="assessment_id"
-                              value={assessment.id}
-                            />
-                            <input
-                              type="hidden"
-                              name="next"
-                              value={assessment.is_locked ? 'false' : 'true'}
-                            />
-                            <Button
-                              type="submit"
-                              variant={
-                                assessment.is_locked ? 'primary' : 'secondary'
-                              }
-                              size="sm"
-                            >
-                              {assessment.is_locked
-                                ? 'Unlock for students'
-                                : 'Lock for students'}
-                            </Button>
-                          </form>
-                        ) : null}
-
-                        <Link
-                          href={`/admin/courses/${course.id}/assessments/${assessment.id}`}
-                          aria-label={`Open ${assessment.title}`}
-                          className="group"
-                        >
-                          <RowArrow />
-                        </Link>
-                      </div>
-                    </div>
+      <AssessmentsByDay
+        days={dayTabs}
+        stranded={
+          stranded.length > 0 ? (
+            <Panel className="border-amber-200 p-4 sm:p-5">
+              <p className="text-[13px] font-semibold text-amber-900">
+                Not attached to a day
+              </p>
+              <p className="mt-1 text-[12px] text-ink-soft">
+                Students cannot see these. Open one and choose a day.
+              </p>
+              <ul className="mt-3 space-y-1">
+                {stranded.map((a) => (
+                  <li key={a.id}>
+                    <Link
+                      href={`/admin/courses/${course.id}/assessments/${a.id}`}
+                      className="text-[13px] font-medium text-teal-800 hover:underline"
+                    >
+                      {a.title}
+                    </Link>
                   </li>
-                )
-              })}
-            </ul>
-          ) : null}
-        </Panel>
-      ))}
-
-      {days.length > 0 ? (
-        <Panel className="p-5 sm:p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <PlusIcon width={16} height={16} className="text-teal-700" />
-            <h2 className="text-[15px] font-semibold text-navy-900">
-              Add an assessment
-            </h2>
-          </div>
-          <AssessmentForm courseId={course.id} days={days} />
-        </Panel>
-      ) : null}
+                ))}
+              </ul>
+            </Panel>
+          ) : null
+        }
+        addForm={
+          days.length > 0 ? (
+            <details className="group rounded-md border border-dashed border-line-strong bg-navy-50/40">
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3.5 text-[13px] font-semibold text-navy-900 sm:px-5 [&::-webkit-details-marker]:hidden">
+                <PlusIcon width={16} height={16} className="text-teal-700" />
+                Add a new assessment
+                <span className="ms-auto text-[12px] font-normal text-ink-faint group-open:hidden">
+                  Rarely needed — most papers already exist
+                </span>
+              </summary>
+              <div className="border-t border-line px-4 py-5 sm:px-5">
+                <p className="mb-4 text-[12px] text-ink-soft">
+                  New assessments start as drafts and locked. Add questions,
+                  then Publish and Unlock from this list.
+                </p>
+                <AssessmentForm courseId={course.id} days={days} />
+              </div>
+            </details>
+          ) : null
+        }
+      />
     </div>
   )
 }

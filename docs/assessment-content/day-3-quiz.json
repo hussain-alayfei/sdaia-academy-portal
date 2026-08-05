@@ -8,217 +8,134 @@
   },
   "questions": [
     {
-      "format": "multiple_choice",
-      "difficulty": "easy",
-      "topic": "Model limits",
-      "stem": "Why does a language model need tools when building a software solution?",
-      "options": {
-        "A": "To retrain itself overnight on every private company document set",
-        "B": "To reach live data, exact maths, or outside actions",
-        "C": "To replace all application code with free-form generated text only",
-        "D": "To store permanent memories of every previous user conversation"
-      },
-      "correct": "B",
-      "rationale": "Models generate language from context. Tools give the surrounding application controlled ways to fetch data, compute values, or change external systems."
-    },
-    {
-      "format": "true_false",
       "difficulty": "easy",
       "topic": "Tool execution",
-      "stem": "Does the language model itself execute an approved tool call against an external system?",
-      "options": { "A": "True", "B": "False" },
-      "correct": "B",
-      "rationale": "The model proposes a structured tool call. Application code validates, authorizes, executes, and returns the result."
-    },
-    {
-      "format": "multiple_choice",
-      "difficulty": "easy",
-      "topic": "Function calling",
-      "stem": "What is function calling, also called tool calling, in a generative AI system?",
+      "stem": "Who runs a tool after the model returns a tool call?",
       "options": {
-        "A": "A direct network call the model opens to any public website address",
-        "B": "A silent rewrite of the model weights during a live user session",
-        "C": "A database trigger that scores every generated sentence in storage",
-        "D": "A structured request for a named capability the code may run"
+        "A": "The language model runs it during its own inference process",
+        "B": "Your application code runs it, or can refuse to run it",
+        "C": "The vector database runs it before any answer is written",
+        "D": "The embedding service runs it whenever text is retrieved"
       },
-      "correct": "D",
-      "rationale": "Function calling is a structured proposal from the model. The application decides whether and how to run the named capability."
-    },
-    {
-      "format": "true_false",
-      "difficulty": "easy",
-      "topic": "Tool success",
-      "stem": "Is a model-generated tool call by itself enough evidence that the external action succeeded?",
-      "options": { "A": "True", "B": "False" },
       "correct": "B",
-      "rationale": "Only a verified tool result from the application supports a success claim. A proposed call is not proof of execution."
+      "rationale": "The model only returns a request. Your application decides whether to execute that request."
     },
     {
-      "format": "multiple_choice",
       "difficulty": "easy",
-      "topic": "Tool contract",
-      "stem": "What should a reliable tool contract include for the model and the surrounding code?",
+      "topic": "Model limits",
+      "stem": "Which three limits do tools help a language model overcome?",
       "options": {
-        "A": "An open prompt that lets the model invent any argument shape it likes",
-        "B": "A shared password that students embed inside generated answer text",
-        "C": "A clear name, description, input schema, and output shape",
-        "D": "A promise that every call will succeed without any validation step"
+        "A": "Long context windows, image input, and spoken replies",
+        "B": "Spelling mistakes, weak grammar, and formatting issues",
+        "C": "Live data access, outside actions, and unreliable math",
+        "D": "Document chunking, embeddings, and vector database size"
       },
       "correct": "C",
-      "rationale": "Clear names, decision-boundary descriptions, narrow schemas, and predictable outputs reduce ambiguous or unsafe calls."
+      "rationale": "Day 3 shows that the model cannot fetch live data, take outside actions, or do reliable arithmetic. Tools fix those by letting the model ask and your code do the work."
     },
     {
-      "format": "multiple_choice",
       "difficulty": "easy",
-      "topic": "Lifecycle stages",
-      "stem": "Which sequence correctly describes the five-stage tool-calling lifecycle?",
+      "topic": "Agent loop",
+      "stem": "What is an agent in the Day 3 tool loop?",
       "options": {
-        "A": "Offer tools, get a call, run it in code, return data, finish or loop",
-        "B": "Train the model, publish weights, skip checks, then trust every claim",
-        "C": "Store prompts, delete logs, disable timeouts, and allow every tool",
-        "D": "Rank the slides, shuffle days, unlock grades, and hide the rationale"
+        "A": "A larger model that needs no function schema at all",
+        "B": "A fixed script that always calls every available tool",
+        "C": "A search index that stores completed tool results forever",
+        "D": "A bounded request-execute-return loop with a clear goal"
+      },
+      "correct": "D",
+      "rationale": "An agent is the tool loop given a goal and a limit on how many times it may repeat."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Tool descriptions",
+      "stem": "Why is a vague tool description such as \"Gets leave data\" a problem?",
+      "options": {
+        "A": "The model lacks clear timing, scope, and call exclusions",
+        "B": "JSON Schema rejects descriptions shorter than one full page",
+        "C": "Vector stores cannot store tool text written in plain English",
+        "D": "Models can only call tools when their description field is empty"
       },
       "correct": "A",
-      "rationale": "The cycle is: send the request with tools, receive a tool call, execute in the application, return the result, then get a final answer or another call."
+      "rationale": "The description is what the model reads to decide when to call a tool. A vague description leads to guessing and over-calling."
     },
     {
-      "format": "true_false",
-      "difficulty": "easy",
-      "topic": "Schema limits",
-      "stem": "Does JSON Schema validation alone replace authorization and human approval for consequential actions?",
-      "options": { "A": "True", "B": "False" },
-      "correct": "B",
-      "rationale": "Schema checks argument shape. Semantic validation, permissions, and approval gates are still required for risky actions."
-    },
-    {
-      "format": "multiple_choice",
-      "difficulty": "easy",
-      "topic": "Tool categories",
-      "stem": "Which tool type usually needs the strongest controls before it runs?",
+      "difficulty": "medium",
+      "topic": "Step caps",
+      "stem": "Why does every agent need a step cap?",
       "options": {
-        "A": "A read tool that fetches a published policy paragraph from storage",
-        "B": "A compute tool that totals a prepared list of invoice line amounts",
-        "C": "A write tool that submits a payment or updates a record",
-        "D": "A retrieval tool that searches an approved knowledge index set"
+        "A": "GPUs reject more than one tool request by hardware design",
+        "B": "Free tiers always block long loops before any cost appears",
+        "C": "A failed goal can repeat paid calls while history grows",
+        "D": "Models forget earlier tool results after exactly five steps"
       },
       "correct": "C",
-      "rationale": "Write tools change external state. They need stricter authorization, previews, and often human approval."
+      "rationale": "Without a cap, an unsatisfiable goal can keep requesting tools. Each step is a paid call, and growing history makes later steps more expensive."
     },
     {
-      "format": "multiple_choice",
-      "difficulty": "easy",
-      "topic": "Parallel tools",
-      "stem": "When is it safest to run several tool operations at the same time?",
-      "options": {
-        "A": "When one operation must consume the output of another first",
-        "B": "When two write tools target the same account balance row",
-        "C": "When approval is still pending for a high-risk write action",
-        "D": "When the operations are independent and do not conflict"
-      },
-      "correct": "D",
-      "rationale": "Independent reads or computations can run together. Dependent or conflicting actions should stay sequential."
-    },
-    {
-      "format": "true_false",
-      "difficulty": "easy",
-      "topic": "Workflow choice",
-      "stem": "Should a fully known, fixed business process start as a deterministic workflow rather than an open agent loop?",
-      "options": { "A": "True", "B": "False" },
-      "correct": "A",
-      "rationale": "Known sequences belong in application-controlled workflows. Agents help when intermediate evidence changes the next step."
-    },
-    {
-      "format": "multiple_choice",
       "difficulty": "medium",
-      "topic": "ReAct pattern",
-      "stem": "What does the ReAct pattern combine inside a controlled agent loop?",
+      "topic": "Tool allow-list",
+      "stem": "Why should an agent look up tools with an allow-list dictionary?",
       "options": {
-        "A": "Offline chunking paired with permanent model fine-tuning jobs",
-        "B": "Reasoning steps with tool actions and later observations",
-        "C": "Random tool choice with unrestricted outbound network access",
-        "D": "Slide narration paired with automatic grade submission hooks"
+        "A": "So the model can invent brand-new tool names during runtime",
+        "B": "So only approved functions can run from a requested name",
+        "C": "So every completed tool response is stored as an embedding",
+        "D": "So the agent can skip every check on argument types forever"
       },
       "correct": "B",
-      "rationale": "ReAct interleaves reasoning, tool actions, and observations so the agent can update its next step from evidence."
+      "rationale": "Using an allow-list keeps execution on an approved set of functions. Blind dispatch on a model-supplied name is unsafe."
     },
     {
-      "format": "multiple_choice",
       "difficulty": "medium",
-      "topic": "Plan and execute",
-      "stem": "When is Plan-and-Execute often a better fit than a short ReAct loop?",
+      "topic": "Tool failures",
+      "stem": "How should a tool report failure so the agent can recover?",
       "options": {
-        "A": "When work needs an ordered multi-step plan first",
-        "B": "When a single lookup answers the user with one tool call alone",
-        "C": "When no tool is allowed and only free text may be returned",
-        "D": "When the system must avoid logging any intermediate run state"
-      },
-      "correct": "A",
-      "rationale": "Plan-and-Execute first builds a plan, then carries out steps. It fits longer tasks that need structured sequencing."
-    },
-    {
-      "format": "multiple_choice",
-      "difficulty": "medium",
-      "topic": "Agent controls",
-      "stem": "Which control most directly stops an agent from looping without bound?",
-      "options": {
-        "A": "A larger context window paired with no timeout settings at all",
-        "B": "A warmer sampling temperature used only for creative wording",
-        "C": "A longer system prompt that still omits allowed-tool lists",
-        "D": "A maximum-step limit with clear stopping rules"
+        "A": "Raise an exception that ends the process with no message",
+        "B": "Return an empty string and hope the model fills the gap",
+        "C": "Remove the tool from the allow-list after the first miss",
+        "D": "Return a readable error the model can use to adjust"
       },
       "correct": "D",
-      "rationale": "Maximum steps, budgets, timeouts, and stopping conditions keep the loop predictable and finite."
+      "rationale": "Error messages are prompts for the model. A readable error lets the loop recover instead of crashing or inventing."
     },
     {
-      "format": "true_false",
       "difficulty": "medium",
+      "topic": "Agentic RAG",
+      "stem": "How does agentic RAG differ from plain RAG?",
+      "options": {
+        "A": "Plain RAG retrieves once; agentic RAG decides whether to search",
+        "B": "Plain RAG never retrieves; agentic RAG retrieves only one passage",
+        "C": "Agentic RAG deletes the retriever and trains a model each turn",
+        "D": "Agentic RAG removes citations so the final answer can stay short"
+      },
+      "correct": "A",
+      "rationale": "In agentic RAG, retrieval is a tool among several. The model chooses whether to search, what to search for, and whether the result is good enough."
+    },
+    {
+      "difficulty": "hard",
       "topic": "Human approval",
-      "stem": "Should consequential write actions use preview and meaningful human confirmation before execution?",
-      "options": { "A": "True", "B": "False" },
-      "correct": "A",
-      "rationale": "Human-in-the-loop gates protect high-impact actions. Preview and confirmation reduce irreversible mistakes."
-    },
-    {
-      "format": "multiple_choice",
-      "difficulty": "medium",
-      "topic": "Routing pattern",
-      "stem": "What is the main job of a routing pattern in a multi-skill assistant?",
+      "stem": "When should an agent pause for human approval before acting?",
       "options": {
-        "A": "Direct each request to the fitting specialist path",
-        "B": "Merge every tool into one unrestricted mega-function entry",
-        "C": "Disable tracing so later inspection of routes is impossible",
-        "D": "Force every request through the same write tool first"
-      },
-      "correct": "A",
-      "rationale": "Routing classifies the request and directs it to the right specialist workflow or tool set."
-    },
-    {
-      "format": "multiple_choice",
-      "difficulty": "hard",
-      "topic": "Controlled agents",
-      "stem": "Which design best matches a reliable controlled agent for a course assistant?",
-      "options": {
-        "A": "Open tools, no step limit, and silent writes into student records",
-        "B": "Narrow tools, clear state, budgets, traces, and stop rules",
-        "C": "Hidden prompts, skipped checks, and unverified success claims",
-        "D": "One giant tool that can email, pay, and delete without review"
-      },
-      "correct": "B",
-      "rationale": "Reliable agents combine flexible decisions with narrow tools, visible state, budgets, guardrails, tracing, and clear stopping rules."
-    },
-    {
-      "format": "multiple_choice",
-      "difficulty": "hard",
-      "topic": "Evaluation focus",
-      "stem": "What should evaluation measure beyond whether the final answer sounds fluent?",
-      "options": {
-        "A": "Only the character count of the generated rationale paragraph",
-        "B": "Only how often the model avoids calling any available tool",
-        "C": "Tool choice, arguments, recovery, safety, cost, and claims",
-        "D": "Only whether the student interface used a dark colour theme"
+        "A": "When the next search term depends on the last result",
+        "B": "When answer quality matters more than latency or cost",
+        "C": "When the planned action cannot be undone after it runs",
+        "D": "When several specialist models could answer similar tasks"
       },
       "correct": "C",
-      "rationale": "Agent evaluation must check tool selection, argument quality, execution, recovery, task success, safety, latency, cost, and false claims of success."
+      "rationale": "Human-in-the-loop is for irreversible actions such as money, messages, or deletions. The other cases map to ReAct, reflection, and routing."
+    },
+    {
+      "difficulty": "hard",
+      "topic": "When not agents",
+      "stem": "When should you avoid building an agent and use a fixed sequence instead?",
+      "options": {
+        "A": "When several tools are needed and you cannot know which one",
+        "B": "When the path never changes and a script can be tested",
+        "C": "When the next step depends on what the last step returned",
+        "D": "When the system must recover from partial failure alone"
+      },
+      "correct": "B",
+      "rationale": "If the path never changes, a script is clearer and easier to test. Build an agent only when the next step depends on intermediate results."
     }
   ]
 }

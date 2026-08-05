@@ -18,7 +18,9 @@ Before generating questions for a new day, also follow
 source-first explanation style, research rules, Day 2 quality example, and the
 required alignment between slides, practical work, and assessment coverage.
 
-1. **Assessments** tab — list grouped by day; Publish / Unlock toggles.
+1. **Assessments** tab — day filter tabs (`Day N`, no count badges); Publish /
+   Unlock toggles. Instant day switch (no fade). List via
+   `assessments-by-day.tsx` + `local-tabs.tsx`.
 2. Open an assessment → import JSON (or paste) / edit questions.
 3. Download authoring brief: `/assessment-authoring-prompt.md`.
 4. Feed that file + course content to an LLM with web search → get one JSON block.
@@ -59,6 +61,14 @@ the standard count); statement-style stems over 1/5 of the set; file `kind`
 must match the portal assessment. True/false items use `format: "true_false"`
 with options `A: "True"`, `B: "False"` only.
 
+**Post override (GENAI-01):** the live Post-assessment uses
+`required_question_count = 20` and `duration_minutes = 20` (not the 30/30
+default). `difficultyMixFor('post', 20)` → 6 easy / 9 medium / 5 hard. A 20
+question post file with `duration_minutes: 20` is accepted; mixed MCQ + T/F
+uses the 30% letter-share rule instead of the 7–8-per-letter post range.
+JSON: `docs/assessment-content/post-assessment-days-1-4.json`. Day 4 quiz:
+`docs/assessment-content/day-4-quiz.json` (10 MCQ, 3/5/2).
+
 **Warnings (allow import):** possible stem→key word cues; stem not ending in
 `?` / completion form.
 
@@ -77,8 +87,8 @@ stronger measure.
 `assessments.required_question_count` is the exact bank size enforced by the
 importer, publish/unlock actions, student rules screen, and database attempt
 trigger. New assessments receive the standard count for their kind. An explicit
-per-assessment override can support a deliberately larger paper without
-weakening any other assessment.
+per-assessment override can support a larger paper, or (for post) a smaller
+20-question paper when `difficultyMixFor` has an explicit mix for that count.
 
 ## Key files
 

@@ -6,6 +6,11 @@ import { z } from 'zod'
 
 import { MAX_COURSE_DAYS } from '@/lib/course'
 import { QUESTION_COUNTS } from '@/lib/assessment-schema'
+import { toTitleCaseEnglish } from '@/lib/format'
+import {
+  courseLinkContext,
+  emitCourseEvent,
+} from '@/lib/notifications'
 import { revalidateCourseContent } from '@/lib/published'
 import { createClient } from '@/lib/supabase/server'
 import { requireManager } from '@/lib/dal'
@@ -90,6 +95,7 @@ const COURSE_FIELDS = [
   'join_code',
   'start_date',
   'end_date',
+  'owner_id',
 ]
 
 export async function createCourse(
@@ -113,20 +119,41 @@ export async function createCourse(
   }
 
   const v = parsed.data
+  const title = toTitleCaseEnglish(v.title)
   const supabase = await createClient()
 
-  const base = slugify(v.title) || 'course'
+  // Admins may assign the course to another instructor; everyone else owns their own.
+  let ownerId = profile.id
+  const requestedOwner = String(formData.get('owner_id') ?? '').trim()
+  if (profile.role === 'admin' && requestedOwner) {
+    const { data: owner } = await supabase
+      .from('profiles')
+      .select('id, role')
+      .eq('id', requestedOwner)
+      .maybeSingle()
+
+    if (
+      owner &&
+      (owner.role === 'admin' || owner.role === 'instructor')
+    ) {
+      ownerId = owner.id
+    } else {
+      return fail('Choose a valid instructor for this course.', sent)
+    }
+  }
+
+  const base = slugify(title) || 'course'
   const slug = `${base}-${Math.random().toString(36).slice(2, 6)}`
 
   const { data, error } = await supabase
     .from('courses')
     .insert({
-      title: v.title,
+      title,
       title_ar: v.title_ar || null,
       description: v.description || null,
       join_code: v.join_code,
       slug,
-      owner_id: profile.id,
+      owner_id: ownerId,
       start_date: v.start_date || null,
       end_date: v.end_date || null,
       is_published: false,
@@ -152,7 +179,8 @@ export async function updateCourse(
   formData: FormData
 ): Promise<FormState> {
   const courseId = String(formData.get('course_id') ?? '')
-  const { supabase } = await assertCanManage(courseId)
+  const { profile, supabase } = await assertCanManage(courseId)
+  const sent = echo(formData, COURSE_FIELDS)
 
   const parsed = CourseSchema.safeParse({
     title: formData.get('title'),
@@ -164,32 +192,65 @@ export async function updateCourse(
   })
 
   if (!parsed.success) {
-    return { errors: z.flattenError(parsed.error).fieldErrors }
+    return { errors: z.flattenError(parsed.error).fieldErrors, values: sent }
   }
 
   const v = parsed.data
+  const title = toTitleCaseEnglish(v.title)
+
+  const patch: {
+    title: string
+    title_ar: string | null
+    description: string | null
+    join_code: string
+    start_date: string | null
+    end_date: string | null
+    owner_id?: string
+  } = {
+    title,
+    title_ar: v.title_ar || null,
+    description: v.description || null,
+    join_code: v.join_code,
+    start_date: v.start_date || null,
+    end_date: v.end_date || null,
+  }
+
+  if (profile.role === 'admin') {
+    const requestedOwner = String(formData.get('owner_id') ?? '').trim()
+    if (requestedOwner) {
+      const { data: owner } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .eq('id', requestedOwner)
+        .maybeSingle()
+
+      if (
+        !owner ||
+        (owner.role !== 'admin' && owner.role !== 'instructor')
+      ) {
+        return fail('Choose a valid instructor for this course.', sent)
+      }
+      patch.owner_id = owner.id
+    }
+  }
+
   const { error } = await supabase
     .from('courses')
-    .update({
-      title: v.title,
-      title_ar: v.title_ar || null,
-      description: v.description || null,
-      join_code: v.join_code,
-      start_date: v.start_date || null,
-      end_date: v.end_date || null,
-    })
+    .update(patch)
     .eq('id', courseId)
 
   if (error) {
     return fail(
       error.code === '23505'
         ? 'That course code is already in use. Pick another.'
-        : error.message
+        : error.message,
+      sent
     )
   }
 
   revalidatePath(`/admin/courses/${courseId}`)
-  return { ok: true }
+  revalidatePath('/admin')
+  return { ok: true, values: { ...sent, title } }
 }
 
 export async function toggleCoursePublished(formData: FormData) {
@@ -247,10 +308,11 @@ export async function createDay(
   }
 
   const v = parsed.data
+  const title = toTitleCaseEnglish(v.title)
   const { error } = await supabase.from('course_days').insert({
     course_id: courseId,
     day_number: v.day_number,
-    title: v.title,
+    title,
     title_ar: v.title_ar || null,
     summary: v.summary || null,
     scheduled_date: v.scheduled_date || null,
@@ -275,13 +337,31 @@ export async function toggleDayPublished(formData: FormData) {
   const courseId = String(formData.get('course_id') ?? '')
   const dayId = String(formData.get('day_id') ?? '')
   const next = formData.get('next') === 'true'
-  const { supabase } = await assertCanManage(courseId)
+  const { profile, supabase } = await assertCanManage(courseId)
 
   await supabase
     .from('course_days')
     .update({ is_published: next })
     .eq('id', dayId)
     .eq('course_id', courseId)
+
+  if (next) {
+    const ctx = await courseLinkContext(courseId, dayId)
+    await emitCourseEvent({
+      courseId,
+      dayId,
+      actorId: profile.id,
+      kind: 'day_published',
+      entityType: 'day',
+      entityId: dayId,
+      title:
+        ctx.dayNumber != null
+          ? `Day ${ctx.dayNumber} is now available`
+          : 'A new day is available',
+      body: 'Open the day to see materials and assessments.',
+      href: ctx.dayHref,
+    })
+  }
 
   revalidatePath(`/admin/courses/${courseId}`)
   revalidatePath(`/admin/courses/${courseId}/days/${dayId}`)
@@ -388,7 +468,7 @@ export async function addLinkResource(
 ): Promise<FormState> {
   const courseId = String(formData.get('course_id') ?? '')
   const dayId = String(formData.get('day_id') ?? '')
-  const { supabase } = await assertCanManage(courseId)
+  const { profile, supabase } = await assertCanManage(courseId)
 
   const parsed = LinkResourceSchema.safeParse({
     title: formData.get('title'),
@@ -412,17 +492,39 @@ export async function addLinkResource(
 
   if (!day) return fail('That day is not part of this course.')
 
-  const { error } = await supabase.from('resources').insert({
-    course_id: courseId,
-    day_id: dayId,
-    kind: v.kind,
-    title: v.title,
-    description: v.description || null,
-    external_url: v.external_url,
-    is_published: true,
-  })
+  const { data: created, error } = await supabase
+    .from('resources')
+    .insert({
+      course_id: courseId,
+      day_id: dayId,
+      kind: v.kind,
+      title: v.title,
+      description: v.description || null,
+      external_url: v.external_url,
+      is_published: true,
+    })
+    .select('id, title, kind')
+    .single()
 
   if (error) return fail(error.message)
+
+  if (created) {
+    const ctx = await courseLinkContext(courseId, dayId)
+    await emitCourseEvent({
+      courseId,
+      dayId,
+      actorId: profile.id,
+      kind: 'resource_added',
+      entityType: 'resource',
+      entityId: created.id,
+      title:
+        ctx.dayNumber != null
+          ? `New material on Day ${ctx.dayNumber}`
+          : 'New material added',
+      body: created.title,
+      href: ctx.dayHref,
+    })
+  }
 
   revalidatePath(`/admin/courses/${courseId}/days/${dayId}`)
   revalidateCourseContent(courseId)
@@ -448,7 +550,7 @@ export async function registerUploadedResource(input: {
   size: number
   mimeType: string | null
 }): Promise<FormState> {
-  const { supabase } = await assertCanManage(input.courseId)
+  const { profile, supabase } = await assertCanManage(input.courseId)
 
   const { data: day } = await supabase
     .from('course_days')
@@ -470,24 +572,46 @@ export async function registerUploadedResource(input: {
     return { errors: { title: ['Give the item a title.'] } }
   }
 
-  const { error } = await supabase.from('resources').insert({
-    course_id: input.courseId,
-    day_id: input.dayId,
-    kind: (RESOURCE_KINDS as readonly string[]).includes(input.kind)
-      ? (input.kind as (typeof RESOURCE_KINDS)[number])
-      : 'file',
-    title: input.title.trim(),
-    description: input.description?.trim() || null,
-    storage_path: input.path,
-    file_size: input.size,
-    mime_type: input.mimeType,
-    is_published: true,
-  })
+  const { data: created, error } = await supabase
+    .from('resources')
+    .insert({
+      course_id: input.courseId,
+      day_id: input.dayId,
+      kind: (RESOURCE_KINDS as readonly string[]).includes(input.kind)
+        ? (input.kind as (typeof RESOURCE_KINDS)[number])
+        : 'file',
+      title: input.title.trim(),
+      description: input.description?.trim() || null,
+      storage_path: input.path,
+      file_size: input.size,
+      mime_type: input.mimeType,
+      is_published: true,
+    })
+    .select('id, title')
+    .single()
 
   if (error) {
     // Do not leave the object behind if the row could not be written.
     await supabase.storage.from('course-files').remove([input.path])
     return fail(error.message)
+  }
+
+  if (created) {
+    const ctx = await courseLinkContext(input.courseId, input.dayId)
+    await emitCourseEvent({
+      courseId: input.courseId,
+      dayId: input.dayId,
+      actorId: profile.id,
+      kind: 'resource_added',
+      entityType: 'resource',
+      entityId: created.id,
+      title:
+        ctx.dayNumber != null
+          ? `New material on Day ${ctx.dayNumber}`
+          : 'New material added',
+      body: created.title,
+      href: ctx.dayHref,
+    })
   }
 
   revalidatePath(`/admin/courses/${input.courseId}/days/${input.dayId}`)
@@ -500,13 +624,40 @@ export async function toggleResourcePublished(formData: FormData) {
   const dayId = String(formData.get('day_id') ?? '')
   const resourceId = String(formData.get('resource_id') ?? '')
   const next = formData.get('next') === 'true'
-  const { supabase } = await assertCanManage(courseId)
+  const { profile, supabase } = await assertCanManage(courseId)
 
   await supabase
     .from('resources')
     .update({ is_published: next })
     .eq('id', resourceId)
     .eq('course_id', courseId)
+
+  if (next) {
+    const { data: resource } = await supabase
+      .from('resources')
+      .select('id, title')
+      .eq('id', resourceId)
+      .eq('course_id', courseId)
+      .maybeSingle()
+
+    if (resource) {
+      const ctx = await courseLinkContext(courseId, dayId)
+      await emitCourseEvent({
+        courseId,
+        dayId,
+        actorId: profile.id,
+        kind: 'resource_added',
+        entityType: 'resource',
+        entityId: resource.id,
+        title:
+          ctx.dayNumber != null
+            ? `New material on Day ${ctx.dayNumber}`
+            : 'New material added',
+        body: resource.title,
+        href: ctx.dayHref,
+      })
+    }
+  }
 
   revalidatePath(`/admin/courses/${courseId}/days/${dayId}`)
   revalidateCourseContent(courseId)
@@ -636,7 +787,7 @@ export async function toggleAssessmentPublished(formData: FormData) {
   const courseId = String(formData.get('course_id') ?? '')
   const assessmentId = String(formData.get('assessment_id') ?? '')
   const next = formData.get('next') === 'true'
-  const { supabase } = await assertCanManage(courseId)
+  const { profile, supabase } = await assertCanManage(courseId)
 
   if (next) {
     const { data: assessment } = await supabase
@@ -668,6 +819,33 @@ export async function toggleAssessmentPublished(formData: FormData) {
     .eq('id', assessmentId)
     .eq('course_id', courseId)
 
+  if (next) {
+    const { data: assessment } = await supabase
+      .from('assessments')
+      .select('id, title, day_id')
+      .eq('id', assessmentId)
+      .eq('course_id', courseId)
+      .maybeSingle()
+
+    if (assessment) {
+      const ctx = await courseLinkContext(courseId, assessment.day_id)
+      await emitCourseEvent({
+        courseId,
+        dayId: assessment.day_id,
+        actorId: profile.id,
+        kind: 'assessment_published',
+        entityType: 'assessment',
+        entityId: assessment.id,
+        title:
+          ctx.dayNumber != null
+            ? `${assessment.title} is on Day ${ctx.dayNumber}`
+            : `${assessment.title} is now visible`,
+        body: 'Open the day when you are ready. It may still be locked.',
+        href: ctx.dayHref,
+      })
+    }
+  }
+
   revalidatePath(`/admin/courses/${courseId}/assessments`)
   revalidatePath(`/admin/courses/${courseId}/assessments/${assessmentId}`)
   revalidateCourseContent(courseId)
@@ -677,7 +855,7 @@ export async function toggleAssessmentLocked(formData: FormData) {
   const courseId = String(formData.get('course_id') ?? '')
   const assessmentId = String(formData.get('assessment_id') ?? '')
   const next = formData.get('next') === 'true'
-  const { supabase } = await assertCanManage(courseId)
+  const { profile, supabase } = await assertCanManage(courseId)
 
   if (!next) {
     const { data: assessment } = await supabase
@@ -711,7 +889,68 @@ export async function toggleAssessmentLocked(formData: FormData) {
     .eq('id', assessmentId)
     .eq('course_id', courseId)
 
+  // next=true means lock; next=false means unlock for students.
+  if (!next) {
+    const { data: assessment } = await supabase
+      .from('assessments')
+      .select('id, title, day_id')
+      .eq('id', assessmentId)
+      .eq('course_id', courseId)
+      .maybeSingle()
+
+    if (assessment) {
+      const ctx = await courseLinkContext(courseId, assessment.day_id)
+      await emitCourseEvent({
+        courseId,
+        dayId: assessment.day_id,
+        actorId: profile.id,
+        kind: 'assessment_unlocked',
+        entityType: 'assessment',
+        entityId: assessment.id,
+        title: `${assessment.title} is open`,
+        body:
+          ctx.dayNumber != null
+            ? `Day ${ctx.dayNumber} · You can start it now.`
+            : 'You can start it now.',
+        href: `/quiz/${assessment.id}`,
+      })
+    }
+  }
+
   revalidatePath(`/admin/courses/${courseId}/assessments`)
+  revalidatePath(`/admin/courses/${courseId}/assessments/${assessmentId}`)
+  revalidateCourseContent(courseId)
+}
+
+/**
+ * Publish or withhold the marks for one assessment.
+ *
+ * While an assessment is withheld, `submit_attempt` writes no `correct_count`
+ * and no score row, and RLS refuses the student both the answer keys and their
+ * own graded responses. Releasing backfills all of it inside
+ * `set_assessment_results_released`, so the ordinary review screen lights up for
+ * the whole class at once. It is reversible.
+ */
+export async function setAssessmentResultsReleased(formData: FormData) {
+  const courseId = String(formData.get('course_id') ?? '')
+  const assessmentId = String(formData.get('assessment_id') ?? '')
+  const released = formData.get('released') === 'true'
+  const { supabase } = await assertCanManage(courseId)
+
+  const { error } = await supabase.rpc('set_assessment_results_released', {
+    p_assessment: assessmentId,
+    p_released: released,
+  })
+
+  if (error) {
+    redirect(
+      `/admin/courses/${courseId}/assessments/${assessmentId}/results?error=release`
+    )
+  }
+
+  revalidatePath(
+    `/admin/courses/${courseId}/assessments/${assessmentId}/results`
+  )
   revalidatePath(`/admin/courses/${courseId}/assessments/${assessmentId}`)
   revalidateCourseContent(courseId)
 }
@@ -750,4 +989,5 @@ export async function removeStudent(formData: FormData) {
     .eq('student_id', studentId)
 
   revalidatePath(`/admin/courses/${courseId}/students`)
+  revalidatePath(`/admin/courses/${courseId}/students/${studentId}`)
 }

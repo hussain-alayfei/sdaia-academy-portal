@@ -1,5 +1,5 @@
 ---
-description: Core SDAIA Academy Portal context — invariants, auth redirect, day tiles, motion. Always apply in this repo.
+description: Core SDAIA Academy Portal context — invariants, header, uploads, back links, motion. Always apply in this repo.
 alwaysApply: true
 ---
 
@@ -10,7 +10,8 @@ only — never commit parent `_backups/` (PII).
 
 ## Before coding
 
-Read `docs/CONTEXT.md`. Quizzes → also `docs/ASSESSMENTS.md` + `docs/DATA-MODEL.md`.
+Read `docs/CONTEXT.md` (includes 5 Aug 2026 branding / header / uploads).
+Quizzes → also `docs/ASSESSMENTS.md` + `docs/DATA-MODEL.md`.
 Deploy/region/cache → `DEPLOY.md`. Architecture → `docs/ARCHITECTURE.md`.
 
 ## Do not break
@@ -23,14 +24,15 @@ Deploy/region/cache → `DEPLOY.md`. Architecture → `docs/ARCHITECTURE.md`.
 - Courses are 5 days; scores are quiz-only
 - **Open redirect:** every login `next` must use `safeNext` in
   `src/app/actions/auth.ts`. Never `startsWith('/')` alone (`//evil.com` is bad)
+- Day uploads: resolve MIME via `src/lib/course-files.ts` (never raw octet-stream)
 
-## UI / motion (current)
+## UI / chrome (current)
 
-- Page templates: `animate-page` (opacity fade). Reserve `animate-rise` for small panels
-- Day tiles: `minmax(190px, 220px)`, content height + `min-h-[184px]`, no `aspect-square`
-- Assessment chip on course overview names the kind, not a generic “quiz”
-- Loading: `LoadingPanel` / `LoadingDots` via route `loading.tsx` files
-- Design: navy + teal, 1px borders, no drop shadows on rows, IBM Plex
+- Header: light surface + mosaic gradient; logo **right**; Profile → Notifications → Instructor
+- Account menu for Edit info / Sign out (no direct avatar → profile)
+- Soft `BackLink` on nested / auth / quiz pages
+- Admin course tabs: **no** page fade; Assessments day tabs: instant switch, plain `Day N`
+- Design: navy + teal, 1px borders, IBM Plex; brand logo `/sdaia-academy-logo.jpg`
 
 ## Conventions
 
@@ -38,3 +40,4 @@ Deploy/region/cache → `DEPLOY.md`. Architecture → `docs/ARCHITECTURE.md`.
 - Students → `published.ts`. Instructors → live `queries.ts` / `quiz.ts`
 - `'use server'` files export async functions only
 - Prefer updating docs in the same change when behaviour drifts
+- After `vercel --prod`, alias `sdaia-genai-portal.vercel.app`

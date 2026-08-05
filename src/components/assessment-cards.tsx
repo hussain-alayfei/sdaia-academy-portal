@@ -18,6 +18,7 @@ type State =
   | { kind: 'locked' }
   | { kind: 'ready' }
   | { kind: 'open' }
+  | { kind: 'awaiting' }
   | { kind: 'done'; correct: number; total: number; flagged: boolean }
 
 function stateOf(
@@ -26,6 +27,11 @@ function stateOf(
   questionCount: number
 ): State {
   if (attempt && attempt.status !== 'in_progress') {
+    // A sat paper whose results are still held back has no mark to report, and
+    // showing "0/30" from a null `correct_count` would be a lie rather than a
+    // blank. Say what is true: it is in, and marks come later.
+    if (!assessment.results_released) return { kind: 'awaiting' }
+
     return {
       kind: 'done',
       correct: attempt.correct_count ?? 0,
@@ -65,16 +71,18 @@ export function AssessmentCards({
                 'grid size-12 shrink-0 place-items-center rounded-sm border transition-colors',
                 state.kind === 'locked'
                   ? 'border-line bg-navy-50 text-ink-faint'
-                  : state.kind === 'done'
-                    ? state.flagged
-                      ? 'border-danger-500/30 bg-danger-50 text-danger-600'
-                      : 'border-teal-200 bg-teal-50 text-teal-700'
-                    : 'border-line bg-navy-50 text-navy-600 group-hover:border-teal-300 group-hover:bg-teal-50 group-hover:text-teal-700'
+                  : state.kind === 'awaiting'
+                    ? 'border-teal-200 bg-teal-50 text-teal-700'
+                    : state.kind === 'done'
+                      ? state.flagged
+                        ? 'border-danger-500/30 bg-danger-50 text-danger-600'
+                        : 'border-teal-200 bg-teal-50 text-teal-700'
+                      : 'border-line bg-navy-50 text-navy-600 group-hover:border-teal-300 group-hover:bg-teal-50 group-hover:text-teal-700'
               )}
             >
               {state.kind === 'locked' ? (
                 <LockIcon width={20} height={20} />
-              ) : state.kind === 'done' ? (
+              ) : state.kind === 'done' || state.kind === 'awaiting' ? (
                 <CheckIcon width={20} height={20} />
               ) : (
                 <ClipboardIcon width={20} height={20} />
@@ -119,6 +127,15 @@ export function AssessmentCards({
                   </span>
                   <span className="mt-1 block text-[12px] font-medium text-teal-700">
                     See your answers
+                  </span>
+                </>
+              ) : state.kind === 'awaiting' ? (
+                <>
+                  <span className="block text-[15px] leading-none font-semibold text-navy-900">
+                    Submitted
+                  </span>
+                  <span className="mt-1.5 block text-[12px] text-ink-faint">
+                    Results not published yet
                   </span>
                 </>
               ) : state.kind === 'open' ? (

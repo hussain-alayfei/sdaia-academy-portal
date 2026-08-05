@@ -1,0 +1,141 @@
+{
+  "schema": "sdaia-assessment/v1",
+  "assessment": {
+    "kind": "quiz",
+    "day": 4,
+    "title": "Day 4 quiz",
+    "duration_minutes": 10
+  },
+  "questions": [
+    {
+      "difficulty": "easy",
+      "topic": "Response latency",
+      "stem": "What is time to first token in a generative model response?",
+      "options": {
+        "A": "The average speed of producing each following word after the first",
+        "B": "The delay before the first word of the answer appears",
+        "C": "The total time until the complete answer has been delivered",
+        "D": "The time spent waiting in a background job queue before work starts"
+      },
+      "correct": "B",
+      "rationale": "Time to first token is the delay before the first word appears. Time per output token is later speed, and total response time covers the full answer."
+    },
+    {
+      "difficulty": "easy",
+      "topic": "Prompt injection",
+      "stem": "What is prompt injection in a generative AI system?",
+      "options": {
+        "A": "Placing instructions in content the model reads to change behaviour",
+        "B": "Encrypting every retrieved passage before it enters the model prompt",
+        "C": "Raising model temperature so every answer becomes more creative",
+        "D": "Deleting unused tools from the allow-list after each finished request"
+      },
+      "correct": "A",
+      "rationale": "Prompt injection places instructions inside content the model reads so the system behaviour changes. Encryption, temperature, and tool cleanup are separate controls."
+    },
+    {
+      "difficulty": "easy",
+      "topic": "Safe observability",
+      "stem": "What must observability logs avoid recording?",
+      "options": {
+        "A": "The model name used for a successful request and its version",
+        "B": "Whether a cache entry answered the request without a new call",
+        "C": "Passwords, keys, or personal data from the request",
+        "D": "How long each retrieval stage took to finish for that request"
+      },
+      "correct": "C",
+      "rationale": "Logs should record operational detail such as model, timing, and cache use. They must not store passwords, keys, or personal data."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Cache types",
+      "stem": "How does an exact-match cache differ from a prompt cache?",
+      "options": {
+        "A": "Exact-match cache only shortens streaming display for waiting users",
+        "B": "Prompt cache only stores complete answers for identical user questions",
+        "C": "Exact-match cache deletes embeddings after every failed model call",
+        "D": "Exact-match reuses one answer; prompt cache reuses a prompt start"
+      },
+      "correct": "D",
+      "rationale": "An exact-match cache returns a stored answer for the same question. A prompt cache reuses a repeated prompt beginning to cut input cost and delay."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Injection forms",
+      "stem": "How does indirect prompt injection differ from direct injection?",
+      "options": {
+        "A": "Indirect injection only works when streaming output is turned off",
+        "B": "Indirect injection hides instructions in material the system later reads",
+        "C": "Direct injection can only change temperature and maximum output tokens",
+        "D": "Direct injection never appears inside a recorded authenticated user session"
+      },
+      "correct": "B",
+      "rationale": "Direct injection is written by the user. Indirect injection hides instructions in documents, pages, or other content the system will read later."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Cost reduction",
+      "stem": "Which cost reduction method should be tried first?",
+      "options": {
+        "A": "Caching, because it can reduce both cost and delay",
+        "B": "Always switching every request to the largest available model",
+        "C": "Removing timeouts so slow calls keep waiting for longer periods",
+        "D": "Logging full personal data for every failed request in plain text"
+      },
+      "correct": "A",
+      "rationale": "Day 4 orders cost methods with caching first, because it is the only method that reduces both cost and delay."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Rate limits",
+      "stem": "What is the main purpose of a rate limit?",
+      "options": {
+        "A": "To replace evaluation metrics with a single monthly spend total",
+        "B": "To force every request onto the largest available model option",
+        "C": "To stop one user from exhausting capacity needed by others",
+        "D": "To store passwords and access keys inside application log files"
+      },
+      "correct": "C",
+      "rationale": "A rate limit caps how much service one user can consume in a period so capacity stays available for everyone."
+    },
+    {
+      "difficulty": "medium",
+      "topic": "Failure types",
+      "stem": "Which outcome returns text that looks certain but has no error signal?",
+      "options": {
+        "A": "A temporary timeout that can succeed on a later retry attempt",
+        "B": "A permanent rejection caused by an invalid or unauthorised request",
+        "C": "A capacity refusal after a quota or limit has been exceeded",
+        "D": "A confident wrong reply that only monitoring later detects"
+      },
+      "correct": "D",
+      "rationale": "Silent failure produces a confident wrong answer with no error. Temporary, permanent, and capacity failures still surface as system conditions."
+    },
+    {
+      "difficulty": "hard",
+      "topic": "Defence in depth",
+      "stem": "Why must control stay outside the model for irreversible tool actions?",
+      "options": {
+        "A": "Because larger models never request tools during normal inference",
+        "B": "Because fixed policy and permissions decide what may run",
+        "C": "Because prompt caching removes the need for any tool allow-list",
+        "D": "Because streaming alone prevents every prompt injection attempt"
+      },
+      "correct": "B",
+      "rationale": "Injection can change what the model requests. Damage is limited only when application policy, sandboxing, and least privilege sit outside the model."
+    },
+    {
+      "difficulty": "hard",
+      "topic": "Recovery design",
+      "stem": "A dependency fails often during peak load. Which recovery pair fits best?",
+      "options": {
+        "A": "Use a circuit breaker, then a reduced honest fallback",
+        "B": "Remove all timeouts so every slow call can finish eventually",
+        "C": "Retry forever with no delay until the background queue empties",
+        "D": "Disable metrics so operators stop seeing the repeated failures"
+      },
+      "correct": "A",
+      "rationale": "When failures are frequent, a circuit breaker stops hammering the dependency and a fallback still gives a reduced but honest response."
+    }
+  ]
+}
