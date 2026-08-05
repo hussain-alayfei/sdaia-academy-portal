@@ -206,6 +206,18 @@ export const UI = {
   },
 
   /* ---- fullscreen gate ---- */
+  enterFullscreenToBegin: {
+    en: 'Enter fullscreen to begin',
+    ar: 'ادخل وضع ملء الشاشة للبدء',
+  },
+  fullscreenStartBody: {
+    en: 'This exam must run in fullscreen. Press the button below to enter fullscreen and start. Nothing is recorded yet.',
+    ar: 'يجب أن يعمل هذا الاختبار في وضع ملء الشاشة. اضغط الزر أدناه للدخول إلى ملء الشاشة والبدء. لا يُسجَّل شيء بعد.',
+  },
+  enterFullscreenStart: {
+    en: 'Enter fullscreen and start',
+    ar: 'الدخول إلى ملء الشاشة والبدء',
+  },
   returnToFullscreen: {
     en: 'Return to fullscreen',
     ar: 'العودة إلى وضع ملء الشاشة',
@@ -236,6 +248,10 @@ export const UI = {
   answersSavedTimeRunning: {
     en: 'Your answers are all saved, and your time is still running.',
     ar: 'إجاباتك محفوظة كلها، وما زال وقتك يعمل.',
+  },
+  clockNotStartedNote: {
+    en: 'Your clock is already running. Enter fullscreen to see the questions.',
+    ar: 'مؤقّتك يعمل بالفعل. ادخل وضع ملء الشاشة لرؤية الأسئلة.',
   },
 
   /* ---- frozen attempt ---- */

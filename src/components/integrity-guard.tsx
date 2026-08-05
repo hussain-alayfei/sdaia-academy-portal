@@ -45,14 +45,21 @@ import {
  *
  * ## Fullscreen
  *
- * Requested when the exam starts, and only if the browser can actually do it —
+ * Browsers refuse `requestFullscreen` outside a user gesture, so the exam
+ * cannot auto-enter fullscreen on load. The first overlay is a **start gate**:
+ * the student presses one button to enter fullscreen. That first entry is never
+ * timed and never warned — there is nothing to "return" from yet.
+ *
+ * Only after the student has been in fullscreen once does leaving it arm the
+ * 10 second grace countdown. Come back inside it and nothing is recorded. Only
+ * staying outside after that first entry counts as a warning.
+ *
  * iPhone Safari cannot fullscreen a non-video element, so on those devices
  * fullscreen is skipped entirely and its warning is never armed rather than
  * freezing a student who has no way to comply.
  *
  * Escape always exits fullscreen and browsers do not allow that to be
- * suppressed. So exiting raises a blocking overlay with a short countdown; come
- * back inside it and nothing is recorded. Only staying outside counts.
+ * suppressed.
  *
  * ## Why the count is not held here
  *
@@ -117,6 +124,19 @@ export function IntegrityGuard({
    * student got there — including on first load.
    */
   const [isFullscreen, setIsFullscreen] = useState(true)
+
+  /**
+   * True once the student has entered fullscreen at least once this attempt.
+   *
+   * Until then the overlay is a start gate only: no grace timer, no warning.
+   * Arming the countdown before the first entry was punishing students who took
+   * more than ten seconds to find the button.
+   *
+   * The ref is what `sync` reads so a leave that fires in the same tick as the
+   * first entry still sees the armed flag; state drives the start-gate copy.
+   */
+  const fullscreenArmedRef = useRef(false)
+  const [fullscreenArmed, setFullscreenArmed] = useState(false)
 
   /** Seconds left to return before the exit is recorded. Null = not counting. */
   const [graceLeft, setGraceLeft] = useState<number | null>(null)
@@ -215,9 +235,21 @@ export function IntegrityGuard({
       setIsFullscreen(inside)
 
       if (inside) {
+        fullscreenArmedRef.current = true
+        setFullscreenArmed(true)
         setGraceLeft(null)
         chargedForThisExit.current = false
-      } else if (!chargedForThisExit.current) {
+        return
+      }
+
+      // Still on the start gate: outside fullscreen, never been in. Show the
+      // button, but do not start the grace countdown and do not warn.
+      if (!fullscreenArmedRef.current) {
+        setGraceLeft(null)
+        return
+      }
+
+      if (!chargedForThisExit.current) {
         setGraceLeft((current) =>
           current === null ? Math.ceil(FULLSCREEN_GRACE_MS / 1000) : current
         )
@@ -230,10 +262,15 @@ export function IntegrityGuard({
     return () => document.removeEventListener('fullscreenchange', sync)
   }, [active, requireFullscreen])
 
-  /* The grace countdown. Returning to fullscreen clears it before it fires, so
-     an accidental Escape costs nothing. */
+  /* The grace countdown. Only runs after the first successful fullscreen entry.
+     Returning to fullscreen clears it before it fires, so an accidental Escape
+     costs nothing. */
   useEffect(() => {
     if (graceLeft === null) return
+    if (!fullscreenArmedRef.current) {
+      setGraceLeft(null)
+      return
+    }
 
     if (graceLeft <= 0) {
       setGraceLeft(null)
@@ -261,6 +298,8 @@ export function IntegrityGuard({
 
     request().catch(() => {
       // Refused. Do not strand the student behind a gate they cannot pass.
+      fullscreenArmedRef.current = true
+      setFullscreenArmed(true)
       setIsFullscreen(true)
       setGraceLeft(null)
     })
@@ -286,21 +325,31 @@ export function IntegrityGuard({
    * makes the exam enter fullscreen at all.
    */
   if (active && requireFullscreen && !isFullscreen && !notice) {
-    const counting = graceLeft !== null
+    const starting = !fullscreenArmed
+    const counting = !starting && graceLeft !== null
 
     return (
-      <Overlay tone={counting ? 'amber' : 'danger'} opaque dir={dir} lang={language}>
-        <Heading tone={counting ? 'amber' : 'danger'}>
-          {counting
-            ? t('returnToFullscreen', language)
-            : t('fullscreenRequired', language)}
+      <Overlay
+        tone={starting ? 'amber' : counting ? 'amber' : 'danger'}
+        opaque
+        dir={dir}
+        lang={language}
+      >
+        <Heading tone={starting ? 'amber' : counting ? 'amber' : 'danger'}>
+          {starting
+            ? t('enterFullscreenToBegin', language)
+            : counting
+              ? t('returnToFullscreen', language)
+              : t('fullscreenRequired', language)}
         </Heading>
 
         <p className="mt-4 text-[17px] leading-relaxed text-ink sm:text-[19px]">
-          {t('fullscreenHiddenPaper', language)}
+          {starting
+            ? t('fullscreenStartBody', language)
+            : t('fullscreenHiddenPaper', language)}
         </p>
 
-        {counting ? (
+        {starting ? null : counting ? (
           <p className="mt-4 rounded-md border-2 border-amber-300 bg-amber-50 px-4 py-3.5 text-[17px] leading-relaxed font-semibold text-amber-800 sm:text-[19px]">
             {t('returnWithin', language)}{' '}
             <span className="tabular-nums">
@@ -319,12 +368,16 @@ export function IntegrityGuard({
 
         <div className="mt-6">
           <Button onClick={enterFullscreen} autoFocus>
-            {t('enterFullscreen', language)}
+            {starting
+              ? t('enterFullscreenStart', language)
+              : t('enterFullscreen', language)}
           </Button>
         </div>
 
         <p className="mt-4 text-[14px] leading-relaxed text-ink-faint">
-          {t('answersSavedTimeRunning', language)}
+          {starting
+            ? t('clockNotStartedNote', language)
+            : t('answersSavedTimeRunning', language)}
         </p>
       </Overlay>
     )
