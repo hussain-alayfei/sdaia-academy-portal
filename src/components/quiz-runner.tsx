@@ -12,6 +12,7 @@ import {
 } from '@/components/icons'
 import { ExamLockdown } from '@/components/exam-lockdown'
 import { IntegrityGuard } from '@/components/integrity-guard'
+import { QuizFrozen } from '@/components/quiz-frozen'
 import { Alert, Button, cx } from '@/components/ui'
 import { formatClock } from '@/lib/format'
 import {
@@ -60,6 +61,8 @@ export function QuizRunner({
   initialWarnings,
   lockdown = false,
   resultsHidden = false,
+  warningLimit = null,
+  startFrozen = false,
 }: {
   attemptId: string
   title: string
@@ -71,6 +74,10 @@ export function QuizRunner({
   lockdown?: boolean
   /** True when submitting will not reveal a score. Changes the closing copy. */
   resultsHidden?: boolean
+  /** Warnings allowed before the attempt freezes. Null = legacy per-question. */
+  warningLimit?: number | null
+  /** The attempt was already frozen when this page rendered. */
+  startFrozen?: boolean
 }) {
   const router = useRouter()
 
@@ -105,6 +112,10 @@ export function QuizRunner({
   )
   const [confirming, setConfirming] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [frozen, setFrozen] = useState(startFrozen)
+
+  /** Exam papers run in fullscreen; practice quizzes do not. */
+  const examMode = warningLimit !== null
 
   const page = pages[pageIndex]
 
@@ -156,9 +167,45 @@ export function QuizRunner({
     [attemptId, router]
   )
 
-  /* Recompute from the deadline rather than decrementing, so a background tab
-     that stopped receiving timers catches up the moment it returns. */
+  /**
+   * Enter fullscreen once, when an exam attempt opens.
+   *
+   * Best effort by design. iPhone Safari cannot fullscreen a non-video element,
+   * and any browser can refuse the request. A student on such a device sits the
+   * exam windowed rather than being blocked, and the fullscreen warning is never
+   * armed against them — `requireFullscreen` below is gated on the browser
+   * actually being capable of it.
+   */
+  const canFullscreen =
+    typeof document !== 'undefined' &&
+    Boolean(document.fullscreenEnabled) &&
+    typeof document.documentElement.requestFullscreen === 'function'
+
   useEffect(() => {
+    if (!examMode || frozen || submitted.current || !canFullscreen) return
+    if (document.fullscreenElement) return
+    void document.documentElement.requestFullscreen?.().catch(() => {})
+    // Once per mount: re-requesting on every render would fight the student.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  /* Leaving fullscreen when the exam ends is courtesy, not policy. */
+  useEffect(() => {
+    if (!examMode) return
+    return () => {
+      if (typeof document !== 'undefined' && document.fullscreenElement) {
+        void document.exitFullscreen?.().catch(() => {})
+      }
+    }
+  }, [examMode])
+
+  /* Recompute from the deadline rather than decrementing, so a background tab
+     that stopped receiving timers catches up the moment it returns. While the
+     attempt is frozen the clock is paused server-side, so it must not tick here
+     either — and it certainly must not time the student out. */
+  useEffect(() => {
+    if (frozen) return
+
     const tick = () => {
       const left = Math.max(
         0,
@@ -171,7 +218,7 @@ export function QuizRunner({
     const id = window.setInterval(tick, 1000)
     tick()
     return () => window.clearInterval(id)
-  }, [expiresAt, submit])
+  }, [expiresAt, submit, frozen])
 
   /* Closing the tab mid-attempt loses nothing — answers are already saved — but
      the attempt cannot be restarted, so it is worth one confirmation. */
@@ -263,6 +310,13 @@ export function QuizRunner({
 
   if (!page) return null
 
+  // A frozen attempt shows nothing else. The questions are not merely hidden —
+  // `save_response` and `submit_attempt` both refuse a frozen attempt, so there
+  // is nothing to gain from digging them out of the page.
+  if (frozen) {
+    return <QuizFrozen attemptId={attemptId} warningLimit={warningLimit} />
+  }
+
   return (
     <div className={cx('min-h-dvh bg-canvas', lockdown && 'select-none')}>
       <ExamLockdown active={lockdown && !finished} />
@@ -274,12 +328,18 @@ export function QuizRunner({
           questions.findIndex((q) => q.id === activeQuestionId) + 1
         }
         active={!finished}
+        warningLimit={warningLimit}
+        requireFullscreen={examMode && canFullscreen}
         onWarning={(totalCount, questionCount, invalidated) => {
           setWarnings(totalCount)
           setIntegrityByQuestion((prev) => ({
             ...prev,
             [activeQuestionId]: { count: questionCount, invalidated },
           }))
+        }}
+        onFrozen={() => {
+          setFrozen(true)
+          router.refresh()
         }}
       />
 
@@ -296,13 +356,23 @@ export function QuizRunner({
             </p>
           </div>
 
+          {/* Kept visible once anything is on the record. A student who can see
+              "2 of 5" knows exactly where they stand; one who cannot is being
+              set up to be surprised by a freeze. */}
           {warnings > 0 ? (
             <span
-              className="inline-flex items-center gap-1.5 rounded-xs border border-amber-200 bg-amber-50 px-2 py-1 text-[12px] font-medium text-amber-800"
-              title="Integrity events recorded during this attempt"
+              className={cx(
+                'inline-flex items-center gap-1.5 rounded-xs border px-2.5 py-1.5 text-[13px] font-semibold',
+                warningLimit !== null && warnings >= warningLimit - 1
+                  ? 'border-danger-500 bg-danger-50 text-danger-600'
+                  : 'border-amber-300 bg-amber-50 text-amber-800'
+              )}
+              title="Integrity warnings recorded during this attempt"
             >
-              <AlertIcon width={13} height={13} />
-              {warnings}
+              <AlertIcon width={14} height={14} />
+              {warningLimit !== null
+                ? `${warnings} of ${warningLimit} warnings`
+                : `${warnings} integrity event${warnings === 1 ? '' : 's'}`}
             </span>
           ) : null}
 

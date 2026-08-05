@@ -31,10 +31,13 @@ const STATUS_LABELS: Record<AttemptStatus, string> = {
 
 const EVENT_LABELS: Record<IntegrityEventKind, string> = {
   tab_hidden: 'Switched tab or app',
-  window_blur: 'Window lost focus',
   copy: 'Tried to copy',
   paste: 'Tried to paste',
-  context_menu: 'Right-click menu',
+  fullscreen_exit: 'Left fullscreen',
+  // No longer recorded. Kept so older logs still read correctly: window focus
+  // proved too noisy to count, and right-clicking is blocked silently now.
+  window_blur: 'Window lost focus (no longer recorded)',
+  context_menu: 'Right-click menu (no longer recorded)',
 }
 
 export type ResultsAttemptRow = {

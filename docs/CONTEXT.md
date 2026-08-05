@@ -156,7 +156,28 @@ one-press control on the assessment's Results page →
 the whole class at once. Reversible.
 
 **Exam-day:** open Assessments → Day 5 → Final exam → press **Unlock**. That is
-the only step. Release marks later from the Results page.
+the only step. Keep the assessment's **Results** page open during the exam: any
+frozen student appears in a red banner at the top with an Unlock button. Release
+marks from the same page afterwards.
+
+**Anti-cheat: 5 warnings, then freeze (final exam only).**
+`assessments.integrity_warning_limit = 5`. Day quizzes leave it null and keep the
+legacy per-question zeroing. Full detail in
+[`ASSESSMENTS.md`](ASSESSMENTS.md#anti-cheat).
+
+Counted: leaving the page (`visibilitychange` → hidden), staying out of
+fullscreen past a **10 second grace**, and blocked copy/paste. **Not** counted:
+`window blur` (address bar, notifications, second monitors — too noisy), and
+right-click / double-click / selection / drag / **window resize**, which are
+blocked silently and never warn. Fullscreen is requested only when the browser
+supports it, because **iPhone Safari cannot fullscreen a non-video element** and
+would otherwise freeze a student who cannot comply.
+
+At 5 warnings the attempt sets `frozen_at`: answering and submitting are refused
+in the RPCs, and **the clock pauses**. Unlock from the red banner on the
+assessment's Results page — `unlock_attempt` returns the frozen time, adds any
+bonus minutes, and resets `warning_count` to 0 so the student is not re-frozen
+instantly.
 
 **Lockdown + clock (all attempts, not just the final).** `exam-lockdown.tsx`
 blocks selection, right-click, cut, drag and the copy/save/print shortcuts;

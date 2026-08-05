@@ -1,8 +1,11 @@
 import { notFound } from 'next/navigation'
 
-import { setAssessmentResultsReleased } from '@/app/actions/admin'
+import {
+  setAssessmentResultsReleased,
+  unlockFrozenAttempt,
+} from '@/app/actions/admin'
 import { ResultsExplorer } from '@/components/admin/results-explorer'
-import { CheckIcon, EyeOffIcon } from '@/components/icons'
+import { AlertIcon, CheckIcon, EyeOffIcon } from '@/components/icons'
 import { BackLink, Button, cx } from '@/components/ui'
 import { canManageCourse, getCourseById } from '@/lib/dal'
 import {
@@ -12,6 +15,16 @@ import {
   getIntegrityEvents,
   getQuestionStats,
 } from '@/lib/quiz'
+
+/** Rounded up, because "frozen for 0 minutes" reads as though nothing is wrong. */
+function minutesSince(iso: string | null): string {
+  if (!iso) return 'a moment'
+  const minutes = Math.max(
+    1,
+    Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+  )
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`
+}
 
 export default async function ResultsPage({
   params,
@@ -37,6 +50,10 @@ export default async function ResultsPage({
   ])
 
   if (!assessment) notFound()
+
+  const frozen = attempts.filter(
+    (attempt) => attempt.frozen_at && attempt.status === 'in_progress'
+  )
 
   const eventsByAttempt = new Map<string, typeof events>()
   for (const event of events) {
@@ -86,6 +103,74 @@ export default async function ResultsPage({
       >
         Back to assessment
       </BackLink>
+
+      {/* Exam-day triage. Anyone here is sitting in front of a stopped exam
+          with their clock paused, so this goes above everything else. */}
+      {frozen.length > 0 ? (
+        <div className="rounded-md border-2 border-danger-500 bg-danger-50 p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-sm bg-surface text-danger-600">
+              <AlertIcon width={18} height={18} />
+            </span>
+            <div>
+              <p className="text-[15px] font-semibold text-danger-600">
+                {frozen.length} frozen{' '}
+                {frozen.length === 1 ? 'attempt' : 'attempts'} waiting for you
+              </p>
+              <p className="text-[13px] text-ink-soft">
+                Their clocks are paused. Unlocking gives the waiting time back
+                and resets their warnings to zero.
+              </p>
+            </div>
+          </div>
+
+          <ul className="mt-4 space-y-2.5">
+            {frozen.map((attempt) => (
+              <li
+                key={attempt.id}
+                className="flex flex-wrap items-center gap-3 rounded-sm border border-line bg-surface p-3.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-medium text-navy-900">
+                    {attempt.student?.full_name || attempt.student?.email || '—'}
+                  </p>
+                  <p className="text-[12.5px] text-ink-faint">
+                    Frozen for {minutesSince(attempt.frozen_at)} ·{' '}
+                    {attempt.warning_count} warnings
+                  </p>
+                </div>
+
+                <form
+                  action={unlockFrozenAttempt}
+                  className="flex items-center gap-2"
+                >
+                  <input type="hidden" name="course_id" value={course.id} />
+                  <input
+                    type="hidden"
+                    name="assessment_id"
+                    value={assessment.id}
+                  />
+                  <input type="hidden" name="attempt_id" value={attempt.id} />
+                  <label className="text-[12.5px] text-ink-soft">
+                    Extra minutes
+                    <input
+                      type="number"
+                      name="extra_minutes"
+                      defaultValue={0}
+                      min={0}
+                      max={60}
+                      className="ml-2 w-16 rounded-xs border border-line-strong bg-surface px-2 py-1 text-[13px] text-navy-900"
+                    />
+                  </label>
+                  <Button type="submit" size="sm">
+                    Unlock
+                  </Button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {/* The reveal. Everything above is the instructor's view and is visible
           to them whatever this says; this control decides only what the class

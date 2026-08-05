@@ -52,8 +52,10 @@
       "This is one attempt. It cannot be reopened once submitted.",
       "Select the single best answer for each question. Every answer saves the moment you pick it.",
       "Question order and answer order are different for every student. Comparing with anyone near you will not help you.",
-      "Copying, pasting, selecting text and right-clicking are switched off for the whole exam.",
-      "Switching to another tab or window is recorded against the question you are on. Three recorded events on the same question make only that question worth zero points; the rest of your exam continues normally.",
+      "The exam opens in fullscreen. If you leave fullscreen you get 10 seconds to return before it is recorded, so pressing Escape by accident costs you nothing.",
+      "Copying, pasting and selecting text are switched off. Right-clicking, double-clicking and resizing your window are fine and are never recorded.",
+      "You have 5 warnings. Leaving this page for another tab or app, staying out of fullscreen, or trying to copy or paste each record one warning, and a large message tells you where you stand.",
+      "After the 5th warning your exam freezes and you cannot answer anything until an instructor unlocks it. Your clock pauses while you wait, so you do not lose exam time. Raise your hand straight away.",
       "Your score is not shown when you submit. Your instructor releases marks and explanations after the exam."
     ]
   },

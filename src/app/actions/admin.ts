@@ -955,6 +955,39 @@ export async function setAssessmentResultsReleased(formData: FormData) {
   revalidateCourseContent(courseId)
 }
 
+/**
+ * Reopen a frozen attempt.
+ *
+ * `unlock_attempt` gives back the time the student spent frozen, adds any extra
+ * minutes granted, and resets their warning count — without that last part they
+ * resume sitting on the limit and the next stray event freezes them again
+ * instantly. The integrity log keeps the full history either way.
+ */
+export async function unlockFrozenAttempt(formData: FormData) {
+  const courseId = String(formData.get('course_id') ?? '')
+  const assessmentId = String(formData.get('assessment_id') ?? '')
+  const attemptId = String(formData.get('attempt_id') ?? '')
+  const extraMinutes = Number(formData.get('extra_minutes') ?? 0)
+  const { supabase } = await assertCanManage(courseId)
+
+  const { error } = await supabase.rpc('unlock_attempt', {
+    p_attempt: attemptId,
+    p_extra_minutes: Number.isFinite(extraMinutes)
+      ? Math.max(0, Math.min(60, Math.trunc(extraMinutes)))
+      : 0,
+  })
+
+  if (error) {
+    redirect(
+      `/admin/courses/${courseId}/assessments/${assessmentId}/results?error=${encodeURIComponent(error.message)}`
+    )
+  }
+
+  revalidatePath(
+    `/admin/courses/${courseId}/assessments/${assessmentId}/results`
+  )
+}
+
 export async function deleteAssessment(formData: FormData) {
   const courseId = String(formData.get('course_id') ?? '')
   const assessmentId = String(formData.get('assessment_id') ?? '')

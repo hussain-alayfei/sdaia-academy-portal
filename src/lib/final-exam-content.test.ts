@@ -307,3 +307,48 @@ test('the student briefing states the rules that actually apply', () => {
     'briefing omits that the score is held back'
   )
 })
+
+test('the briefing warns about every rule that can freeze the exam', () => {
+  const text = seed.instructions.points.join(' ').toLowerCase()
+
+  // A student must not be able to hit a freeze they were never told about.
+  assert.ok(text.includes('5 warnings'), 'briefing omits the warning limit')
+  assert.ok(text.includes('freeze'), 'briefing omits what happens at the limit')
+  assert.ok(text.includes('fullscreen'), 'briefing omits the fullscreen rule')
+  assert.ok(
+    text.includes('another tab') || text.includes('leaving this page'),
+    'briefing omits that leaving the page is recorded'
+  )
+  assert.ok(
+    text.includes('copy') && text.includes('past'),
+    'briefing omits that copy and paste are recorded'
+  )
+  assert.ok(
+    text.includes('clock pauses') || text.includes('do not lose'),
+    'briefing omits that the clock pauses while frozen'
+  )
+})
+
+test('the briefing promises the things that are never punished', () => {
+  const text = seed.instructions.points.join(' ').toLowerCase()
+
+  // These are the actions students take by reflex. The guard deliberately
+  // ignores them, and the briefing has to say so or students will freeze
+  // themselves out of caution.
+  for (const benign of ['right-click', 'double-click', 'resiz']) {
+    assert.ok(
+      text.includes(benign),
+      `briefing does not reassure students about ${benign}`
+    )
+  }
+  assert.ok(
+    text.includes('never recorded'),
+    'briefing does not state that benign actions are never recorded'
+  )
+
+  // The grace window is the difference between a fair rule and a trap.
+  assert.ok(
+    text.includes('10 seconds'),
+    'briefing omits the fullscreen grace window'
+  )
+})

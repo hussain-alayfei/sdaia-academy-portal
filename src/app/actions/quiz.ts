@@ -26,6 +26,7 @@ const INTEGRITY_KINDS: readonly IntegrityEventKind[] = [
   'copy',
   'paste',
   'context_menu',
+  'fullscreen_exit',
 ]
 
 /** Start, or resume. `start_attempt` hands back the existing attempt if any. */
@@ -74,12 +75,23 @@ export async function saveAnswer(input: {
   return { ok: true }
 }
 
+const idleResult = (message?: string): IntegrityResult & { message?: string } => ({
+  active: true,
+  question_invalidated: false,
+  question_warning_count: 0,
+  warning_count: 0,
+  warning_limit: null,
+  frozen: false,
+  message,
+})
+
 /**
  * Record one integrity event and report where the student now stands.
  *
  * Counts live in the database, so a reload does not hand back a fresh set of
- * chances. The total stays on the attempt; the per-question count stays on the
- * event rows. A third event invalidates that question without ending the quiz.
+ * chances. On a paper with an `integrity_warning_limit`, reaching the limit
+ * freezes the attempt server-side; on one without, a third event on the same
+ * question zeroes that question instead.
  */
 export async function reportIntegrityEvent(input: {
   attemptId: string
@@ -89,13 +101,7 @@ export async function reportIntegrityEvent(input: {
   await requireProfile()
 
   if (!INTEGRITY_KINDS.includes(input.kind as IntegrityEventKind)) {
-    return {
-      active: true,
-      question_invalidated: false,
-      question_warning_count: 0,
-      warning_count: 0,
-      message: 'Unknown event',
-    }
+    return idleResult('Unknown event')
   }
 
   const supabase = await createClient()
@@ -105,15 +111,7 @@ export async function reportIntegrityEvent(input: {
     p_question: input.questionId,
   })
 
-  if (error) {
-    return {
-      active: true,
-      question_invalidated: false,
-      question_warning_count: 0,
-      warning_count: 0,
-      message: error.message,
-    }
-  }
+  if (error) return idleResult(error.message)
 
   const result = (data ?? {}) as Partial<IntegrityResult>
   return {
@@ -121,6 +119,32 @@ export async function reportIntegrityEvent(input: {
     question_invalidated: result.question_invalidated ?? false,
     question_warning_count: result.question_warning_count ?? 0,
     warning_count: result.warning_count ?? 0,
+    warning_limit: result.warning_limit ?? null,
+    frozen: result.frozen ?? false,
+  }
+}
+
+/**
+ * Is this attempt still frozen?
+ *
+ * The freeze screen polls this so the student's exam reopens on its own once the
+ * instructor unlocks it, rather than making them guess when to refresh.
+ */
+export async function checkAttemptFrozen(input: {
+  attemptId: string
+}): Promise<{ frozen: boolean; expiresAt: string | null }> {
+  await requireProfile()
+  const supabase = await createClient()
+
+  const { data } = await supabase
+    .from('assessment_attempts')
+    .select('frozen_at, expires_at')
+    .eq('id', input.attemptId)
+    .maybeSingle()
+
+  return {
+    frozen: Boolean(data?.frozen_at),
+    expiresAt: data?.expires_at ?? null,
   }
 }
 

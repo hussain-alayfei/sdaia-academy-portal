@@ -119,6 +119,8 @@ export type Database = {
           correct_count: number | null
           course_id: string
           expires_at: string
+          frozen_at: string | null
+          frozen_seconds: number
           id: string
           question_count: number | null
           question_order: Json
@@ -133,6 +135,8 @@ export type Database = {
           correct_count?: number | null
           course_id: string
           expires_at: string
+          frozen_at?: string | null
+          frozen_seconds?: number
           id?: string
           question_count?: number | null
           question_order?: Json
@@ -147,6 +151,8 @@ export type Database = {
           correct_count?: number | null
           course_id?: string
           expires_at?: string
+          frozen_at?: string | null
+          frozen_seconds?: number
           id?: string
           question_count?: number | null
           question_order?: Json
@@ -487,6 +493,7 @@ export type Database = {
           duration_minutes: number
           id: string
           instructions: string | null
+          integrity_warning_limit: number | null
           is_locked: boolean
           is_published: boolean
           kind: Database['public']['Enums']['assessment_kind']
@@ -508,6 +515,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           instructions?: string | null
+          integrity_warning_limit?: number | null
           is_locked?: boolean
           is_published?: boolean
           kind: Database['public']['Enums']['assessment_kind']
@@ -529,6 +537,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           instructions?: string | null
+          integrity_warning_limit?: number | null
           is_locked?: boolean
           is_published?: boolean
           kind?: Database['public']['Enums']['assessment_kind']
@@ -944,6 +953,10 @@ export type Database = {
         Args: { p_attempt: string; p_reason?: string }
         Returns: Json
       }
+      unlock_attempt: {
+        Args: { p_attempt: string; p_extra_minutes?: number }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: 'admin' | 'instructor' | 'student'
@@ -959,6 +972,7 @@ export type Database = {
         | 'copy'
         | 'paste'
         | 'context_menu'
+        | 'fullscreen_exit'
       notification_event_kind:
         | 'resource_added'
         | 'day_published'
@@ -1049,5 +1063,16 @@ export type IntegrityResult = {
   active: boolean
   question_invalidated: boolean
   question_warning_count: number
+  warning_count: number
+  /** Null when the assessment uses the legacy per-question penalty instead. */
+  warning_limit: number | null
+  /** True once the limit is reached: no answering until an instructor unlocks. */
+  frozen: boolean
+}
+
+/** Shape returned by unlock_attempt. */
+export type UnlockResult = {
+  paused_seconds: number
+  extra_minutes: number
   warning_count: number
 }

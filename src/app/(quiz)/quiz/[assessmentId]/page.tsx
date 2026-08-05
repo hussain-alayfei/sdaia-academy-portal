@@ -48,7 +48,7 @@ export default async function QuizPage({
   const { data: assessment } = await supabase
     .from('assessments')
     .select(
-      'id, course_id, kind, title, description, duration_minutes, required_question_count, is_locked, is_published, sections, instructions, results_released, day:course_days(day_number), course:courses(slug, title)'
+      'id, course_id, kind, title, description, duration_minutes, required_question_count, is_locked, is_published, sections, instructions, results_released, integrity_warning_limit, day:course_days(day_number), course:courses(slug, title)'
     )
     .eq('id', assessmentId)
     .maybeSingle()
@@ -118,6 +118,8 @@ export default async function QuizPage({
         initialWarnings={attempt.warning_count}
         lockdown
         resultsHidden={!assessment.results_released}
+        warningLimit={assessment.integrity_warning_limit}
+        startFrozen={Boolean(attempt.frozen_at)}
       />
     )
   }
@@ -279,7 +281,11 @@ export default async function QuizPage({
             <strong className="font-medium text-navy-900">
               Stay on this page.
             </strong>{' '}
-            {studentView ? 'The real student attempt records tab/window changes and copy or paste. Preview mode does not create integrity records.' : 'Switching tab or window, copying and pasting are recorded per question. Right-clicking is allowed. A large warning explains each recorded event. Three events while you are on the same question make only that question worth zero points. The assessment continues, and your other questions are unaffected.'}
+            {studentView
+              ? 'The real student attempt records leaving the page, leaving fullscreen and copy or paste. Preview mode does not create integrity records.'
+              : assessment.integrity_warning_limit !== null
+                ? `Leaving this page for another tab or app, leaving fullscreen, or trying to copy or paste is recorded as a warning. A large message explains every one. After ${assessment.integrity_warning_limit} warnings your exam freezes and only your instructor can reopen it — your clock pauses while you wait, so you lose no time. Right-clicking, double-clicking and resizing your window are fine and are never recorded.`
+                : 'Switching tab or window, copying and pasting are recorded per question. A large warning explains each recorded event. Three events while you are on the same question make only that question worth zero points. The assessment continues, and your other questions are unaffected. Right-clicking is never recorded.'}
           </Rule>
         </ul>
 

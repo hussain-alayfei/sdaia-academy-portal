@@ -116,12 +116,52 @@ score hidden only in a component is not hidden.
 
 ## Anti-cheat
 
-Client: `integrity-guard.tsx` — `visibilitychange`, blur, copy and paste;
-debounced. Alongside it, `exam-lockdown.tsx` blocks selection, right-click, cut,
-drag and the copy/save/print keyboard shortcuts for every attempt — silently,
-without recording a warning, and without touching options or buttons. Copy and
-paste stay owned by the integrity guard so the warning count has one owner.
-Right-clicking is now blocked but still never creates a warning. Server:
+Two models, chosen per assessment by `assessments.integrity_warning_limit`:
+
+| Limit | Behaviour |
+| --- | --- |
+| `null` (day quizzes) | Legacy: third event on one question zeroes **that question**; attempt continues |
+| set (final exam = **5**) | Attempt-level: N warnings, then the attempt **freezes** until an instructor unlocks it |
+
+### What counts, and what deliberately does not
+
+Counting the wrong thing is far worse under the freeze model — a false positive
+used to cost one question, now it stops the whole exam. So:
+
+| Action | Recorded? |
+| --- | --- |
+| `visibilitychange` → hidden (another tab/app, minimised) | **Yes** |
+| Left fullscreen and did not return within 10s | **Yes** (`fullscreen_exit`) |
+| Blocked copy / paste | **Yes** |
+| `window blur` | **No** — fires on address-bar clicks, OS notifications, second monitors, and on every click inside some embedded browsers. Largest false-positive source; label kept only so old logs read correctly |
+| Right-click, double-click, text selection, drag, **resizing the window** | **No** — blocked silently by `exam-lockdown.tsx`, never a warning |
+
+### Fullscreen
+
+Requested when an exam attempt opens, and **only if the browser can actually do
+it**. iPhone Safari cannot fullscreen a non-video element, so on those devices
+fullscreen is skipped and its warning is never armed — never block a student who
+has no way to comply. Escape always exits fullscreen and cannot be suppressed,
+so exiting raises a blocking overlay with a **10 second grace countdown**;
+returning inside it records nothing.
+
+### The freeze
+
+`frozen_at` on the attempt. Not a terminal status — a flag on a live
+`in_progress` attempt, so unlocking resumes the same paper with the same
+answers. `save_response` and `submit_attempt` both refuse a frozen attempt, so
+the freeze is not UI-deep. `quiz-frozen.tsx` polls every 5s and reopens the exam
+by itself once unlocked.
+
+**The clock pauses.** `unlock_attempt(attempt, extra_minutes)` pushes
+`expires_at` forward by the time spent frozen, adds any bonus minutes, and
+**resets `warning_count` to zero** — without that the student resumes on the
+limit and the next stray event re-freezes them. The event log keeps the full
+history. Instructors unlock from the banner at the top of the assessment's
+Results page.
+
+Server: `record_integrity_event`. Client: `integrity-guard.tsx` (debounced 1.5s,
+so one alt-tab costs one warning). Server:
 `record_integrity_event` increments the total
 attempt count and a count tied to the active `question_id` (both survive a
 refresh). At three events on one question, grading forces that question to zero
