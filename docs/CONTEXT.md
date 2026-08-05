@@ -95,7 +95,7 @@ Ops helpers:
 | Day 3 quiz | 3 | 10 | 10 | published, unlocked |
 | Day 4 quiz | 4 | 10 | 10 | published, unlocked |
 | Post-assessment | 4 | **20** | **20** | published, unlocked (override; not the 30/30 default) |
-| Final exam | 5 | 0 / target 30 | 30 | unpublished, locked, **empty** |
+| Final exam | 5 | **30** | 30 | **published, locked, results hidden** — see below |
 
 JSON sources under `docs/assessment-content/`:
 
@@ -107,6 +107,63 @@ JSON sources under `docs/assessment-content/`:
 Schema note: global defaults remain `post` = 30 Q / 30 min. This course’s post
 uses `required_question_count = 20`. `difficultyMixFor('post', 20)` returns
 6/9/5; duration `20` is allowed when the file has exactly 20 post questions.
+
+### Final exam (GENAI-01, Day 5) — current
+
+Assessment `4c23ed42-7287-49ef-9e85-02cff925bd92`. 30 questions, 30 minutes,
+**published + locked**, `results_released = false`. Full plan and exam-day
+runbook: [`FINAL-EXAM-PLAN.md`](FINAL-EXAM-PLAN.md).
+
+Source of truth is the approved paper at
+`final_exam/developing_generative_ai_solutions_final_approved_exam.md` (sibling
+of `portal/`). Transcribed verbatim into
+`docs/assessment-content/final-exam.json` and seeded by
+`scripts/seed-final-exam.mjs` **with the service key, bypassing the importer** —
+the approved paper deliberately breaks several house authoring rules.
+`src/lib/final-exam-content.test.ts` re-parses the approved `.md` and asserts
+every stem, option, answer key, difficulty and day still matches.
+
+**Sections.** `assessment_questions.section` (1/2/3) and `assessments.sections`
+(jsonb: title, brief, layout, use case). `start_attempt` shuffles **within** a
+section, so the paper always reads A → B → C:
+
+| Section | Q | Format | Layout |
+| --- | --- | --- | --- |
+| A — Multiple choice | 20 | MCQ | one per screen |
+| B — True or false | 5 | T/F | one per screen |
+| C — Shared use case | 5 | MCQ | **single page**, use case pinned above |
+
+True/false options keep their authored order (True, False). Only MCQ options
+shuffle.
+
+**Hidden results.** `assessments.results_released` defaults to **true**, so all
+other papers are unaffected. While false, an attempt produces nothing a student
+can read — enforced in the database, not React, because a student can query
+PostgREST directly:
+
+| Vector | Closed by |
+| --- | --- |
+| `assessment_attempts.correct_count` | not written by `submit_attempt` while hidden |
+| `assessment_responses.is_correct` | RLS denies the row post-submit while hidden |
+| `assessment_answer_keys` | RLS denies while hidden |
+| `assessment_scores` | no row written while hidden |
+
+Grading still runs, so the instructor sees marks immediately (the results page
+rebuilds them from graded responses via `getGradedCounts`). **Release** with the
+one-press control on the assessment's Results page →
+`set_assessment_results_released(assessment, true)`, which backfills
+`correct_count` and `assessment_scores` so the ordinary review screen works for
+the whole class at once. Reversible.
+
+**Exam-day:** open Assessments → Day 5 → Final exam → press **Unlock**. That is
+the only step. Release marks later from the Results page.
+
+**Lockdown + clock (all attempts, not just the final).** `exam-lockdown.tsx`
+blocks selection, right-click, cut, drag and the copy/save/print shortcuts;
+options and buttons stay operable. Copy/paste stay owned by `integrity-guard`
+so the warning count stays honest. The countdown is much larger and turns **red
+for the last five minutes**. `assessments.instructions` (one point per line)
+renders as a large numbered briefing on the rules screen.
 
 **Day materials / slides**
 
@@ -280,6 +337,14 @@ Use Day 2 as the quality model for later days. Full workflow in
    (`src/app/actions/auth.ts` and `src/app/auth/callback/route.ts`).
 9. **Password-recovery sessions** must finish on `/reset-password` until the
    password is updated or the user cancels (signs out).
+10. **Hidden results are hidden in the database.** When
+    `assessments.results_released` is false, never write `correct_count` or an
+    `assessment_scores` row, and never relax the RLS on
+    `assessment_answer_keys` / `assessment_responses`. Hiding a score only in a
+    component is not hiding it — students can query PostgREST directly.
+11. **Section shuffling stays inside a section.** `start_attempt` orders by
+    `section` before `random()`. Shuffling across the whole paper would break
+    the A → B → C reading order and detach the use case from its questions.
 
 ---
 
@@ -329,6 +394,10 @@ explicitly asks.
 | Assessments by day tabs | `src/components/admin/assessments-by-day.tsx`, `local-tabs.tsx` |
 | Question import / edit | `src/app/actions/questions.ts`, `src/lib/assessment-schema.ts` |
 | Assessment JSON sources | `docs/assessment-content/` |
+| Sections / paging | `src/lib/exam-sections.ts` (+ `.test.ts`) |
+| Exam lockdown | `src/components/exam-lockdown.tsx` |
+| Hidden-results submit screen | `src/components/quiz-submitted.tsx` |
+| Release results | `setAssessmentResultsReleased` in `src/app/actions/admin.ts` |
 | Results explorer | `src/components/admin/results-explorer.tsx` |
 | Student quiz | `src/app/actions/quiz.ts`, `src/components/quiz-*.tsx` |
 | Design / motion / brand tokens | `src/app/globals.css` |

@@ -69,13 +69,59 @@ uses the 30% letter-share rule instead of the 7–8-per-letter post range.
 JSON: `docs/assessment-content/post-assessment-days-1-4.json`. Day 4 quiz:
 `docs/assessment-content/day-4-quiz.json` (10 MCQ, 3/5/2).
 
+**Final exam (GENAI-01):** 30 questions / 30 minutes, sectioned 20 MCQ + 5 T/F +
+5 use-case. The approved paper breaks several rules above on purpose, so it
+**bypasses the importer** entirely: `scripts/seed-final-exam.mjs` writes rows
+with the service key from `docs/assessment-content/final-exam.json`, and
+`src/lib/final-exam-content.test.ts` guards it against drift by re-parsing the
+approved `.md`. Do not re-import it through the editor.
+
 **Warnings (allow import):** possible stem→key word cues; stem not ending in
 `?` / completion form.
+
+## Sectioned papers
+
+`assessment_questions.section` (smallint, default 1) plus `assessments.sections`
+(jsonb array of `{n, code, title, brief, layout, use_case}`). Parsed by
+`src/lib/exam-sections.ts`; `buildExamPages` decides the screens.
+
+- `start_attempt` orders the frozen snapshot **by section, then random**, so
+  sections never interleave while the order inside one still varies per student
+- `layout: "single_page"` puts a whole section on one screen — used for the
+  final exam's shared use case, so the scenario sits above its five questions
+  instead of repeating in front of each
+- Options shuffle only for `multiple_choice`. True/false keeps True then False
+- A paper with `sections = null` behaves exactly as before: one plain section,
+  one question per screen
+
+## Withholding results
+
+`assessments.results_released` (default **true**). While false:
+
+- `submit_attempt` grades `is_correct` as usual but writes **no**
+  `correct_count` and **no** `assessment_scores` row
+- RLS denies students the answer keys, and denies their own response rows once
+  the attempt is no longer `in_progress`
+- the student sees `quiz-submitted.tsx` — confirmation only, no score
+- the day card reads "Submitted · Results not published yet"
+
+The instructor is unaffected: the results page rebuilds marks from graded
+responses (`getGradedCounts`). **Release** from the Results page →
+`set_assessment_results_released(assessment, true)` backfills `correct_count`
+and `assessment_scores`, and the ordinary review screen lights up for everyone.
+Reversible.
+
+Hiding must stay in the database. A student can query PostgREST directly, so a
+score hidden only in a component is not hidden.
 
 ## Anti-cheat
 
 Client: `integrity-guard.tsx` — `visibilitychange`, blur, copy and paste;
-debounced. Right-clicking is allowed and does not create a warning. Server:
+debounced. Alongside it, `exam-lockdown.tsx` blocks selection, right-click, cut,
+drag and the copy/save/print keyboard shortcuts for every attempt — silently,
+without recording a warning, and without touching options or buttons. Copy and
+paste stay owned by the integrity guard so the warning count has one owner.
+Right-clicking is now blocked but still never creates a warning. Server:
 `record_integrity_event` increments the total
 attempt count and a count tied to the active `question_id` (both survive a
 refresh). At three events on one question, grading forces that question to zero
