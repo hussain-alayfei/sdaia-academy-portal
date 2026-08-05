@@ -276,9 +276,8 @@ export default async function QuizPage({
           </Rule>
 
           <Rule icon={<AlertIcon width={16} height={16} />}>
-            Every question needs an answer before you can go to the next one —
-            blanks are not allowed. Flag anything you want to review later, then
-            come back to it. {studentView ? 'Preview answers stay only in this browser until you exit.' : 'Every answer saves the moment you pick it, so a lost connection costs you nothing.'}
+            Move freely between questions. Flag anything you want to review
+            later, then come back to it. {studentView ? 'Preview answers stay only in this browser until you exit.' : 'Every answer saves the moment you pick it, so a lost connection costs you nothing.'}
           </Rule>
 
           <Rule icon={<EyeOffIcon width={16} height={16} />}>
@@ -288,8 +287,8 @@ export default async function QuizPage({
             {studentView
               ? 'The real student attempt records leaving the page, leaving fullscreen and copy or paste. Preview mode does not create integrity records.'
               : assessment.integrity_warning_limit !== null
-                ? `Leaving this page for another tab or app, leaving fullscreen, or trying to copy or paste is recorded as a warning. A large message explains every one. After ${assessment.integrity_warning_limit} warnings your exam freezes and only your instructor can reopen it — your clock pauses while you wait, so you lose no time. Right-clicking, double-clicking and resizing your window are fine and are never recorded.`
-                : 'Switching tab or window, copying and pasting are recorded per question. A large warning explains each recorded event. Three events while you are on the same question make only that question worth zero points. The assessment continues, and your other questions are unaffected. Right-clicking is never recorded.'}
+                ? `Leaving this page for another tab or app, leaving fullscreen, or trying to copy or paste is recorded as a warning. A large message explains every one. After ${assessment.integrity_warning_limit} warnings your exam freezes and only your instructor can reopen it — your clock pauses while you wait, so you lose no time.`
+                : 'Switching tab or window, copying and pasting are recorded per question. A large warning explains each recorded event. Three events while you are on the same question make only that question worth zero points. The assessment continues, and your other questions are unaffected.'}
           </Rule>
             </ul>
           </>

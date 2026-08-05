@@ -59,14 +59,21 @@ export function ExamStartPanel({
   return (
     <>
       {bilingual ? (
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-navy-50/60 p-4">
+        <div
+          dir={dirFor(language)}
+          lang={language}
+          className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-navy-50/60 p-4"
+        >
           <div>
             <p className="text-[14px] font-semibold text-navy-900">
-              Choose your exam language · اختر لغة الاختبار
+              {arabic
+                ? 'اختر لغة الاختبار'
+                : 'Choose your exam language'}
             </p>
             <p className="mt-0.5 text-[13px] text-ink-soft">
-              You can change this at any time during the exam · يمكنك تغييرها في
-              أي وقت أثناء الاختبار
+              {arabic
+                ? 'يمكنك تغييرها في أي وقت أثناء الاختبار'
+                : 'You can change this at any time during the exam'}
             </p>
           </div>
           <ExamLanguageToggle value={language} onChange={change} />

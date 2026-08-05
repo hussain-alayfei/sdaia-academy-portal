@@ -4,6 +4,7 @@ import { cx } from '@/components/ui'
 import {
   EXAM_LANGUAGES,
   LANGUAGE_LABELS,
+  t,
   type ExamLanguage,
 } from '@/lib/exam-language'
 
@@ -42,7 +43,7 @@ export function ExamLanguageToggle({
 
       <div
         role="group"
-        aria-label="Exam language"
+        aria-label={t('examLanguage', value)}
         // Always laid out left-to-right so the two buttons do not swap places
         // when the language changes. A control that moves when you press it is
         // disorienting, especially mid-exam.

@@ -115,8 +115,6 @@ export function QuizRunner({
     storeLanguage(next)
   }
 
-  const rtl = language === 'ar'
-
   const pages = useMemo(
     () => buildExamPages(questions, sections),
     [questions, sections]
@@ -149,8 +147,6 @@ export function QuizRunner({
   const [confirming, setConfirming] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [frozen, setFrozen] = useState(startFrozen)
-  /** Shown when Next / skip is blocked because the current page is unanswered. */
-  const [needAnswer, setNeedAnswer] = useState(false)
 
   /** Exam papers run in fullscreen; practice quizzes do not. */
   const examMode = warningLimit !== null
@@ -281,16 +277,15 @@ export function QuizRunner({
         setSaveMessage(null)
       } else {
         setSave('error')
-        setSaveMessage(result.message ?? 'That did not save.')
+        setSaveMessage(result.message ?? t('didNotSave', language))
       }
     },
-    [attemptId]
+    [attemptId, language]
   )
 
   const choose = (questionId: string, optionId: string) => {
     setActiveQuestionId(questionId)
     setAnswers((prev) => ({ ...prev, [questionId]: optionId }))
-    setNeedAnswer(false)
     void persist(questionId, optionId, flags[questionId] ?? false)
   }
 
@@ -301,44 +296,15 @@ export function QuizRunner({
     void persist(questionId, answers[questionId] ?? null, next)
   }
 
-  const pageIsAnswered = useCallback(
-    (p: (typeof pages)[number] | undefined) => {
-      if (!p) return false
-      return p.questions.every((i) => Boolean(answers[questions[i]?.id]))
-    },
-    [answers, questions]
-  )
-
   const goToPage = (target: number) => {
     if (target < 0 || target >= pages.length) return
-    // Forward moves require every question on this screen to have an answer.
-    // Back is always free so students can revisit and change their minds.
-    if (target > pageIndex && !pageIsAnswered(page)) {
-      setNeedAnswer(true)
-      return
-    }
-    setNeedAnswer(false)
     setDirection(target > pageIndex ? 'next' : 'prev')
     setPageIndex(target)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const goToQuestion = (questionIndex: number) => {
-    const targetPage = pageOfQuestion(pages, questionIndex)
-    if (targetPage > pageIndex && !pageIsAnswered(page)) {
-      setNeedAnswer(true)
-      return
-    }
-    // Jumping ahead past unanswered screens is not allowed — answer as you go.
-    if (targetPage > pageIndex + 1) {
-      for (let p = pageIndex; p < targetPage; p++) {
-        if (!pageIsAnswered(pages[p])) {
-          setNeedAnswer(true)
-          return
-        }
-      }
-    }
-    goToPage(targetPage)
+    goToPage(pageOfQuestion(pages, questionIndex))
   }
 
   const unanswered = useMemo(
@@ -351,25 +317,29 @@ export function QuizRunner({
   )
 
   const answeredCount = questions.length - unanswered.length
-  const currentPageAnswered = pageIsAnswered(page)
-  const allAnswered = unanswered.length === 0
 
   /** Runs of the same section, for the grouped navigator. */
   const navGroups = useMemo(() => {
-    const groups: Array<{ section: ExamSection | null; items: number[] }> = []
+    const groups: Array<{
+      section: ExamSection | null
+      items: number[]
+      answered: number
+    }> = []
     for (const [i, question] of questions.entries()) {
       const last = groups[groups.length - 1]
       if (last && questions[last.items[0]].section === question.section) {
         last.items.push(i)
+        if (answers[question.id]) last.answered += 1
       } else {
         groups.push({
           section: sections.find((s) => s.n === question.section) ?? null,
           items: [i],
+          answered: answers[question.id] ? 1 : 0,
         })
       }
     }
     return groups
-  }, [questions, sections])
+  }, [questions, sections, answers])
 
   const urgent = secondsLeft <= RED_FROM_SECONDS
   const critical = secondsLeft <= 60
@@ -381,7 +351,13 @@ export function QuizRunner({
   // `save_response` and `submit_attempt` both refuse a frozen attempt, so there
   // is nothing to gain from digging them out of the page.
   if (frozen) {
-    return <QuizFrozen attemptId={attemptId} warningLimit={warningLimit} />
+    return (
+      <QuizFrozen
+        attemptId={attemptId}
+        warningLimit={warningLimit}
+        language={language}
+      />
+    )
   }
 
   return (
@@ -404,6 +380,7 @@ export function QuizRunner({
         active={!finished}
         warningLimit={warningLimit}
         requireFullscreen={examMode && canFullscreen}
+        language={language}
         onWarning={(totalCount, questionCount, invalidated) => {
           setWarnings(totalCount)
           setIntegrityByQuestion((prev) => ({
@@ -419,7 +396,7 @@ export function QuizRunner({
 
       {/* ------------------------------------------------------------ header */}
       <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[14px] font-semibold text-navy-900">
               {title}
@@ -455,12 +432,12 @@ export function QuizRunner({
                   ? 'border-danger-500 bg-danger-50 text-danger-600'
                   : 'border-amber-300 bg-amber-50 text-amber-800'
               )}
-              title="Integrity warnings recorded during this attempt"
+              title={t('warningsTitle', language)}
             >
               <AlertIcon width={14} height={14} />
               {warningLimit !== null
                 ? `${warnings} ${t('of', language)} ${warningLimit} ${t('warnings', language)}`
-                : `${warnings} integrity event${warnings === 1 ? '' : 's'}`}
+                : `${warnings} ${t('integrityEvents', language)}`}
             </span>
           ) : null}
 
@@ -497,78 +474,88 @@ export function QuizRunner({
         {urgent ? (
           <p className="border-t border-danger-500/30 bg-danger-50 px-4 py-1.5 text-center text-[13px] font-semibold text-danger-600 sm:px-6">
             {critical
-              ? 'Less than one minute left. Your answers are already saved.'
-              : 'Less than five minutes left.'}
+              ? t('timeLeftCritical', language)
+              : t('timeLeftLow', language)}
           </p>
         ) : null}
       </header>
 
-      <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
         {/* --------------------------------------------------------- navigator */}
-        <nav aria-label="Questions" className="mb-6 space-y-3">
-          {navGroups.map((group, groupIndex) => (
-            <div key={group.section?.n ?? `g${groupIndex}`}>
-              {group.section ? (
-                <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-ink-faint uppercase">
-                  {group.section.title}
-                </p>
-              ) : null}
-              <ol className="flex flex-wrap gap-1.5">
-                {group.items.map((i) => {
-                  const q = questions[i]
-                  const isAnswered = Boolean(answers[q.id])
-                  const isFlagged = flags[q.id]
-                  const isCurrent = page.questions.includes(i)
-                  const invalidated = integrityByQuestion[q.id]?.invalidated
+        {/* Sticky sidebar on large screens; stacks above the paper on smaller ones.
+            With dir=rtl the first grid column sits on the right automatically. */}
+        <aside className="lg:sticky lg:top-[5.5rem] lg:self-start">
+          <nav
+            aria-label={t('questionsNav', language)}
+            className="space-y-3 rounded-md border border-line bg-surface p-3 sm:p-4"
+          >
+            {navGroups.map((group, groupIndex) => (
+              <div key={group.section?.n ?? `g${groupIndex}`}>
+                {group.section ? (
+                  <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                    <p className="text-[11px] font-semibold tracking-wide text-ink-faint uppercase">
+                      {pickText(
+                        group.section.title,
+                        group.section.titleAr,
+                        language
+                      )}
+                    </p>
+                    <p className="shrink-0 text-[11px] tabular-nums text-ink-faint">
+                      {group.answered}/{group.items.length}
+                    </p>
+                  </div>
+                ) : null}
+                <ol className="flex flex-wrap gap-1.5">
+                  {group.items.map((i) => {
+                    const q = questions[i]
+                    const isAnswered = Boolean(answers[q.id])
+                    const isFlagged = flags[q.id]
+                    const isCurrent = page.questions.includes(i)
+                    // Per-question zeroing only applies to legacy quizzes.
+                    // Exam mode uses attempt-level warnings — never show a "0" chip.
+                    const invalidated =
+                      !examMode && integrityByQuestion[q.id]?.invalidated
 
-                  return (
-                    <li key={q.id}>
-                      <button
-                        type="button"
-                        onClick={() => goToQuestion(i)}
-                        aria-current={isCurrent ? 'true' : undefined}
-                        aria-label={`Question ${i + 1}${
-                          isAnswered ? ', answered' : ', not answered'
-                        }${isFlagged ? ', flagged' : ''}${
-                          invalidated
-                            ? ', worth zero points due to integrity events'
-                            : ''
-                        }`}
-                        className={cx(
-                          'relative grid size-9 place-items-center rounded-sm border text-[13px] font-medium transition-colors',
-                          isCurrent
-                            ? 'border-navy-900 bg-navy-900 text-white'
-                            : invalidated
-                              ? 'border-danger-500/40 bg-danger-50 text-danger-600'
-                              : isAnswered
-                                ? 'border-teal-300 bg-teal-50 text-teal-800 hover:border-teal-500'
-                                : 'border-line-strong bg-surface text-ink-soft hover:border-navy-400 hover:text-navy-800'
-                        )}
-                      >
-                        {i + 1}
-                        {isFlagged ? (
-                          <span
-                            aria-hidden
-                            className="absolute -top-1 -right-1 size-2.5 rounded-full border border-surface bg-amber-500"
-                          />
-                        ) : null}
-                        {invalidated ? (
-                          <span
-                            aria-hidden
-                            className="absolute -bottom-1 -left-1 grid size-3.5 place-items-center rounded-full border border-surface bg-danger-500 text-[8px] font-bold text-white"
-                          >
-                            0
-                          </span>
-                        ) : null}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ol>
-            </div>
-          ))}
-        </nav>
+                    return (
+                      <li key={q.id}>
+                        <button
+                          type="button"
+                          onClick={() => goToQuestion(i)}
+                          aria-current={isCurrent ? 'true' : undefined}
+                          aria-label={`${t('question', language)} ${i + 1}${
+                            isAnswered
+                              ? `, ${t('answered', language)}`
+                              : ''
+                          }${isFlagged ? `, ${t('flagged', language)}` : ''}`}
+                          className={cx(
+                            'relative grid size-9 place-items-center rounded-sm border text-[13px] font-medium transition-colors',
+                            isCurrent
+                              ? 'border-navy-900 bg-navy-900 text-white'
+                              : invalidated
+                                ? 'border-danger-500/40 bg-danger-50 text-danger-600'
+                                : isAnswered
+                                  ? 'border-teal-300 bg-teal-50 text-teal-800 hover:border-teal-500'
+                                  : 'border-line-strong bg-surface text-ink-soft hover:border-navy-400 hover:text-navy-800'
+                          )}
+                        >
+                          {i + 1}
+                          {isFlagged ? (
+                            <span
+                              aria-hidden
+                              className="absolute -top-1 -end-1 size-2.5 rounded-full border border-surface bg-amber-500"
+                            />
+                          ) : null}
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ol>
+              </div>
+            ))}
+          </nav>
+        </aside>
 
+        <main className="min-w-0">
         {/* ----------------------------------------------------- section head */}
         <div
           key={page.key}
@@ -669,7 +656,8 @@ export function QuizRunner({
                 >
                   <div className="mb-4 flex items-start justify-between gap-4">
                     <p className="text-[12px] font-semibold tracking-wide text-ink-faint uppercase">
-                      Question {questionIndex + 1} of {questions.length}
+                      {t('question', language)} {questionIndex + 1}{' '}
+                      {t('of', language)} {questions.length}
                     </p>
 
                     <button
@@ -683,11 +671,15 @@ export function QuizRunner({
                       )}
                     >
                       <FlagIcon width={13} height={13} />
-                      {flags[question.id] ? 'Flagged for later' : 'Flag for later'}
+                      {flags[question.id]
+                        ? t('flaggedForLater', language)
+                        : t('flagForLater', language)}
                     </button>
                   </div>
 
-                  {integrity?.invalidated ? (
+                  {/* Legacy quizzes only: attempt-level exam papers never show
+                      a per-question integrity banner (that confused students). */}
+                  {!examMode && integrity?.invalidated ? (
                     <Alert
                       tone="danger"
                       className="mb-5 px-4 py-3.5 text-[14px]"
@@ -697,7 +689,7 @@ export function QuizRunner({
                       question. Continue with the rest of the assessment; your
                       other questions are unaffected.
                     </Alert>
-                  ) : integrity?.count ? (
+                  ) : !examMode && integrity?.count ? (
                     <Alert tone="amber" className="mb-5" title="Integrity warning">
                       {integrity.count} of 3 events recorded on this question.
                       Three events make only this question worth zero points.
@@ -755,85 +747,51 @@ export function QuizRunner({
         </div>
 
         {/* ------------------------------------------------------------ moves */}
-        {!currentPageAnswered || needAnswer ? (
-          <Alert
-            tone="amber"
-            className="mt-6"
-            title={
-              page.questions.length > 1
-                ? 'Answer every question on this page first'
-                : 'Choose an answer before continuing'
-            }
-          >
-            You cannot leave a question blank. Select an option, then press Next.
-            Use Flag for later if you want to come back after answering.
-          </Alert>
-        ) : null}
-
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <Button
             variant="secondary"
             onClick={() => goToPage(pageIndex - 1)}
             disabled={pageIndex === 0}
           >
-            Previous
+            {t('previous', language)}
           </Button>
 
           {!isLastPage ? (
-            <Button
-              onClick={() => goToPage(pageIndex + 1)}
-              disabled={!currentPageAnswered}
-              title={
-                currentPageAnswered
-                  ? undefined
-                  : 'Answer this question before continuing'
-              }
-            >
-              {page.questions.length > 1 ? 'Next' : 'Next question'}
+            <Button onClick={() => goToPage(pageIndex + 1)}>
+              {page.questions.length > 1
+                ? t('next', language)
+                : t('nextQuestion', language)}
             </Button>
           ) : (
-            <Button
-              onClick={() => {
-                if (!allAnswered) {
-                  setNeedAnswer(true)
-                  return
-                }
-                setConfirming(true)
-              }}
-              disabled={!allAnswered}
-              title={
-                allAnswered
-                  ? undefined
-                  : 'Answer every question before submitting'
-              }
-            >
-              Review and submit
+            <Button onClick={() => setConfirming(true)}>
+              {t('reviewAndSubmit', language)}
             </Button>
           )}
 
-          <span className="ml-auto text-[12px] text-ink-faint">
+          <span className="ms-auto text-[12px] text-ink-faint">
             {save === 'saving'
-              ? 'Saving…'
+              ? t('saving', language)
               : save === 'error'
-                ? (saveMessage ?? 'Not saved')
+                ? (saveMessage ?? t('notSaved', language))
                 : save === 'saved'
-                  ? 'Answers saved'
-                  : 'Every answer saves as you go'}
+                  ? t('saved', language)
+                  : t('savesAsYouGo', language)}
           </span>
         </div>
 
-        {!isLastPage && allAnswered ? (
+        {!isLastPage ? (
           <div className="mt-4">
             <button
               type="button"
               onClick={() => setConfirming(true)}
               className="text-[13px] font-medium text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-navy-900"
             >
-              Finish early and submit
+              {t('finishEarly', language)}
             </button>
           </div>
         ) : null}
-      </main>
+        </main>
+      </div>
 
       {/* ------------------------------------------------------ submit dialog */}
       {confirming ? (
@@ -843,24 +801,36 @@ export function QuizRunner({
           aria-labelledby="submit-title"
           className="fixed inset-0 z-40 grid place-items-center bg-navy-900/55 p-4 backdrop-blur-[2px]"
         >
-          <div className="animate-pop w-full max-w-md rounded-md border border-line bg-surface p-6 shadow-lg">
+          <div
+            dir={dirFor(language)}
+            lang={language}
+            className="animate-pop w-full max-w-md rounded-md border border-line bg-surface p-6 shadow-lg"
+          >
             <h2
               id="submit-title"
               className="text-[16px] font-semibold text-navy-900"
             >
-              Submit this attempt?
+              {t('submitTitle', language)}
             </h2>
 
             <dl className="mt-4 space-y-2 text-[14px]">
               <div className="flex items-center justify-between gap-4">
-                <dt className="text-ink-soft">Answered</dt>
+                <dt className="text-ink-soft">{t('answeredLabel', language)}</dt>
                 <dd className="font-medium text-navy-900">
-                  {answeredCount} of {questions.length}
+                  {answeredCount} {t('of', language)} {questions.length}
                 </dd>
               </div>
+              {unanswered.length > 0 ? (
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-danger-600">{t('leftBlank', language)}</dt>
+                  <dd className="font-medium text-danger-600">
+                    {unanswered.map((q) => q.position + 1).join(', ')}
+                  </dd>
+                </div>
+              ) : null}
               {flagged.length > 0 ? (
                 <div className="flex items-center justify-between gap-4">
-                  <dt className="text-amber-800">Still flagged</dt>
+                  <dt className="text-amber-800">{t('stillFlagged', language)}</dt>
                   <dd className="font-medium text-amber-800">
                     {flagged.map((q) => q.position + 1).join(', ')}
                   </dd>
@@ -869,32 +839,39 @@ export function QuizRunner({
             </dl>
 
             <p className="mt-4 text-[13px] text-ink-soft">
-              {allAnswered
-                ? flagged.length > 0
-                  ? 'Every question has an answer. You still have flags — review those if you want, then submit.'
-                  : 'You have answered everything.'
-                : 'Every question needs an answer before you can submit.'}{' '}
-              This is your one attempt, so it cannot be reopened.
-              {resultsHidden
-                ? ' Your score is not shown when you submit; your instructor releases marks after the exam.'
-                : ''}
+              {unanswered.length > 0
+                ? t('blankCountAsWrong', language)
+                : t('answeredEverything', language)}{' '}
+              {t('oneAttemptNote', language)}
+              {resultsHidden ? ` ${t('scoreHiddenNote', language)}` : ''}
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button
-                onClick={() => void submit('submitted')}
-                disabled={submitting || !allAnswered}
-              >
-                {submitting ? 'Submitting…' : 'Submit for marking'}
+              <Button onClick={() => void submit('submitted')} disabled={submitting}>
+                {submitting
+                  ? t('submitting', language)
+                  : t('submitForMarking', language)}
               </Button>
               <Button
                 variant="secondary"
                 onClick={() => setConfirming(false)}
                 disabled={submitting}
               >
-                Keep working
+                {t('keepWorking', language)}
               </Button>
-              {flagged.length > 0 ? (
+              {unanswered.length > 0 ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setConfirming(false)
+                    goToQuestion(unanswered[0].position)
+                  }}
+                  disabled={submitting}
+                >
+                  <CheckIcon width={15} height={15} />
+                  {t('goToFirstBlank', language)}
+                </Button>
+              ) : flagged.length > 0 ? (
                 <Button
                   variant="ghost"
                   onClick={() => {
@@ -904,7 +881,7 @@ export function QuizRunner({
                   disabled={submitting}
                 >
                   <CheckIcon width={15} height={15} />
-                  Go to first flagged
+                  {t('goToFirstFlagged', language)}
                 </Button>
               ) : null}
             </div>

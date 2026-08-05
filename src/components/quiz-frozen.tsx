@@ -5,6 +5,11 @@ import { useRouter } from 'next/navigation'
 
 import { checkAttemptFrozen } from '@/app/actions/quiz'
 import { AlertIcon } from '@/components/icons'
+import {
+  dirFor,
+  t,
+  type ExamLanguage,
+} from '@/lib/exam-language'
 
 /**
  * The exam is stopped and waiting for an instructor.
@@ -25,9 +30,11 @@ import { AlertIcon } from '@/components/icons'
 export function QuizFrozen({
   attemptId,
   warningLimit,
+  language = 'en',
 }: {
   attemptId: string
   warningLimit: number | null
+  language?: ExamLanguage
 }) {
   const router = useRouter()
   const [checking, setChecking] = useState(false)
@@ -47,42 +54,44 @@ export function QuizFrozen({
   }, [attemptId, router])
 
   return (
-    <div className="grid min-h-dvh place-items-center bg-canvas p-4">
+    <div
+      dir={dirFor(language)}
+      lang={language}
+      className="grid min-h-dvh place-items-center bg-canvas p-4"
+    >
       <div className="w-full max-w-2xl rounded-md border-4 border-danger-500 bg-surface p-6 sm:p-10">
         <div className="flex items-center gap-3.5">
           <span className="grid size-12 shrink-0 place-items-center rounded-sm bg-danger-50 text-danger-600">
             <AlertIcon width={26} height={26} />
           </span>
           <h1 className="text-[26px] leading-tight font-bold text-danger-600 sm:text-[34px]">
-            Your exam is frozen
+            {t('examFrozen', language)}
           </h1>
         </div>
 
         <p className="mt-5 text-[18px] leading-relaxed text-ink sm:text-[20px]">
-          You reached {warningLimit ?? 5} integrity warnings, so this exam has
-          stopped. You cannot answer any more questions until an instructor
-          unlocks it.
+          {t('youReached', language)} {warningLimit ?? 5}{' '}
+          {t('examFrozenBody', language)}
         </p>
 
         <div className="mt-6 rounded-md border-2 border-teal-200 bg-teal-50 p-5">
           <p className="text-[18px] leading-relaxed font-semibold text-teal-900 sm:text-[20px]">
-            Raise your hand and tell your instructor now.
+            {t('raiseHand', language)}
           </p>
           <p className="mt-2 text-[16px] leading-relaxed text-teal-900">
-            Your clock is paused. The time you spend waiting is added back, so
-            you will not lose any exam time.
+            {t('clockPaused', language)}
           </p>
         </div>
 
         <p className="mt-5 text-[15.5px] leading-relaxed text-ink-soft">
-          Every answer you had already chosen is saved. When your instructor
-          unlocks the exam it reopens here automatically, on the same question,
-          with a fresh set of warnings.
+          {t('frozenSavedNote', language)}
         </p>
 
         <p className="mt-4 text-[13px] text-ink-faint">
-          {checking ? 'Checking…' : 'Waiting for your instructor.'} Keep this page
-          open.
+          {checking
+            ? t('checking', language)
+            : t('waitingInstructor', language)}{' '}
+          {t('keepPageOpen', language)}
         </p>
       </div>
     </div>

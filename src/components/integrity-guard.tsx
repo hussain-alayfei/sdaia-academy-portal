@@ -5,6 +5,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { reportIntegrityEvent } from '@/app/actions/quiz'
 import { AlertIcon } from '@/components/icons'
 import { Button, cx } from '@/components/ui'
+import {
+  describeIntegrityEvent,
+  dirFor,
+  t,
+  type ExamLanguage,
+} from '@/lib/exam-language'
 
 /**
  * Watches for the obvious ways of looking something up mid-exam.
@@ -55,14 +61,6 @@ import { Button, cx } from '@/components/ui'
  * chances, which is exactly what someone might try after a warning.
  */
 
-const EVENT_DESCRIPTIONS: Record<string, string> = {
-  tab_hidden: 'you left this page for another tab or application',
-  window_blur: 'this window lost focus',
-  copy: 'you tried to copy the exam text',
-  paste: 'you tried to paste into an answer',
-  fullscreen_exit: 'you left fullscreen mode and did not come back',
-}
-
 /**
  * One alt-tab can fire several events at once, and returning fires more.
  * Anything inside this window counts once, so a single switch costs a single
@@ -80,6 +78,7 @@ export function IntegrityGuard({
   active,
   warningLimit,
   requireFullscreen = false,
+  language = 'en',
   onWarning,
   onFrozen,
 }: {
@@ -91,6 +90,8 @@ export function IntegrityGuard({
   /** Warnings allowed before the attempt freezes. Null = legacy per-question. */
   warningLimit: number | null
   requireFullscreen?: boolean
+  /** Matches the exam runner language so overlays are fully bilingual. */
+  language?: ExamLanguage
   onWarning?: (
     totalCount: number,
     questionCount: number,
@@ -273,6 +274,8 @@ export function IntegrityGuard({
     paused.current = false
   }
 
+  const dir = dirFor(language)
+
   /* ------------------------------------------------------------ render -- */
 
   /**
@@ -286,39 +289,42 @@ export function IntegrityGuard({
     const counting = graceLeft !== null
 
     return (
-      <Overlay tone={counting ? 'amber' : 'danger'} opaque>
+      <Overlay tone={counting ? 'amber' : 'danger'} opaque dir={dir} lang={language}>
         <Heading tone={counting ? 'amber' : 'danger'}>
-          {counting ? 'Return to fullscreen' : 'Fullscreen is required'}
+          {counting
+            ? t('returnToFullscreen', language)
+            : t('fullscreenRequired', language)}
         </Heading>
 
         <p className="mt-4 text-[17px] leading-relaxed text-ink sm:text-[19px]">
-          This exam runs in fullscreen. Your questions are hidden until you go
-          back.
+          {t('fullscreenHiddenPaper', language)}
         </p>
 
         {counting ? (
           <p className="mt-4 rounded-md border-2 border-amber-300 bg-amber-50 px-4 py-3.5 text-[17px] leading-relaxed font-semibold text-amber-800 sm:text-[19px]">
-            Return within{' '}
+            {t('returnWithin', language)}{' '}
             <span className="tabular-nums">
-              {graceLeft} second{graceLeft === 1 ? '' : 's'}
+              {graceLeft}{' '}
+              {graceLeft === 1
+                ? t('second', language)
+                : t('seconds', language)}
             </span>{' '}
-            and nothing is recorded.
+            {t('nothingRecorded', language)}
           </p>
         ) : (
           <p className="mt-4 rounded-md border-2 border-danger-500 bg-danger-50 px-4 py-3.5 text-[17px] leading-relaxed font-semibold text-danger-600 sm:text-[19px]">
-            One warning was recorded for leaving fullscreen. Going back now costs
-            you nothing more.
+            {t('fullscreenWarningRecorded', language)}
           </p>
         )}
 
         <div className="mt-6">
           <Button onClick={enterFullscreen} autoFocus>
-            Enter fullscreen and continue
+            {t('enterFullscreen', language)}
           </Button>
         </div>
 
         <p className="mt-4 text-[14px] leading-relaxed text-ink-faint">
-          Your answers are all saved, and your time is still running.
+          {t('answersSavedTimeRunning', language)}
         </p>
       </Overlay>
     )
@@ -326,24 +332,29 @@ export function IntegrityGuard({
 
   if (!notice) return null
 
-  const reason = EVENT_DESCRIPTIONS[notice.kind] ?? 'something unexpected happened'
+  const reason = describeIntegrityEvent(notice.kind, language)
   const limited = warningLimit !== null
   const remaining = limited ? Math.max(0, warningLimit - notice.count) : null
   const lastChance = remaining === 1
 
   return (
-    <Overlay tone={lastChance ? 'danger' : 'amber'}>
+    <Overlay
+      tone={lastChance ? 'danger' : 'amber'}
+      dir={dir}
+      lang={language}
+    >
       <Heading tone={lastChance ? 'danger' : 'amber'}>
         {limited
-          ? `Warning ${notice.count} of ${warningLimit}`
+          ? `${t('warning', language)} ${notice.count} ${t('of', language)} ${warningLimit}`
           : notice.invalidated
-            ? `Question ${questionNumber} is now worth zero points`
-            : `Warning ${notice.questionCount} of 3 for question ${questionNumber}`}
+            ? `${t('question', language)} ${questionNumber} ${t('questionWorthZero', language)}`
+            : `${t('warning', language)} ${notice.questionCount} ${t('of', language)} 3 ${t('warningForQuestion', language)} ${questionNumber}`}
       </Heading>
 
       <p className="mt-4 text-[17px] leading-relaxed text-ink sm:text-[19px]">
-        This exam recorded that <strong className="font-semibold text-navy-900">{reason}</strong>.
-        Your instructor can see it.
+        {t('warningRecordedLead', language)}{' '}
+        <strong className="font-semibold text-navy-900">{reason}</strong>.{' '}
+        {t('warningInstructorSees', language)}
       </p>
 
       {limited ? (
@@ -356,25 +367,24 @@ export function IntegrityGuard({
           )}
         >
           {lastChance
-            ? 'One more warning will freeze your exam. You will not be able to answer anything until an instructor unlocks it.'
-            : `You have ${remaining} warning${remaining === 1 ? '' : 's'} left before your exam freezes.`}
+            ? t('lastChanceFreeze', language)
+            : `${t('youHave', language)} ${remaining} ${t('warnings', language)} ${t('warningsLeftBeforeFreeze', language)}`}
         </p>
       ) : (
         <p className="mt-3 text-[15px] leading-relaxed text-ink">
           {notice.invalidated
-            ? 'You may continue and answer every other question. This question cannot earn a point.'
-            : 'Three events on the same question make only that question worth zero points.'}
+            ? t('continueOtherQuestions', language)
+            : t('threeEventsZero', language)}
         </p>
       )}
 
       <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
-        Stay on this page for the rest of the exam. Right-clicking and resizing
-        your window are fine and are never recorded.
+        {t('stayOnPage', language)}
       </p>
 
       <div className="mt-6">
         <Button onClick={dismiss} autoFocus>
-          Back to the exam
+          {t('backToExam', language)}
         </Button>
       </div>
     </Overlay>
@@ -386,11 +396,15 @@ export function IntegrityGuard({
 function Overlay({
   tone,
   opaque = false,
+  dir,
+  lang,
   children,
 }: {
   tone: 'amber' | 'danger'
   /** Fully hides the paper behind it, rather than blurring it. */
   opaque?: boolean
+  dir: 'ltr' | 'rtl'
+  lang: ExamLanguage
   children: React.ReactNode
 }) {
   return (
@@ -398,6 +412,8 @@ function Overlay({
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="integrity-title"
+      dir={dir}
+      lang={lang}
       className={cx(
         'fixed inset-0 z-50 grid place-items-center p-4',
         opaque ? 'bg-canvas' : 'bg-navy-900/75 backdrop-blur-[3px]'

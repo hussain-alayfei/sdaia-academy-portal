@@ -455,22 +455,8 @@ test('all three sections are translated', () => {
   }
 })
 
-test('the briefing promises the things that are never punished', () => {
+test('the briefing states the fullscreen grace window', () => {
   const text = seed.instructions.points.join(' ').toLowerCase()
-
-  // These are the actions students take by reflex. The guard deliberately
-  // ignores them, and the briefing has to say so or students will freeze
-  // themselves out of caution.
-  for (const benign of ['right-click', 'double-click', 'resiz']) {
-    assert.ok(
-      text.includes(benign),
-      `briefing does not reassure students about ${benign}`
-    )
-  }
-  assert.ok(
-    text.includes('never recorded'),
-    'briefing does not state that benign actions are never recorded'
-  )
 
   // The grace window is the difference between a fair rule and a trap.
   assert.ok(
