@@ -167,6 +167,15 @@ export async function finishAttempt(input: {
 
   if (error) return { ok: false, message: error.message }
 
+  const result = (data ?? {}) as SubmitResult
+
+  // Practice attempts are deleted inside submit_attempt — look up via the
+  // returned payload when the row is already gone.
+  if (result.practice) {
+    revalidatePath('/admin')
+    return { ok: true, result }
+  }
+
   // The score now shows on the day page and the course overview, so clear those.
   // One extra query on submit is a fair price for not showing a stale "Start".
   const { data: attempt } = await supabase
@@ -184,5 +193,5 @@ export async function finishAttempt(input: {
   }
   revalidatePath(`/quiz/${attempt?.assessment_id ?? ''}`)
 
-  return { ok: true, result: (data ?? {}) as SubmitResult }
+  return { ok: true, result }
 }

@@ -70,11 +70,13 @@ export default async function QuizPage({
   const backLabel = dayNumber ? `Back to day ${dayNumber}` : 'Back to the course'
 
   const attempt = studentView ? null : await getMyAttempt(assessmentId)
+  const isPractice = Boolean(attempt?.is_practice)
 
   /* ---- instructors ---- */
 
   // Sitting your own quiz would consume the one attempt and write a score
-  // against your name, so managers get sent to the editor instead.
+  // against your name. Dry runs (is_practice) are the only exception — started
+  // from the Final exam control tab and wiped on submit or exit.
   if (!attempt && isManager(profile) && !studentView) {
     return (
       <Shell>
@@ -84,10 +86,17 @@ export default async function QuizPage({
           </h1>
           <p className="mt-2 text-[14px] text-ink-soft">
             You manage this course, so you cannot sit this yourself. An attempt
-            is one per person and would record a score against your name. Use the
+            is one per person and would record a score against your name. Use
+            the Final exam tab for a dry run that never keeps a score, or the
             editor to read the questions and the answer key.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
+            <Link
+              href={`/admin/courses/${assessment.course_id}/final-exam`}
+              className="text-[14px] font-medium text-teal-700 hover:text-teal-800"
+            >
+              Final exam control
+            </Link>
             <Link
               href={`/admin/courses/${assessment.course_id}/assessments/${assessment.id}`}
               className="text-[14px] font-medium text-teal-700 hover:text-teal-800"
@@ -122,11 +131,40 @@ export default async function QuizPage({
         warningLimit={assessment.integrity_warning_limit}
         startFrozen={Boolean(attempt.frozen_at)}
         bilingual={Boolean(assessment.instructions_ar)}
+        isPractice={isPractice}
+        courseId={assessment.course_id}
+        assessmentId={assessment.id}
       />
     )
   }
 
   /* ---- finished ---- */
+
+  // Practice attempts are deleted on submit — if we somehow still have a
+  // finished practice row, send the manager back to the control tab.
+  if (attempt && isPractice) {
+    return (
+      <Shell>
+        <Panel className="p-6">
+          <h1 className="text-[17px] font-semibold text-navy-900">
+            Dry run finished
+          </h1>
+          <p className="mt-2 text-[14px] text-ink-soft">
+            Nothing was saved for grades. You can start another dry run from the
+            Final exam tab.
+          </p>
+          <div className="mt-5">
+            <Link
+              href={`/admin/courses/${assessment.course_id}/final-exam`}
+              className="text-[14px] font-medium text-teal-700 hover:text-teal-800"
+            >
+              Back to Final exam control
+            </Link>
+          </div>
+        </Panel>
+      </Shell>
+    )
+  }
 
   if (attempt) {
     // Held-back results are held back everywhere. There is no score on the
@@ -162,9 +200,34 @@ export default async function QuizPage({
   const previewQuestions = studentView
     ? await getQuestionsForEditing(assessment.id)
     : []
-  const openable =
-    !assessment.is_locked &&
+
+  // Allowlist: a named student may start while the paper stays locked for the class.
+  const { data: grant } = studentView
+    ? { data: null }
+    : await supabase
+        .from('assessment_access_grants')
+        .select('id, opens_at, closes_at')
+        .eq('assessment_id', assessment.id)
+        .eq('student_id', profile.id)
+        .maybeSingle()
+
+  const now = Date.now()
+  const grantActive = Boolean(
+    grant &&
+      new Date(grant.opens_at).getTime() <= now &&
+      (grant.closes_at == null || new Date(grant.closes_at).getTime() > now)
+  )
+
+  const questionsReady =
     questionCount === assessment.required_question_count
+  const openable =
+    questionsReady && (!assessment.is_locked || grantActive)
+
+  const notReadyMessage = !questionsReady
+    ? 'This assessment is not ready yet. Your instructor is still preparing it.'
+    : grant && !grantActive
+      ? 'Your access window for this exam is not open right now.'
+      : 'This is not open yet. Your instructor will release it when the class is ready.'
 
   // Stored as one point per line, so authoring stays plain text.
   const toPoints = (value: string | null) =>
@@ -220,11 +283,7 @@ export default async function QuizPage({
           instructions={instructionPoints}
           instructionsAr={instructionPointsAr}
           canStart={openable}
-          notReadyMessage={
-            questionCount !== assessment.required_question_count
-              ? 'This assessment is not ready yet. Your instructor is still preparing it.'
-              : 'This is not open yet. Your instructor will release it when the class is ready.'
-          }
+          notReadyMessage={notReadyMessage}
         />
       ) : null}
 
@@ -316,11 +375,7 @@ export default async function QuizPage({
               <Button type="submit">Begin the assessment</Button>
             </form>
           ) : (
-            <p className="text-[14px] text-ink-soft">
-              {questionCount !== assessment.required_question_count
-                ? 'This assessment is not ready yet. Your instructor is still preparing it.'
-                : 'This is not open yet. Your instructor will release it when the class is ready.'}
-            </p>
+            <p className="text-[14px] text-ink-soft">{notReadyMessage}</p>
           )}
         </div>
       </Panel>

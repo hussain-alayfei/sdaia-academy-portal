@@ -116,6 +116,61 @@ export type Database = {
           },
         ]
       }
+      assessment_access_grants: {
+        Row: {
+          assessment_id: string
+          closes_at: string | null
+          course_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          opens_at: string
+          student_id: string
+        }
+        Insert: {
+          assessment_id: string
+          closes_at?: string | null
+          course_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          opens_at?: string
+          student_id: string
+        }
+        Update: {
+          assessment_id?: string
+          closes_at?: string | null
+          course_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          opens_at?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'assessment_access_grants_assessment_id_fkey'
+            columns: ['assessment_id']
+            isOneToOne: false
+            referencedRelation: 'assessments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'assessment_access_grants_course_id_fkey'
+            columns: ['course_id']
+            isOneToOne: false
+            referencedRelation: 'courses'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'assessment_access_grants_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       assessment_attempts: {
         Row: {
           assessment_id: string
@@ -125,6 +180,7 @@ export type Database = {
           frozen_at: string | null
           frozen_seconds: number
           id: string
+          is_practice: boolean
           question_count: number | null
           question_order: Json
           started_at: string
@@ -141,6 +197,7 @@ export type Database = {
           frozen_at?: string | null
           frozen_seconds?: number
           id?: string
+          is_practice?: boolean
           question_count?: number | null
           question_order?: Json
           started_at?: string
@@ -157,6 +214,7 @@ export type Database = {
           frozen_at?: string | null
           frozen_seconds?: number
           id?: string
+          is_practice?: boolean
           question_count?: number | null
           question_order?: Json
           started_at?: string
@@ -961,6 +1019,8 @@ export type Database = {
         Returns: number
       }
       start_attempt: { Args: { p_assessment: string }; Returns: string }
+      start_practice_attempt: { Args: { p_assessment: string }; Returns: string }
+      discard_practice_attempt: { Args: { p_attempt: string }; Returns: boolean }
       submit_attempt: {
         Args: { p_attempt: string; p_reason?: string }
         Returns: Json
@@ -1065,9 +1125,12 @@ export type QuestionOrder = Array<{ q: string; o: string[] }>
 
 /** Shape returned by submit_attempt. */
 export type SubmitResult = {
-  correct_count: number
+  correct_count: number | null
   question_count: number
   status: AttemptStatus
+  results_released?: boolean
+  /** True when this was an instructor dry run — attempt wiped, no score kept. */
+  practice?: boolean
 }
 
 /** Shape returned by record_integrity_event. */

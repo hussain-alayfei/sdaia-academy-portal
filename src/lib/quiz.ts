@@ -106,6 +106,7 @@ export const getAttemptsForAssessment = cache(
       .from('assessment_attempts')
       .select('*, student:profiles(id, full_name, email)')
       .eq('assessment_id', assessmentId)
+      .eq('is_practice', false)
       .order('started_at', { ascending: false })
 
     return data ?? []
@@ -128,9 +129,10 @@ export const getGradedCounts = cache(
     const { data } = await supabase
       .from('assessment_responses')
       .select(
-        'attempt_id, attempt:assessment_attempts!inner(assessment_id)'
+        'attempt_id, attempt:assessment_attempts!inner(assessment_id, is_practice)'
       )
       .eq('attempt.assessment_id', assessmentId)
+      .eq('attempt.is_practice', false)
       .eq('is_correct', true)
 
     const counts: Record<string, number> = {}
@@ -149,6 +151,7 @@ export const getCourseAttempts = cache(
       .from('assessment_attempts')
       .select('*')
       .eq('course_id', courseId)
+      .eq('is_practice', false)
 
     return data ?? []
   }
@@ -216,8 +219,9 @@ export const getQuestionStats = cache(
         .order('position'),
       supabase
         .from('assessment_responses')
-        .select('question_id, is_correct, attempt:assessment_attempts!inner(assessment_id, status)')
+        .select('question_id, is_correct, attempt:assessment_attempts!inner(assessment_id, status, is_practice)')
         .eq('attempt.assessment_id', assessmentId)
+        .eq('attempt.is_practice', false)
         .neq('attempt.status', 'in_progress'),
     ])
 
@@ -264,6 +268,7 @@ export const getMyAttempts = cache(
       .from('assessment_attempts')
       .select('*')
       .eq('course_id', courseId)
+      .eq('is_practice', false)
 
     const byAssessment: Record<string, AssessmentAttempt> = {}
     for (const row of data ?? []) byAssessment[row.assessment_id] = row

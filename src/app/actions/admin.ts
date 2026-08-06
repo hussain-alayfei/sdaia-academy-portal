@@ -855,7 +855,19 @@ export async function toggleAssessmentLocked(formData: FormData) {
   const courseId = String(formData.get('course_id') ?? '')
   const assessmentId = String(formData.get('assessment_id') ?? '')
   const next = formData.get('next') === 'true'
+  const returnTo = String(formData.get('return_to') ?? '').trim()
   const { profile, supabase } = await assertCanManage(courseId)
+
+  const fail = (error: string) => {
+    if (returnTo) {
+      redirect(
+        `${returnTo}${returnTo.includes('?') ? '&' : '?'}error=${encodeURIComponent(error)}`
+      )
+    }
+    redirect(
+      `/admin/courses/${courseId}/assessments/${assessmentId}?error=${error}`
+    )
+  }
 
   if (!next) {
     const { data: assessment } = await supabase
@@ -866,9 +878,7 @@ export async function toggleAssessmentLocked(formData: FormData) {
       .maybeSingle()
 
     if (!assessment?.is_published) {
-      redirect(
-        `/admin/courses/${courseId}/assessments/${assessmentId}?error=publish-first`
-      )
+      fail('publish-first')
     }
 
     const { count } = await supabase
@@ -876,10 +886,8 @@ export async function toggleAssessmentLocked(formData: FormData) {
       .select('id', { count: 'exact', head: true })
       .eq('assessment_id', assessmentId)
 
-    if (count !== assessment.required_question_count) {
-      redirect(
-        `/admin/courses/${courseId}/assessments/${assessmentId}?error=count`
-      )
+    if (count !== assessment!.required_question_count) {
+      fail('count')
     }
   }
 
@@ -919,7 +927,10 @@ export async function toggleAssessmentLocked(formData: FormData) {
 
   revalidatePath(`/admin/courses/${courseId}/assessments`)
   revalidatePath(`/admin/courses/${courseId}/assessments/${assessmentId}`)
+  revalidatePath(`/admin/courses/${courseId}/final-exam`)
   revalidateCourseContent(courseId)
+
+  if (returnTo) redirect(returnTo)
 }
 
 /**
@@ -952,7 +963,11 @@ export async function setAssessmentResultsReleased(formData: FormData) {
     `/admin/courses/${courseId}/assessments/${assessmentId}/results`
   )
   revalidatePath(`/admin/courses/${courseId}/assessments/${assessmentId}`)
+  revalidatePath(`/admin/courses/${courseId}/final-exam`)
   revalidateCourseContent(courseId)
+
+  const returnTo = String(formData.get('return_to') ?? '').trim()
+  if (returnTo) redirect(returnTo)
 }
 
 /**
@@ -977,15 +992,22 @@ export async function unlockFrozenAttempt(formData: FormData) {
       : 0,
   })
 
+  const returnTo = String(formData.get('return_to') ?? '').trim()
+  const destination =
+    returnTo ||
+    `/admin/courses/${courseId}/assessments/${assessmentId}/results`
+
   if (error) {
     redirect(
-      `/admin/courses/${courseId}/assessments/${assessmentId}/results?error=${encodeURIComponent(error.message)}`
+      `${destination}?error=${encodeURIComponent(error.message)}`
     )
   }
 
   revalidatePath(
     `/admin/courses/${courseId}/assessments/${assessmentId}/results`
   )
+  revalidatePath(`/admin/courses/${courseId}/final-exam`)
+  redirect(destination)
 }
 
 export async function deleteAssessment(formData: FormData) {

@@ -6,7 +6,13 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 
 import { cx } from '@/components/ui'
 
-export function CourseTabs({ courseId }: { courseId: string }) {
+export function CourseTabs({
+  courseId,
+  hasFinalExam = false,
+}: {
+  courseId: string
+  hasFinalExam?: boolean
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -23,6 +29,15 @@ export function CourseTabs({ courseId }: { courseId: string }) {
       label: 'Assessments',
       hint: 'Questions, publish, and unlock',
     },
+    ...(hasFinalExam
+      ? [
+          {
+            href: `${base}/final-exam`,
+            label: 'Final exam',
+            hint: 'Live board, unlock, allowlist, dry run',
+          },
+        ]
+      : []),
     {
       href: `${base}/students`,
       label: 'Students',
@@ -38,7 +53,9 @@ export function CourseTabs({ courseId }: { courseId: string }) {
   const activeIndex = tabs.findIndex((tab) =>
     tab.href === base
       ? pathname === base || pathname.startsWith(`${base}/days/`)
-      : pathname.startsWith(tab.href)
+      : tab.href.endsWith('/final-exam')
+        ? pathname.startsWith(tab.href)
+        : pathname.startsWith(tab.href)
   )
 
   const navRef = useRef<HTMLElement>(null)

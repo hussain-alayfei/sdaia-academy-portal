@@ -176,10 +176,21 @@ one-press control on the assessment's Results page →
 `correct_count` and `assessment_scores` so the ordinary review screen works for
 the whole class at once. Reversible.
 
-**Exam-day:** open Assessments → Day 5 → Final exam → press **Unlock**. That is
-the only step. Keep the assessment's **Results** page open during the exam: any
-frozen student appears in a red banner at the top with an Unlock button. Release
-marks from the same page afterwards.
+**Exam-day:** open the course → **Final exam** tab
+(`/admin/courses/{id}/final-exam`). That cockpit owns unlock / lock, release /
+hide marks, reset all or one attempt, the live status board (polls every 5s),
+the allowlist (named students can start while the paper stays locked for the
+class), and **Sit as student (dry run)** — the real runner with a practice
+attempt that is wiped on submit or exit and never appears on Results. Preview
+on day quizzes is unchanged and is not a substitute for the dry run.
+
+Keep the Final exam tab open during the sitting: frozen students show on the
+board with Unfreeze (+ optional extra minutes). Granting one student does **not**
+unlock the whole class.
+
+**Sleep-ready defaults (both cohorts):** Final is **published + locked + results
+hidden**, 50 minutes, 30 questions, 3-warning freeze. Students cannot start until
+you press **Unlock paper for class** (or grant an allowlist seat).
 
 **Anti-cheat: 3 warnings, then freeze (final exam only).**
 `assessments.integrity_warning_limit = 3`. Day quizzes leave it null and keep the

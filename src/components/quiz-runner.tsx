@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { finishAttempt, saveAnswer } from '@/app/actions/quiz'
+import { discardPracticeAttempt } from '@/app/actions/final-exam'
 import {
   AlertIcon,
   CheckIcon,
@@ -74,6 +75,9 @@ export function QuizRunner({
   startFrozen = false,
   initialLanguage = 'en',
   bilingual = false,
+  isPractice = false,
+  courseId,
+  assessmentId,
 }: {
   attemptId: string
   title: string
@@ -93,6 +97,11 @@ export function QuizRunner({
   initialLanguage?: ExamLanguage
   /** True when the paper actually carries a translation worth offering. */
   bilingual?: boolean
+  /** Instructor dry run — banner + wipe on exit/submit; never grades. */
+  isPractice?: boolean
+  /** Needed to return to Final exam control after a dry run. */
+  courseId?: string
+  assessmentId?: string
 }) {
   const router = useRouter()
 
@@ -196,9 +205,15 @@ export function QuizRunner({
         // first. Reloading lands on the result screen either way.
         setSaveMessage(result.message)
       }
+
+      if (isPractice && courseId) {
+        router.push(`/admin/courses/${courseId}/final-exam`)
+        return
+      }
+
       router.refresh()
     },
-    [attemptId, router]
+    [attemptId, courseId, isPractice, router]
   )
 
   /**
@@ -352,11 +367,31 @@ export function QuizRunner({
   // is nothing to gain from digging them out of the page.
   if (frozen) {
     return (
-      <QuizFrozen
-        attemptId={attemptId}
-        warningLimit={warningLimit}
-        language={language}
-      />
+      <div dir={dirFor(language)} lang={language}>
+        {isPractice && courseId && assessmentId ? (
+          <div className="border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-center sm:px-6">
+            <p className="text-[13px] font-semibold text-amber-900">
+              Dry run — nothing is saved for grades
+            </p>
+            <form action={discardPracticeAttempt} className="mt-1.5">
+              <input type="hidden" name="attempt_id" value={attemptId} />
+              <input type="hidden" name="assessment_id" value={assessmentId} />
+              <input type="hidden" name="course_id" value={courseId} />
+              <button
+                type="submit"
+                className="text-[12px] font-medium text-amber-800 underline decoration-amber-400 underline-offset-2 hover:text-amber-950"
+              >
+                Exit dry run
+              </button>
+            </form>
+          </div>
+        ) : null}
+        <QuizFrozen
+          attemptId={attemptId}
+          warningLimit={warningLimit}
+          language={language}
+        />
+      </div>
     )
   }
 
@@ -393,6 +428,27 @@ export function QuizRunner({
           router.refresh()
         }}
       />
+
+      {isPractice ? (
+        <div className="border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-center sm:px-6">
+          <p className="text-[13px] font-semibold text-amber-900">
+            Dry run — nothing is saved for grades
+          </p>
+          {courseId && assessmentId ? (
+            <form action={discardPracticeAttempt} className="mt-1.5">
+              <input type="hidden" name="attempt_id" value={attemptId} />
+              <input type="hidden" name="assessment_id" value={assessmentId} />
+              <input type="hidden" name="course_id" value={courseId} />
+              <button
+                type="submit"
+                className="text-[12px] font-medium text-amber-800 underline decoration-amber-400 underline-offset-2 hover:text-amber-950"
+              >
+                Exit dry run
+              </button>
+            </form>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* ------------------------------------------------------------ header */}
       <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">

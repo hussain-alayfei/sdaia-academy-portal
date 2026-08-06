@@ -4,6 +4,7 @@ import { CourseTabs } from '@/components/admin/course-tabs'
 import { Arabic, BackLink, Badge, ButtonLink } from '@/components/ui'
 import { canManageCourse, getCourseById, requireManager } from '@/lib/dal'
 import { toTitleCaseEnglish } from '@/lib/format'
+import { createClient } from '@/lib/supabase/server'
 
 export default async function CourseAdminLayout({
   children,
@@ -18,6 +19,19 @@ export default async function CourseAdminLayout({
 
   // canManageCourse reuses the profile already loaded above, so it is free.
   if (!course || !(await canManageCourse(course))) notFound()
+
+  const supabase = await createClient()
+  const { data: finals } = await supabase
+    .from('assessments')
+    .select('id, title, integrity_warning_limit, day:course_days(day_number)')
+    .eq('course_id', course.id)
+
+  const hasFinalExam = (finals ?? []).some(
+    (a) =>
+      a.title.toLowerCase().includes('final') ||
+      a.day?.day_number === 5 ||
+      a.integrity_warning_limit != null
+  )
 
   return (
     <>
@@ -59,7 +73,7 @@ export default async function CourseAdminLayout({
         </div>
       </header>
 
-      <CourseTabs courseId={course.id} />
+      <CourseTabs courseId={course.id} hasFinalExam={hasFinalExam} />
 
       <div className="pt-5">{children}</div>
     </>

@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 import { requireManager } from '@/lib/dal'
@@ -396,5 +397,9 @@ export async function resetAttempts(formData: FormData) {
   revalidatePath(`/admin/courses/${courseId}/assessments/${assessmentId}`)
   revalidatePath(`/admin/courses/${courseId}/assessments/${assessmentId}/results`)
   revalidatePath(`/admin/courses/${courseId}/students`)
+  revalidatePath(`/admin/courses/${courseId}/final-exam`)
   revalidateCourseContent(courseId)
+
+  const returnTo = String(formData.get('return_to') ?? '').trim()
+  if (returnTo) redirect(returnTo)
 }
