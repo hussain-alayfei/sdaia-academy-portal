@@ -110,33 +110,33 @@
       "section": 1,
       "day": 1,
       "format": "multiple_choice",
-      "difficulty": "medium",
-      "topic": "Structured output",
-      "stem": "An application needs the model to return a task title, owner, and due date so that the result can be processed by code. Which approach is most appropriate?",
+      "difficulty": "easy",
+      "topic": "Temperature",
+      "stem": "What does the temperature setting mainly control?",
       "options": {
-        "A": "Ask for a detailed paragraph and extract the fields manually.",
-        "B": "Increase the temperature to produce more varied responses.",
-        "C": "Require a structured schema and validate the returned data.",
-        "D": "Send a longer conversation history with every request."
+        "A": "How many documents are stored in the database",
+        "B": "How creative or predictable the model's response is",
+        "C": "How long the API key remains active",
+        "D": "How the application verifies user permissions"
       },
-      "correct": "C",
-      "rationale": "A structured schema gives the output a defined shape, and validation checks that the response is safe for application code to use. Free text is harder to process, higher temperature increases variation rather than structural reliability, and more history does not guarantee a valid structure."
+      "correct": "B",
+      "rationale": "Temperature controls how random or focused the model's next-token choices are: a low temperature favors the most likely, predictable tokens, and a high temperature allows more varied, creative output. It does not control document storage, key lifetime, or permission checks, which the application handles elsewhere."
     },
     {
       "section": 1,
       "day": 1,
       "format": "multiple_choice",
-      "difficulty": "medium",
-      "topic": "Production readiness",
-      "stem": "A notebook can summarize meeting notes, but it has no authentication, error handling, logging, or monitoring. Why is it not yet a production solution?",
+      "difficulty": "easy",
+      "topic": "Message roles",
+      "stem": "What is the main purpose of the system message?",
       "options": {
-        "A": "It does not use the largest available language model.",
-        "B": "It is missing the application and operational controls around the model.",
-        "C": "It needs to fine-tune the model before other users can access it.",
-        "D": "It must store all meeting notes inside the model’s context window."
+        "A": "To store the user's permanent data",
+        "B": "To define the model's main behavior",
+        "C": "To execute external tools",
+        "D": "To search the vector database"
       },
       "correct": "B",
-      "rationale": "A production solution includes authentication, business rules, error handling, logging, monitoring, security, and other controls around the model. Model size does not create production readiness, fine-tuning is not required for deployment, and long-term data should not be stored in the context window."
+      "rationale": "The system message sets the model's role, tone, and behavior for the whole conversation. It is not where user data is stored, it does not execute tools itself, and it does not search a vector database."
     },
     {
       "section": 1,
@@ -191,16 +191,16 @@
       "day": 2,
       "format": "multiple_choice",
       "difficulty": "medium",
-      "topic": "Metadata filtering",
-      "stem": "A RAG system retrieves an archived policy instead of the current approved version. What is the best first improvement?",
+      "topic": "Hybrid search",
+      "stem": "An employee searches for both an exact policy code and questions written in natural language. Which retrieval method is most appropriate?",
       "options": {
-        "A": "Increase the context-window size.",
-        "B": "Filter documents using version and status metadata.",
-        "C": "Increase the model’s temperature.",
-        "D": "Replace the retriever with an autonomous agent."
+        "A": "Keyword search only",
+        "B": "Vector search only",
+        "C": "Hybrid search",
+        "D": "Fine-tuning"
       },
-      "correct": "B",
-      "rationale": "Version, approval status, and date metadata allow the retriever to exclude archived documents. A larger context can include more wrong information, temperature does not control document versions, and an agent does not solve incorrect filtering by itself."
+      "correct": "C",
+      "rationale": "Hybrid search combines keyword matching, which is strong for exact codes and identifiers, with vector search, which is strong for natural-language meaning. Using only one method would miss the other kind of query, and fine-tuning does not address retrieval."
     },
     {
       "section": 1,
@@ -364,19 +364,19 @@
     },
     {
       "section": 1,
-      "day": 4,
+      "day": 2,
       "format": "multiple_choice",
       "difficulty": "hard",
-      "topic": "Circuit breaker",
-      "stem": "A model provider starts returning temporary errors to many users. Repeated requests are increasing the load. Which response is most appropriate?",
+      "topic": "RAG online flow",
+      "stem": "A RAG system has already indexed its documents. What is the correct flow after receiving a user question?",
       "options": {
-        "A": "Retry immediately without a limit and keep users waiting for the provider.",
-        "B": "Increase every request timeout and continue sending calls during the failure.",
-        "C": "Use limited backoff retries, then open a circuit breaker and return a clear fallback.",
-        "D": "Queue all failed requests and replay them together when the provider returns."
+        "A": "Generate answer → embed question → retrieve chunks → add citations",
+        "B": "Retrieve chunks → generate answer → embed question → rerank results",
+        "C": "Process question → retrieve and rerank chunks → assemble context → generate answer",
+        "D": "Assemble context → process question → generate answer → retrieve chunks"
       },
       "correct": "C",
-      "rationale": "The provider failure is temporary, but repeated calls are worsening the problem. Backoff retries, a circuit breaker, and a fallback address different stages of the failure. Unlimited immediate retries increase load, a longer timeout does not prevent repeated calls, and replaying all queued requests together can create another capacity spike."
+      "rationale": "At query time, the system processes the question, retrieves and reranks the relevant chunks, assembles them into context, and only then generates the answer. Generating before retrieving leaves the answer ungrounded in evidence, and assembling context before processing the question skips retrieval entirely."
     },
     {
       "section": 2,

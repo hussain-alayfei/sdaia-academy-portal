@@ -263,15 +263,18 @@ test('the blueprint from the approved review still holds', () => {
     return out
   }
 
-  // 15 easy, 10 medium, 5 hard.
+  // Revised 6 August 2026: Q4, Q5, Q9 and Q20 were swapped for Temperature,
+  // Message roles, Hybrid search, and RAG online flow. Day 1 lost its two
+  // medium questions to two easy ones, and Q20's topic moved from Day 4 to
+  // Day 2 (RAG online flow is Day 2 content, not production readiness).
+  // Originally 15 easy / 10 medium / 5 hard and Day 1=7 / 2=8 / 3=7 / 4=8.
   assert.deepEqual(count((q) => q.difficulty), {
-    easy: 15,
-    medium: 10,
+    easy: 17,
+    medium: 8,
     hard: 5,
   })
 
-  // Day 1 = 7, Day 2 = 8, Day 3 = 7, Day 4 = 8.
-  assert.deepEqual(count((q) => q.day), { 1: 7, 2: 8, 3: 7, 4: 8 })
+  assert.deepEqual(count((q) => q.day), { 1: 7, 2: 9, 3: 7, 4: 7 })
 
   // MCQ answers are balanced A = 6, B = 7, C = 6, D = 6.
   const mcqAnswers: Record<string, number> = {}
