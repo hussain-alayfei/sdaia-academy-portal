@@ -54,9 +54,9 @@ import {
  * 10 second grace countdown. Come back inside it and nothing is recorded. Only
  * staying outside after that first entry counts as a warning.
  *
- * iPhone Safari cannot fullscreen a non-video element, so on those devices
- * fullscreen is skipped entirely and its warning is never armed rather than
- * freezing a student who has no way to comply.
+ * Phones and small touch devices skip fullscreen entirely
+ * (`examSupportsFullscreen` in the runner) so mobile students are not stranded
+ * behind a gate they cannot keep. Desktop still uses the start gate + grace.
  *
  * Escape always exits fullscreen and browsers do not allow that to be
  * suppressed.

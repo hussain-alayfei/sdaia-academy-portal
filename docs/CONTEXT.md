@@ -198,12 +198,12 @@ legacy per-question zeroing. Full detail in
 [`ASSESSMENTS.md`](ASSESSMENTS.md#anti-cheat).
 
 Counted: leaving the page (`visibilitychange` → hidden), staying out of
-fullscreen past a **10 second grace**, and blocked copy/paste. **Not** counted:
-`window blur` (address bar, notifications, second monitors — too noisy), and
-right-click / double-click / selection / drag / **window resize**, which are
-blocked silently and never warn. Fullscreen is requested only when the browser
-supports it, because **iPhone Safari cannot fullscreen a non-video element** and
-would otherwise freeze a student who cannot comply.
+fullscreen past a **10 second grace** (desktop/laptop only), and blocked
+copy/paste. **Not** counted: `window blur` (address bar, notifications, second
+monitors — too noisy), and right-click / double-click / selection / drag /
+**window resize**, which are blocked silently and never warn. **Phones and
+tablets skip the fullscreen gate** (`examSupportsFullscreen`) so students can
+sit on mobile; leaving the browser/app still counts as a warning.
 
 At 5 warnings the attempt sets `frozen_at`: answering and submitting are refused
 in the RPCs, and **the clock pauses**. Unlock from the red banner on the

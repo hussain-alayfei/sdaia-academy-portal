@@ -346,7 +346,7 @@ export default async function QuizPage({
             {studentView
               ? 'The real student attempt records leaving the page, leaving fullscreen and copy or paste. Preview mode does not create integrity records.'
               : assessment.integrity_warning_limit !== null
-                ? `Leaving this page for another tab or app, leaving fullscreen, or trying to copy or paste is recorded as a warning. A large message explains every one. After ${assessment.integrity_warning_limit} warnings your exam freezes and only your instructor can reopen it — your clock pauses while you wait, so you lose no time.`
+                ? `Leaving this page for another tab or app, or trying to copy or paste, is recorded as a warning. On a computer, leaving fullscreen also counts after a short grace. After ${assessment.integrity_warning_limit} warnings your exam freezes and only your instructor can reopen it — your clock pauses while you wait, so you lose no time.`
                 : 'Switching tab or window, copying and pasting are recorded per question. A large warning explains each recorded event. Three events while you are on the same question make only that question worth zero points. The assessment continues, and your other questions are unaffected.'}
           </Rule>
             </ul>

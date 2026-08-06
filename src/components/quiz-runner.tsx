@@ -24,6 +24,7 @@ import {
   t,
   type ExamLanguage,
 } from '@/lib/exam-language'
+import { examSupportsFullscreen } from '@/lib/exam-device'
 import { formatClock } from '@/lib/format'
 import {
   buildExamPages,
@@ -217,23 +218,16 @@ export function QuizRunner({
   )
 
   /**
-   * Can this browser actually do fullscreen?
+   * Fullscreen gate on desktop/laptop only.
    *
-   * iPhone Safari cannot fullscreen a non-video element. Where the answer is no,
-   * the gate never appears and the fullscreen warning is never armed, so a
-   * student on such a device sits the exam windowed rather than being locked out
-   * of a rule they cannot satisfy.
-   *
-   * Entering fullscreen is *not* attempted here. `requestFullscreen` is refused
-   * outside a user gesture, and this component mounts after a form redirect with
-   * no gesture attached — an earlier version asked here and was silently
-   * ignored, which is why the exam opened windowed. `IntegrityGuard` puts a
-   * blocking gate over the paper instead, and its button supplies the gesture.
+   * Phones skip it (see `examSupportsFullscreen`). Entering fullscreen is never
+   * attempted on mount — `requestFullscreen` needs a user gesture, so
+   * `IntegrityGuard` owns the start button.
    */
-  const canFullscreen =
-    typeof document !== 'undefined' &&
-    Boolean(document.fullscreenEnabled) &&
-    typeof document.documentElement.requestFullscreen === 'function'
+  const [canFullscreen, setCanFullscreen] = useState(false)
+  useEffect(() => {
+    setCanFullscreen(examSupportsFullscreen())
+  }, [])
 
   /* Leaving fullscreen when the exam ends is courtesy, not policy. */
   useEffect(() => {

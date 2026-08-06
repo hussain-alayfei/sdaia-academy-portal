@@ -325,7 +325,7 @@ test('the student briefing states the rules that actually apply', () => {
   assert.ok(text.includes('30 questions'), 'briefing omits the question count')
   assert.ok(text.includes('50 minutes'), 'briefing omits the duration')
   assert.ok(text.includes('one attempt'), 'briefing omits the one-attempt rule')
-  assert.ok(text.includes('laptop'), 'briefing omits the laptop advice')
+  assert.ok(text.includes('phone'), 'briefing omits that phones are allowed')
   assert.ok(
     text.includes('not shown') || text.includes('released'),
     'briefing omits that the score is held back'
