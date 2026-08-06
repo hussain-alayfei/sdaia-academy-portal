@@ -11,10 +11,11 @@ import { canManageCourse, getCourseById } from '@/lib/dal'
 import {
   getAssessmentById,
   getAttemptsForAssessment,
-  getGradedCounts,
+  getCourseAttemptScores,
   getIntegrityEvents,
   getQuestionStats,
 } from '@/lib/quiz'
+import { resolveAttemptScore } from '@/lib/attempt-score'
 
 /** Rounded up, because "frozen for 0 minutes" reads as though nothing is wrong. */
 function minutesSince(iso: string | null): string {
@@ -41,12 +42,15 @@ export default async function ResultsPage({
   const course = await getCourseById(id)
   if (!course || !(await canManageCourse(course))) notFound()
 
-  const [assessment, attempts, events, stats, gradedCounts] = await Promise.all([
+  const [assessment, attempts, events, stats, tally] = await Promise.all([
     getAssessmentById(course.id, assessmentId),
     getAttemptsForAssessment(assessmentId),
     getIntegrityEvents(assessmentId),
     getQuestionStats(assessmentId),
-    getGradedCounts(assessmentId),
+    // Course-wide and aggregated in Postgres. The old per-assessment counter
+    // tallied one row per correct answer in JavaScript, which silently
+    // truncated at the API row cap on larger courses.
+    getCourseAttemptScores(course.id),
   ])
 
   if (!assessment) notFound()
@@ -67,14 +71,9 @@ export default async function ResultsPage({
     status: attempt.status,
     started_at: attempt.started_at,
     submitted_at: attempt.submitted_at,
-    // While results are withheld the attempt carries no `correct_count` — the
-    // student can read that column. The mark is rebuilt from the graded
-    // responses, which are manager-only once the attempt is over.
-    correct_count:
-      attempt.correct_count ??
-      (attempt.status === 'in_progress'
-        ? null
-        : (gradedCounts[attempt.id] ?? 0)),
+    // Shared with the Students matrix and the student detail page, so the same
+    // attempt can no longer read `0/30` here and `—` there.
+    correct_count: resolveAttemptScore(attempt, tally, attempt.id).correct,
     question_count: attempt.question_count,
     warning_count: attempt.warning_count,
     studentName: attempt.student?.full_name || '—',

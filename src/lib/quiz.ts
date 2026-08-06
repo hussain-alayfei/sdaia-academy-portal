@@ -3,6 +3,7 @@ import 'server-only'
 import { cache } from 'react'
 
 import { createClient } from '@/lib/supabase/server'
+import type { GradedTally } from '@/lib/attempt-score'
 import type {
   Assessment,
   AssessmentAttempt,
@@ -114,6 +115,37 @@ export const getAttemptsForAssessment = cache(
 )
 
 /**
+ * Per-attempt marks for a whole course, counted inside Postgres.
+ *
+ * Replaces two client-side counters that fetched one row per correct answer and
+ * tallied them in JavaScript. That approach quietly broke: on this course the
+ * course-wide query needed 1,073 rows against a 1,000-row API cap, so the
+ * overflow was dropped with no error and the Students matrix under-reported
+ * while the per-assessment Results page — comfortably under the cap — stayed
+ * right. Aggregating in the database returns one row per attempt instead of one
+ * per answer, so the cap is unreachable rather than merely far away.
+ *
+ * `manager_attempt_scores` is manager-gated, so this returns an empty tally to
+ * a student rather than anyone's marks.
+ */
+export const getCourseAttemptScores = cache(
+  async (courseId: string): Promise<GradedTally> => {
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc('manager_attempt_scores', {
+      p_course: courseId,
+    })
+
+    if (error || !data) return {}
+
+    const tally: GradedTally = {}
+    for (const row of data) {
+      tally[row.attempt_id] = { correct: row.correct, answered: row.answered }
+    }
+    return tally
+  }
+)
+
+/**
  * Correct answers per attempt, counted from the graded response rows.
  *
  * While an assessment's results are hidden, `submit_attempt` deliberately
@@ -122,6 +154,8 @@ export const getAttemptsForAssessment = cache(
  * rows manager-only once the attempt is over, so the instructor's view of the
  * marks is rebuilt from there instead. Once results are released the stored
  * `correct_count` is backfilled and this becomes a no-op fallback.
+ *
+ * @deprecated Prefer {@link getCourseAttemptScores}, which cannot be truncated.
  */
 export const getGradedCounts = cache(
   async (assessmentId: string): Promise<Record<string, number>> => {
@@ -434,12 +468,36 @@ export type ReviewQuestion = {
 }
 
 /**
+ * One attempt with its student, for an instructor inspecting a paper.
+ *
+ * Scoped entirely by RLS: the attempt policy opens for the student who owns it
+ * and for anyone managing the course, so this returns null rather than another
+ * course's work. Pair it with {@link getAttemptReview} to see the answers.
+ */
+export const getAttemptById = cache(
+  async (attemptId: string): Promise<AttemptWithStudent | null> => {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from('assessment_attempts')
+      .select('*, student:profiles(id, full_name, email)')
+      .eq('id', attemptId)
+      .maybeSingle()
+
+    return data ?? null
+  }
+)
+
+/**
  * The review screen, available only once the attempt is submitted.
  *
  * The answer key read here succeeds purely because of RLS: the policy on
  * `assessment_answer_keys` opens for a student whose attempt has a
  * `submitted_at`. Calling this mid-attempt returns null keys rather than
  * leaking, but the caller should not be calling it at all.
+ *
+ * An instructor reads it through a different door in the same policy — they
+ * manage the course — so withholding results from students never hides a paper
+ * from the person marking it.
  */
 export async function getAttemptReview(
   attempt: AssessmentAttempt

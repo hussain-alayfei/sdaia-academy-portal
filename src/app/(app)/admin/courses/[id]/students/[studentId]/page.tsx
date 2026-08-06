@@ -18,32 +18,37 @@ import { getAssessments, getCourseDays, getRoster } from '@/lib/queries'
 import {
   ATTEMPT_STATUS_LABELS,
   getCourseAttempts,
-  getCourseGradedCounts,
+  getCourseAttemptScores,
 } from '@/lib/quiz'
+import {
+  isFinishedAttempt,
+  resolveAttemptScore,
+  type GradedTally,
+} from '@/lib/attempt-score'
 import type { AssessmentAttempt } from '@/lib/types'
 
 function isFinished(attempt: AssessmentAttempt | undefined) {
-  return Boolean(attempt && attempt.status !== 'in_progress')
+  return Boolean(attempt && isFinishedAttempt(attempt.status))
 }
 
+/**
+ * Both of these now defer to the shared resolver in `attempt-score.ts`. They
+ * used to be local copies that disagreed with the Results page: this file
+ * returned null where that one returned 0, so the same finished attempt read as
+ * an em dash here and `0/30` there.
+ */
 function resolvedCorrect(
   attempt: AssessmentAttempt | undefined,
-  gradedCounts: Record<string, number>
+  tally: GradedTally
 ) {
-  if (!attempt) return null
-  if (attempt.correct_count != null) return attempt.correct_count
-  if (!isFinished(attempt)) return null
-  return gradedCounts[attempt.id] ?? null
+  return resolveAttemptScore(attempt, tally, attempt?.id).correct
 }
 
 function scorePercent(
   attempt: AssessmentAttempt | undefined,
-  gradedCounts: Record<string, number>
+  tally: GradedTally
 ) {
-  if (!attempt?.question_count) return null
-  const correct = resolvedCorrect(attempt, gradedCounts)
-  if (correct === null) return null
-  return Math.round((correct / attempt.question_count) * 100)
+  return resolveAttemptScore(attempt, tally, attempt?.id).percent
 }
 
 function elapsedLabel(attempt: AssessmentAttempt) {
@@ -85,7 +90,7 @@ export default async function StudentDetailPage({
       getAssessments(course.id),
       getCourseDays(course.id),
       getCourseAttempts(course.id),
-      getCourseGradedCounts(course.id),
+      getCourseAttemptScores(course.id),
     ])
 
   const student = roster.find((row) => row.id === studentId)
@@ -110,7 +115,17 @@ export default async function StudentDetailPage({
   )
 
   const finished = ownAttempts.filter((attempt) => isFinished(attempt))
+
+  // Excludes the Final, matching the Students matrix. These two averages used
+  // to disagree — the matrix left the Final out and this card put it in — so
+  // the same student showed two different percentages on two screens.
+  const finalAssessmentIds = new Set(
+    rawAssessments
+      .filter((a) => a.title.toLowerCase().includes('final'))
+      .map((a) => a.id)
+  )
   const scored = finished
+    .filter((attempt) => !finalAssessmentIds.has(attempt.assessment_id))
     .map((attempt) => scorePercent(attempt, gradedCounts))
     .filter((score): score is number => score !== null)
   const average =
@@ -178,7 +193,7 @@ export default async function StudentDetailPage({
                 detail="Assessments finished"
               />
               <SummaryCard
-                label="Average score"
+                label="Average score (excluding Final)"
                 value={average === null ? '—' : `${average}%`}
                 detail={
                   scored.length === 0
@@ -288,12 +303,25 @@ export default async function StudentDetailPage({
                               {attempt ? attempt.warning_count : '—'}
                             </td>
                             <td className="px-4 py-3.5 text-right">
-                              <Link
-                                href={`/admin/courses/${course.id}/assessments/${assessment.id}/results`}
-                                className="text-[12px] font-medium text-teal-800 hover:underline"
-                              >
-                                Class results
-                              </Link>
+                              <div className="flex flex-col items-end gap-1">
+                                {/* The drill-down that did not exist before:
+                                    this student's actual answers, not the
+                                    class aggregate. */}
+                                {attempt ? (
+                                  <Link
+                                    href={`/admin/courses/${course.id}/students/${student.id}/attempts/${attempt.id}`}
+                                    className="text-[12px] font-semibold text-teal-800 hover:underline"
+                                  >
+                                    View answers
+                                  </Link>
+                                ) : null}
+                                <Link
+                                  href={`/admin/courses/${course.id}/assessments/${assessment.id}/results`}
+                                  className="text-[12px] font-medium text-ink-soft hover:underline"
+                                >
+                                  Class results
+                                </Link>
+                              </div>
                             </td>
                           </tr>
                         )

@@ -215,25 +215,18 @@ export async function getFinalExamBoard(input: {
       )
       .eq('assessment_id', input.assessmentId)
       .order('created_at', { ascending: false }),
-    supabase
-      .from('assessment_responses')
-      .select(
-        'attempt_id, attempt:assessment_attempts!inner(assessment_id, is_practice, status)'
-      )
-      .eq('attempt.assessment_id', input.assessmentId)
-      .eq('attempt.is_practice', false)
-      .neq('attempt.status', 'in_progress')
-      .eq('is_correct', true),
+    // Aggregated in Postgres. This used to select one row per correct answer
+    // and count them here, which silently truncated at the API row cap once a
+    // course had enough marked answers — the board then under-reported while
+    // the Results page, fetching fewer rows, stayed correct.
+    supabase.rpc('manager_attempt_scores', { p_course: input.courseId }),
   ])
 
   if (!assessment) throw new Error('Assessment not found')
 
   const gradedByAttempt = new Map<string, number>()
   for (const row of gradedRows ?? []) {
-    gradedByAttempt.set(
-      row.attempt_id,
-      (gradedByAttempt.get(row.attempt_id) ?? 0) + 1
-    )
+    gradedByAttempt.set(row.attempt_id, row.correct)
   }
 
   const attemptByStudent = new Map(

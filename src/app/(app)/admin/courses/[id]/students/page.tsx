@@ -10,7 +10,12 @@ import {
 import { EmptyState } from '@/components/ui'
 import { canManageCourse, getCourseById } from '@/lib/dal'
 import { getAssessments, getCourseDays, getRoster } from '@/lib/queries'
-import { getCourseAttempts, getCourseGradedCounts } from '@/lib/quiz'
+import { getCourseAttempts, getCourseAttemptScores } from '@/lib/quiz'
+import {
+  isFinishedAttempt,
+  resolveAttemptScore,
+  type GradedTally,
+} from '@/lib/attempt-score'
 import type { Assessment, AssessmentAttempt } from '@/lib/types'
 
 function isFinalAssessment(assessment: Assessment) {
@@ -18,28 +23,26 @@ function isFinalAssessment(assessment: Assessment) {
 }
 
 function isFinished(attempt: AssessmentAttempt | undefined) {
-  return Boolean(attempt && attempt.status !== 'in_progress')
+  return Boolean(attempt && isFinishedAttempt(attempt.status))
 }
 
-/** Prefer stored correct_count; fall back to graded responses while withheld. */
+/**
+ * Score resolution lives in `attempt-score.ts` so this matrix, the student
+ * detail page and the assessment Results page cannot drift apart again — they
+ * previously disagreed on whether an unmarked finished attempt was `0` or `—`.
+ */
 function resolvedCorrect(
   attempt: AssessmentAttempt | undefined,
-  gradedCounts: Record<string, number>
+  tally: GradedTally
 ) {
-  if (!attempt) return null
-  if (attempt.correct_count != null) return attempt.correct_count
-  if (!isFinished(attempt)) return null
-  return gradedCounts[attempt.id] ?? null
+  return resolveAttemptScore(attempt, tally, attempt?.id).correct
 }
 
 function scorePercent(
   attempt: AssessmentAttempt | undefined,
-  gradedCounts: Record<string, number>
+  tally: GradedTally
 ) {
-  if (!attempt?.question_count) return null
-  const correct = resolvedCorrect(attempt, gradedCounts)
-  if (correct === null) return null
-  return Math.round((correct / attempt.question_count) * 100)
+  return resolveAttemptScore(attempt, tally, attempt?.id).percent
 }
 
 function shortLabel(assessment: Assessment, dayNumber: number | null) {
@@ -52,7 +55,7 @@ function shortLabel(assessment: Assessment, dayNumber: number | null) {
 
 function toCellScore(
   attempt: AssessmentAttempt | undefined,
-  gradedCounts: Record<string, number>
+  gradedCounts: GradedTally
 ): CellScore {
   if (!attempt) {
     return { status: 'none', percent: null, correct: null, total: null }
@@ -80,7 +83,7 @@ export default async function StudentsPage({
       getAssessments(course.id),
       getCourseDays(course.id),
       getCourseAttempts(course.id),
-      getCourseGradedCounts(course.id),
+      getCourseAttemptScores(course.id),
     ])
 
   const dayNumbers = new Map(days.map((day) => [day.id, day.day_number]))

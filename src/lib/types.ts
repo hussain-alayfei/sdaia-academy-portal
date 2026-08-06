@@ -1005,6 +1005,10 @@ export type Database = {
         }
         Returns: string
       }
+      manager_attempt_scores: {
+        Args: { p_course: string }
+        Returns: { attempt_id: string; correct: number; answered: number }[]
+      }
       save_response: {
         Args: {
           p_attempt: string
