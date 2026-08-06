@@ -192,6 +192,10 @@ unlock the whole class.
 hidden**, 50 minutes, 30 questions, 3-warning freeze. Students cannot start until
 you press **Unlock paper for class** (or grant an allowlist seat).
 
+**Marks visibility:** The admin **Students** tab is instructor-only. Students
+never see Final (or any withheld paper) marks until **Release marks**. Instructors
+still see graded scores on Students / Final exam board before release.
+
 **Anti-cheat: 3 warnings, then freeze (final exam only).**
 `assessments.integrity_warning_limit = 3`. Day quizzes leave it null and keep the
 legacy per-question zeroing. Full detail in

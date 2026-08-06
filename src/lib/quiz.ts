@@ -143,6 +143,34 @@ export const getGradedCounts = cache(
   }
 )
 
+/**
+ * Correct counts for every finished attempt in a course, keyed by attempt id.
+ *
+ * Used by the instructor Students matrix so Final (and any withheld paper)
+ * still shows a mark before `results_released` backfills `correct_count`.
+ * Students never call this — the Students tab is manager-only.
+ */
+export const getCourseGradedCounts = cache(
+  async (courseId: string): Promise<Record<string, number>> => {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from('assessment_responses')
+      .select(
+        'attempt_id, attempt:assessment_attempts!inner(course_id, is_practice, status)'
+      )
+      .eq('attempt.course_id', courseId)
+      .eq('attempt.is_practice', false)
+      .neq('attempt.status', 'in_progress')
+      .eq('is_correct', true)
+
+    const counts: Record<string, number> = {}
+    for (const row of data ?? []) {
+      counts[row.attempt_id] = (counts[row.attempt_id] ?? 0) + 1
+    }
+    return counts
+  }
+)
+
 /** Every attempt across a whole course, for the roster grid. */
 export const getCourseAttempts = cache(
   async (courseId: string): Promise<AssessmentAttempt[]> => {

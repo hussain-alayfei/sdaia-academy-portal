@@ -10,7 +10,7 @@ import {
 import { EmptyState } from '@/components/ui'
 import { canManageCourse, getCourseById } from '@/lib/dal'
 import { getAssessments, getCourseDays, getRoster } from '@/lib/queries'
-import { getCourseAttempts } from '@/lib/quiz'
+import { getCourseAttempts, getCourseGradedCounts } from '@/lib/quiz'
 import type { Assessment, AssessmentAttempt } from '@/lib/types'
 
 function isFinalAssessment(assessment: Assessment) {
@@ -21,9 +21,25 @@ function isFinished(attempt: AssessmentAttempt | undefined) {
   return Boolean(attempt && attempt.status !== 'in_progress')
 }
 
-function scorePercent(attempt: AssessmentAttempt | undefined) {
-  if (!attempt?.question_count || attempt.correct_count === null) return null
-  return Math.round((attempt.correct_count / attempt.question_count) * 100)
+/** Prefer stored correct_count; fall back to graded responses while withheld. */
+function resolvedCorrect(
+  attempt: AssessmentAttempt | undefined,
+  gradedCounts: Record<string, number>
+) {
+  if (!attempt) return null
+  if (attempt.correct_count != null) return attempt.correct_count
+  if (!isFinished(attempt)) return null
+  return gradedCounts[attempt.id] ?? null
+}
+
+function scorePercent(
+  attempt: AssessmentAttempt | undefined,
+  gradedCounts: Record<string, number>
+) {
+  if (!attempt?.question_count) return null
+  const correct = resolvedCorrect(attempt, gradedCounts)
+  if (correct === null) return null
+  return Math.round((correct / attempt.question_count) * 100)
 }
 
 function shortLabel(assessment: Assessment, dayNumber: number | null) {
@@ -34,14 +50,17 @@ function shortLabel(assessment: Assessment, dayNumber: number | null) {
   return assessment.title.slice(0, 10)
 }
 
-function toCellScore(attempt: AssessmentAttempt | undefined): CellScore {
+function toCellScore(
+  attempt: AssessmentAttempt | undefined,
+  gradedCounts: Record<string, number>
+): CellScore {
   if (!attempt) {
     return { status: 'none', percent: null, correct: null, total: null }
   }
   return {
     status: attempt.status,
-    percent: scorePercent(attempt),
-    correct: attempt.correct_count,
+    percent: scorePercent(attempt, gradedCounts),
+    correct: resolvedCorrect(attempt, gradedCounts),
     total: attempt.question_count,
   }
 }
@@ -55,12 +74,14 @@ export default async function StudentsPage({
   const course = await getCourseById(id)
   if (!course || !(await canManageCourse(course))) notFound()
 
-  const [roster, rawAssessments, days, attempts] = await Promise.all([
-    getRoster(course.id),
-    getAssessments(course.id),
-    getCourseDays(course.id),
-    getCourseAttempts(course.id),
-  ])
+  const [roster, rawAssessments, days, attempts, gradedCounts] =
+    await Promise.all([
+      getRoster(course.id),
+      getAssessments(course.id),
+      getCourseDays(course.id),
+      getCourseAttempts(course.id),
+      getCourseGradedCounts(course.id),
+    ])
 
   const dayNumbers = new Map(days.map((day) => [day.id, day.day_number]))
   const assessments: AssessmentCol[] = rawAssessments
@@ -101,14 +122,14 @@ export default async function StudentsPage({
     const own = byStudent.get(student.id) ?? new Map()
     const scores: Record<string, CellScore> = {}
     for (const assessment of assessments) {
-      scores[assessment.id] = toCellScore(own.get(assessment.id))
+      scores[assessment.id] = toCellScore(own.get(assessment.id), gradedCounts)
     }
 
     const avgPercents: number[] = []
     for (const assessment of regularAssessments) {
       const attempt = own.get(assessment.id)
       if (!isFinished(attempt)) continue
-      const pct = scorePercent(attempt)
+      const pct = scorePercent(attempt, gradedCounts)
       if (pct !== null) avgPercents.push(pct)
     }
 
@@ -127,7 +148,7 @@ export default async function StudentsPage({
       ? own.get(finalAssessment.id)
       : undefined
     const finalPercent = isFinished(finalAttempt)
-      ? scorePercent(finalAttempt)
+      ? scorePercent(finalAttempt, gradedCounts)
       : null
 
     return {
@@ -151,7 +172,7 @@ export default async function StudentsPage({
             ? `${roster.length} enrolled · ${assessments.length} assessments`
             : undefined
         }
-        description="Avg excludes Final. Sort, search, or export the roster."
+        description="Instructor-only. Students cannot see marks until you release them. Avg excludes Final."
       />
 
       {roster.length === 0 ? (

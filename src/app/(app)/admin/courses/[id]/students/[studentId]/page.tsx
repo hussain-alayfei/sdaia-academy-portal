@@ -15,16 +15,35 @@ import {
 import { canManageCourse, getCourseById } from '@/lib/dal'
 import { ASSESSMENT_LABELS, formatDate } from '@/lib/format'
 import { getAssessments, getCourseDays, getRoster } from '@/lib/queries'
-import { ATTEMPT_STATUS_LABELS, getCourseAttempts } from '@/lib/quiz'
+import {
+  ATTEMPT_STATUS_LABELS,
+  getCourseAttempts,
+  getCourseGradedCounts,
+} from '@/lib/quiz'
 import type { AssessmentAttempt } from '@/lib/types'
 
 function isFinished(attempt: AssessmentAttempt | undefined) {
   return Boolean(attempt && attempt.status !== 'in_progress')
 }
 
-function scorePercent(attempt: AssessmentAttempt | undefined) {
-  if (!attempt?.question_count || attempt.correct_count === null) return null
-  return Math.round((attempt.correct_count / attempt.question_count) * 100)
+function resolvedCorrect(
+  attempt: AssessmentAttempt | undefined,
+  gradedCounts: Record<string, number>
+) {
+  if (!attempt) return null
+  if (attempt.correct_count != null) return attempt.correct_count
+  if (!isFinished(attempt)) return null
+  return gradedCounts[attempt.id] ?? null
+}
+
+function scorePercent(
+  attempt: AssessmentAttempt | undefined,
+  gradedCounts: Record<string, number>
+) {
+  if (!attempt?.question_count) return null
+  const correct = resolvedCorrect(attempt, gradedCounts)
+  if (correct === null) return null
+  return Math.round((correct / attempt.question_count) * 100)
 }
 
 function elapsedLabel(attempt: AssessmentAttempt) {
@@ -60,12 +79,14 @@ export default async function StudentDetailPage({
   const course = await getCourseById(id)
   if (!course || !(await canManageCourse(course))) notFound()
 
-  const [roster, rawAssessments, days, attempts] = await Promise.all([
-    getRoster(course.id),
-    getAssessments(course.id),
-    getCourseDays(course.id),
-    getCourseAttempts(course.id),
-  ])
+  const [roster, rawAssessments, days, attempts, gradedCounts] =
+    await Promise.all([
+      getRoster(course.id),
+      getAssessments(course.id),
+      getCourseDays(course.id),
+      getCourseAttempts(course.id),
+      getCourseGradedCounts(course.id),
+    ])
 
   const student = roster.find((row) => row.id === studentId)
   if (!student) notFound()
@@ -90,7 +111,7 @@ export default async function StudentDetailPage({
 
   const finished = ownAttempts.filter((attempt) => isFinished(attempt))
   const scored = finished
-    .map(scorePercent)
+    .map((attempt) => scorePercent(attempt, gradedCounts))
     .filter((score): score is number => score !== null)
   const average =
     scored.length > 0
@@ -210,7 +231,8 @@ export default async function StudentDetailPage({
                     <tbody className="divide-y divide-line">
                       {assessments.map((assessment) => {
                         const attempt = attemptByAssessment.get(assessment.id)
-                        const percent = scorePercent(attempt)
+                        const percent = scorePercent(attempt, gradedCounts)
+                        const correct = resolvedCorrect(attempt, gradedCounts)
                         const elapsed = attempt ? elapsedLabel(attempt) : null
                         const status = attempt
                           ? ATTEMPT_STATUS_LABELS[attempt.status]
@@ -243,7 +265,8 @@ export default async function StudentDetailPage({
                             <td className="px-4 py-3.5">
                               {percent === null ||
                               !attempt ||
-                              !isFinished(attempt) ? (
+                              !isFinished(attempt) ||
+                              correct === null ? (
                                 <span className="text-[13px] text-ink-faint">
                                   —
                                 </span>
@@ -253,8 +276,7 @@ export default async function StudentDetailPage({
                                     {percent}%
                                   </p>
                                   <p className="text-[12px] text-ink-faint">
-                                    {attempt.correct_count}/
-                                    {attempt.question_count} correct
+                                    {correct}/{attempt.question_count} correct
                                   </p>
                                 </div>
                               )}

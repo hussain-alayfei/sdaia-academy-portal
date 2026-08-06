@@ -186,6 +186,7 @@ export async function getFinalExamBoard(input: {
     { data: enrollments },
     { data: attempts },
     { data: grants },
+    { data: gradedRows },
   ] = await Promise.all([
     supabase
       .from('assessments')
@@ -214,9 +215,26 @@ export async function getFinalExamBoard(input: {
       )
       .eq('assessment_id', input.assessmentId)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('assessment_responses')
+      .select(
+        'attempt_id, attempt:assessment_attempts!inner(assessment_id, is_practice, status)'
+      )
+      .eq('attempt.assessment_id', input.assessmentId)
+      .eq('attempt.is_practice', false)
+      .neq('attempt.status', 'in_progress')
+      .eq('is_correct', true),
   ])
 
   if (!assessment) throw new Error('Assessment not found')
+
+  const gradedByAttempt = new Map<string, number>()
+  for (const row of gradedRows ?? []) {
+    gradedByAttempt.set(
+      row.attempt_id,
+      (gradedByAttempt.get(row.attempt_id) ?? 0) + 1
+    )
+  }
 
   const attemptByStudent = new Map(
     (attempts ?? []).map((a) => [a.student_id, a])
@@ -238,6 +256,12 @@ export async function getFinalExamBoard(input: {
       } else status = 'submitted'
     }
 
+    const instructorCorrect =
+      attempt?.correct_count ??
+      (attempt && status === 'submitted'
+        ? (gradedByAttempt.get(attempt.id) ?? null)
+        : null)
+
     return {
       studentId: row.student_id,
       fullName: row.student?.full_name ?? 'Student',
@@ -247,7 +271,7 @@ export async function getFinalExamBoard(input: {
       warningCount: attempt?.warning_count ?? 0,
       startedAt: attempt?.started_at ?? null,
       submittedAt: attempt?.submitted_at ?? null,
-      correctCount: attempt?.correct_count ?? null,
+      correctCount: instructorCorrect,
       questionCount: attempt?.question_count ?? null,
     }
   })
